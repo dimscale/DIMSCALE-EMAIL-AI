@@ -1,6 +1,6 @@
 # F-001: Task pane shell and active message context
 
-- **Status:** Approved (2026-10-22)
+- **Status:** Done (2026-10-22)
 - **Tier:** Active item only. No Graph, no AI, no backend.
 - **Depends on:** ADR-0001 approved.
 - **Plan:** [docs/plans/F-001-active-message-context.md](../plans/F-001-active-message-context.md)

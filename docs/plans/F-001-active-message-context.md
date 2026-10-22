@@ -1,6 +1,6 @@
 # Plan F-001: Task pane shell and active message context
 
-- **Spec:** [F-001](../specs/F-001-active-message-context.md). **Status:** In progress.
+- **Spec:** [F-001](../specs/F-001-active-message-context.md). **Status:** Done.
 
 | # | Step | ACs | Agent |
 |---|---|---|---|
@@ -39,4 +39,11 @@
   - `bt:Sets DefaultMinVersion="1.3"` (needed for add-in commands);
   - unused devDependencies left by the generator;
   - an empty "From:" when the sender has neither name nor address.
-- **Step 7 (live sideload):** NOT DONE. It needs the user: run `npm start`, accept the dev certificate, sign in to M365, then open a message → Apps → DIMSCALE Mail AI. Run the QA manual tests 1 to 9.
+- **Step 7 (live sideload), 2026-10-22:** classic Outlook on Windows, M365 account, sideloaded with `npm start` (package registered, dev server on `localhost:3000`). The user opened a received message (a Microsoft Teams notification email) and the ribbon button opened the pane. Results:
+  - **AC-3 PASS (live):** subject and sender name and address match the message. The date matches Outlook's received time to the minute.
+  - **AC-4 and AC-8, partly live:** the body is shown as plain text, and links appear as literal text, not HTML.
+
+  Not checked live (they remain covered by mocked tests only):
+  - the truncation marker and the length line (the screenshot didn't reach the bottom);
+  - the empty-body, no-item and error states;
+  - new Outlook, Outlook on the web and Mac.

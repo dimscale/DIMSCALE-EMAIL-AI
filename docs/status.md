@@ -4,15 +4,15 @@ _Last updated: 2026-10-22_
 
 ## Current state
 - Milestone 0 (SDD setup) is done: the rules, agents, architecture, security, ADRs, test strategy and the F-001 spec and plan are written.
-- F-001 is implemented, QA'd and reviewed (31 tests, all checks green). The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
+- F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
 
 ## Next step
-The user does the live sideload of F-001 (plan step 7). Then close F-001 and decide D3 and D4 to unblock F-002.
+Merge the PRs (`sdd/setup`, then F-001). Decide D3 and D4 to unblock F-002 (authenticated AI backend).
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
 |---|---|---|---|---|
-| F-001 | Task pane shell and active message context | Active item | ADR-0001 | Awaiting live sideload |
+| F-001 | Task pane shell and active message context | Active item | ADR-0001 | Done (live-tested in classic Outlook on Windows) |
 | F-002 | Authenticated AI backend skeleton (token validation, a health operation, no OpenAI yet) | Backend | ADR-0002, ADR-0003 | Not started |
 | F-003 | Summarize the open message | Active item + AI | F-001, F-002 | Not started |
 | F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003 | Not started |
