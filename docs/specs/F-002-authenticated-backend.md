@@ -2,7 +2,7 @@
 
 - **Status:** Approved (2026-10-22)
 - **Tier:** Backend + user authentication. No Graph scope, no email content, no OpenAI.
-- **Depends on:** F-001 (Done), ADR-0002 (Proposed, must be accepted before implementation), ADR-0003 (Accepted), decision D4 (Entra tenant and app registration).
+- **Depends on:** F-001 (Done), ADR-0002 (Accepted), ADR-0003 (Accepted), decision D4 (app registration by the tenant admin; needed for the live steps only).
 - **Plan:** [docs/plans/F-002-authenticated-backend.md](../plans/F-002-authenticated-backend.md)
 
 ## Goal

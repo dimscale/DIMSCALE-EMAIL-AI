@@ -3,13 +3,21 @@
 ## Authentication and authorization
 - **Users**: Microsoft Entra ID through MSAL.js nested app authentication (NAA), as proposed in [ADR-0002](../decisions/0002-auth-nested-app-auth.md). App registration type SPA, with redirect `brk-multihub://<add-in-origin>`. Check `Office.context.requirements.isSetSupported("NestedAppAuth", "1.1")` and show a clear "unsupported client" state when it returns false.
 - **Graph**: delegated scopes only, requested incrementally per feature. `Mail.Send` is never requested. No application (app-only) permissions.
-- **AI backend**: every request carries an Entra ID access token for the add-in's own API scope. The backend validates the signature (JWKS), issuer (the allowed tenant), audience and expiry, and rejects everything else. Without this check the backend would be an open, paid OpenAI proxy.
+- **AI backend** ([F-002](../specs/F-002-authenticated-backend.md)): without token validation the backend would be an open, paid OpenAI proxy, so every request is authenticated by the function itself.
+  - **Flow**: task pane → MSAL.js NAA → Entra access token for `api://<client-id>/access_as_user` (scopes `access_as_user` and `profile`, no Graph scope) → `Authorization: Bearer` on a `fetch` to the Supabase Edge Function. One single-tenant app registration is both SPA client and API, with `requestedAccessTokenVersion` = 2.
+  - **Validation (in the function, before any other logic)**: signature against the tenant's v2.0 JWKS (selected by `kid`, remote key set with cache and refetch on unknown `kid`); `alg` RS256 only; `iss` exactly `https://login.microsoftonline.com/<tenant-id>/v2.0`; `ver` = `2.0`; `aud` = the client ID; `azp` = the client ID; `scp` contains `access_as_user`; `exp`/`nbf` with 60 s clock tolerance. Anything else gets 401.
+  - **`verify_jwt = false`** for the function (`supabase/config.toml`): Supabase's platform check is for Supabase-issued JWTs and keys, not Entra tokens. With it off anyone can invoke the function, so the handler's own validation is the only gate.
+  - **CORS**: exact allow-list from `ALLOWED_ORIGINS`, never `*`. `Vary: Origin`, allowed header `authorization`, methods `GET, OPTIONS`. Non-allowed origins get no `Access-Control-Allow-Origin`.
+  - **Responses and logs**: success returns only `{"ok":true,"name":<name or null>}`. Failure returns a generic 401 that does not say which check failed. Logs hold request id, status, a fixed reason code (for example `aud_mismatch`) and duration, never tokens, claims or the name.
+  - **Who can sign in (F-002/AC-21)**: access is limited to one DIMSCALE Entra group through the enterprise app's **Assignment required = Yes** with only that group assigned (needs Entra ID P1 or P2). Users outside it get no token. This is enforced by Entra, not by function code. Source: https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal
+  - **Data**: F-002 sends no email content. Supabase receives only the access token, which carries user identifiers (`oid`, `tid`, `name`, `preferred_username`), so it is a processor of identity data (confirm project region for GDPR, decision D5).
 - **Tokens**: MSAL manages its own cache. Our code never logs tokens, never sends Graph tokens to the backend, and never stores tokens itself.
 
 ## Secrets
 - The OpenAI API key lives only in the backend secret store (for example Supabase function secrets).
 - Nothing secret goes in the frontend bundle, the manifest, browser storage or git. `.env*` files are git-ignored. A code reviewer runs a secret scan on every review.
-- The Entra client ID and tenant ID are not secrets, but they are configured per environment.
+- **Not secret (F-002)**: Entra client ID, tenant ID, API scope, function URL, Supabase project ref and `ALLOWED_ORIGINS`. They may be committed or set with `supabase secrets set` (Supabase's env mechanism), and are configured per environment. The Supabase publishable key is browser-safe and not used.
+- **Secret**: the Supabase CLI access token (developer machine only), the database password and secret/service-role keys (unused in F-002), and later the OpenAI key. No client secret or certificate exists on the app registration. `supabase/functions/.env` is git-ignored.
 
 ## Email content handling
 - **Untrusted input**: email subject and body are data. The backend places them in a clearly delimited user message, and the system prompt states that the content must not be followed as instructions.

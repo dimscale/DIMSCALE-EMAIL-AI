@@ -7,20 +7,23 @@ _Historical. For the current state see [status](../status.md)._
 - Local toolchain: Node 24.22.0, npm 11.19.1. pnpm and the GitHub CLI are not installed.
 - Note: the parent folder `C:\Users\thiago.santos` is itself a git repo (branch `master`). This project has its own `.git`, so it is unaffected, but don't run git commands from the home folder.
 
-## Target architecture (proposed)
+## Target architecture
 
 ```
  Outlook (web / new Windows / classic Windows / Mac)
  └─ Task pane (React + TypeScript, Office.js)            ← served over HTTPS
       ├─ Office.js: read the active item, open the reply form   (no Graph, ReadItem)
       ├─ MSAL.js with nested app auth (NAA) ─► Microsoft Graph  (only for mailbox-tier features)
-      └─ fetch + Entra ID token ─► AI backend (proposed: Supabase Edge Function)
-                                     ├─ validates the token (issuer, audience, expiry)
-                                     ├─ minimizes and delimits the email text
-                                     └─ OpenAI API (key held in the backend secret store)
+      └─ MSAL.js NAA ─► Entra token for api://<client-id>/access_as_user
+           └─ fetch + Bearer token ─► Supabase Edge Function (verify_jwt = false)
+                                     ├─ F-002 (`whoami`): validates the token itself (JWKS, issuer, audience, azp, scp, expiry), returns the user's name
+                                     ├─ later (F-003+): minimizes and delimits the email text
+                                     └─ later: OpenAI API (key held in the Supabase secret store)
 ```
 
-Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md). ADR-0001 and ADR-0003 are Accepted. ADR-0002 is Proposed.
+Sign-in is limited to one DIMSCALE Entra group (enterprise app, Assignment required). Details: [security](security.md#authentication-and-authorization).
+
+Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md). All three are Accepted (ADR-0003: Supabase Edge Functions). Feature: [F-002](../specs/F-002-authenticated-backend.md).
 
 ## Capability boundaries
 
@@ -42,5 +45,5 @@ Sources:
 
 ## Boundaries and responsibilities
 - **Task pane**: UI and Office.js calls. Holds no secrets. Renders all email and AI text as plain text.
-- **AI backend**: the only component holding the OpenAI key. Stateless. Stores no email content. Its logs contain metadata only (request id, latency, status).
+- **AI backend** (Supabase Edge Function): authenticates every request itself, since `verify_jwt = false`. The only component that will hold the OpenAI key (not used in F-002). Stateless. Stores no email content, and F-002 receives none. Its logs contain metadata only (request id, status, reason code, duration).
 - **Microsoft Graph**: called directly from the task pane with a delegated token. The backend never receives Graph tokens.
