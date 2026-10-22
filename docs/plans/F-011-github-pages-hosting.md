@@ -123,3 +123,22 @@ _To be filled during implementation. Record the real command output for each AC,
   - step 12, the rollback drill;
   - the repo settings recommended by the review.
 
+### 2026-10-22: steps 9 to 12, live in Outlook, propagation, failure gate, rollback
+- **Step 9 (partial):**
+  - The production manifest was sideloaded by the user via aka.ms/olksideload, after `npm stop` removed the dev sideload.
+  - The first open failed with "Could not get a sign-in token (unknown_error)" because the SPA redirect `brk-multihub://dimscale.github.io` was missing. The user added it and Retry showed **"Backend connected as Thiago Santos"** in classic Outlook on Windows, with the pane served from GitHub Pages.
+  - While editing, the Entra portal replaced `brk-multihub://localhost:3000` instead of adding to it. It was re-added, so both redirects are now present.
+  - Centralized deployment by the admin is deferred, by the user's decision, until after design work.
+- **Step 10 (code-only change):**
+  - Commit `3aa31db` changed the title to "DIMSCALE Mail AI · test". Run `39783563795` succeeded in about 96 s.
+  - The site served the new `taskpane.7227ceec542ba04f3d7a.js` within about 70 s of the run finishing.
+  - Outlook showed the new title after the user reopened the pane. No manifest change or admin step was needed.
+- **Step 11 (failure gate):** demonstrated by Dependabot PRs.
+  - #4 (TypeScript 7): the `build` job failed at `npm run typecheck`, and `deploy` was skipped.
+  - #2 (office-addin-lint 4): the `build` job failed at `npm run lint`, and `deploy` was skipped.
+  - The `github-pages` deployments come only from `main`.
+- **Step 12 (rollback):**
+  - Revert commit `439828d`. Run `39784614507` succeeded.
+  - The site served the original `taskpane.0cd7a9f794114aaa02a2.js` again, byte-identical to the pre-drill build, 209 s after the push.
+  - Procedure: `git revert <sha>` on `main` and push. Alternative: Actions → the last good `main` run → "Re-run all jobs".
+
