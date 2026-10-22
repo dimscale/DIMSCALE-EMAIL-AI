@@ -97,3 +97,29 @@ Repo settings recommended to the user:
 
 Still open: the first Linux CI run is the evidence for `npm ci --ignore-scripts` on Ubuntu.
 _To be filled during implementation. Record the real command output for each AC, the run URLs, the `curl -I` headers, and the dates of the live checks. A live Outlook test is claimed only if it was actually performed._
+
+### 2026-10-22: steps 7 and 8, first deploy and live site checks
+- **M1:** the repo was made public and Pages Source set to "GitHub Actions" by the user (repo admin). The Entra SPA redirect `brk-multihub://dimscale.github.io` was requested from the user, but its confirmation is not recorded yet.
+- **First run:** "Build and deploy to GitHub Pages" #1, run `39775182429`, push to `main` at `025439a`. Both jobs, `build` and `deploy`, succeeded.
+  - This is the Linux evidence for `npm ci --ignore-scripts` (ubuntu-latest).
+  - The site deployed without `configure-pages`.
+- **Live checks with `curl`:**
+
+| Check | Result |
+|---|---|
+| `taskpane.html`, `manifest.xml`, `assets/icon-64.png` | 200 |
+| Hashed `polyfill`, `react` and `taskpane` JS | 200 |
+| Served hashed names vs the local Windows build | identical (reproducible build) |
+| Served `manifest.xml` | `SourceLocation` = `https://dimscale.github.io/DIMSCALE-EMAIL-AI/taskpane.html`, 0 `localhost`, `ReadItem` only |
+| Source maps | `.map` returns 404 |
+| `Cache-Control` | `max-age=600` on HTML, XML and PNG |
+
+  The 10-minute cache is GitHub's default and can't be changed. Hashed JS changes reach users at once; `taskpane.html` can lag by up to 10 minutes.
+- **Side effect:** the Dependabot configuration opened npm update PRs (TypeScript 7, office-addin-* majors). Not merged; they'll be reviewed separately.
+- **Remaining:**
+  - step 9, live in Outlook from the production URL (the user sideloads the production manifest, then the admin deploys centrally);
+  - step 10, code-only change propagation;
+  - step 11, the failure gate;
+  - step 12, the rollback drill;
+  - the repo settings recommended by the review.
+
