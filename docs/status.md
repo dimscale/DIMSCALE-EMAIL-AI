@@ -31,7 +31,7 @@ F-002 code is done and verified offline (see the plan's Evidence section). Waiti
 | D3 | ~~Backend vendor~~: Supabase, accepted 2026-10-22 (ADR-0003) | User | — |
 | D4 | The Entra app registration and consent are done by the DIMSCALE tenant admin (agreed 2026-10-22). Waiting for the client ID and tenant ID | Tenant admin | F-002 live steps 7 and 10 |
 | D10 | Access limited to one Entra group, via Assignment required (needs Entra ID P1 or P2). Which group, and is P1 or P2 licensed? | User / admin | F-002 AC-21 |
-| D11 | Supabase project ref and region (GDPR) | User | F-002 step 7 |
+| D11 | ~~Supabase project~~: ref `qepzpkseyzclxnqguqta`, region `eu-west-1` (Ireland, EU). Linked with the CLI on 2026-10-22 | User | — |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
 | D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
 | D7 | Production hosting URL (replaces the `contoso.com` placeholder; the production build fails until it is set) | User | Any deployment |
