@@ -39,7 +39,7 @@ import {
 import { C } from "./themes";
 import { Wordmark } from "./Wordmark";
 
-export type Direction = "A" | "B" | "C";
+export type Direction = "A" | "B" | "C" | "D";
 
 const useStyles = makeStyles({
   root: {
@@ -141,9 +141,11 @@ const useStyles = makeStyles({
 
 type Pal = { page: string; card: string };
 const palette = (d: Direction, dark: boolean): Pal =>
-  dark
-    ? { page: C.navyDeep, card: d === "C" ? C.navy : C.navyDeep }
-    : { page: d === "C" ? C.mist : d === "B" ? C.paper : "#ffffff", card: "#ffffff" };
+  d === "D"
+    ? { page: tokens.colorNeutralBackground1, card: tokens.colorNeutralBackground1 } // Outlook colours via theme
+    : dark
+      ? { page: C.navyDeep, card: d === "C" ? C.navy : C.navyDeep }
+      : { page: d === "C" ? C.mist : d === "B" ? C.paper : "#ffffff", card: "#ffffff" };
 
 const Section = ({
   dir,
@@ -319,10 +321,8 @@ export const Panel = ({ dir, dark, wide }: { dir: Direction; dark: boolean; wide
           <span style={{ color: band ? C.teal : undefined }}>Mail AI</span>
         </h1>
       </header>
-      {!band && !dark && dir === "A" && <Divider />}
-      {!band && dark && dir === "A" && (
-        <div style={{ height: 1, backgroundColor: C.teal, opacity: 0.6 }} />
-      )}
+      {(dir === "D" || (!band && !dark && dir === "A")) && <Divider />}
+      {dark && dir === "A" && <div style={{ height: 1, backgroundColor: C.teal, opacity: 0.6 }} />}
       <main style={{ padding: `0 ${pad}` }}>
         <div className={s.tabs}>
           <TabList

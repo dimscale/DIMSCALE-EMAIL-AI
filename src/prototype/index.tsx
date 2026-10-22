@@ -16,11 +16,20 @@ import { DIcon } from "./Wordmark";
 /* global document */
 
 const VARIANTS: { label: string; dir: Direction; accent: Accent }[] = [
+  { label: "D “Outlook nativo”", dir: "D", accent: "navy" },
   { label: "A-navy (referência, primário navy)", dir: "A", accent: "navy" },
   { label: "A-orange (laranja acessível #C2410C)", dir: "A", accent: "orange" },
   { label: "B “Navy header”", dir: "B", accent: "navy" },
   { label: "C “Cards”", dir: "C", accent: "navy" },
 ];
+
+/* Simulated Office.context.officeTheme (body/control colours only; Office.js exposes no accent). */
+const SIMS: Record<string, { label: string; bg: string; fg: string; ctl: string }> = {
+  claro: { label: "Claro", bg: "#FFFFFF", fg: "#242424", ctl: "#FAFAFA" },
+  cinzento: { label: "Cinzento escuro", bg: "#292929", fg: "#FFFFFF", ctl: "#1F1F1F" },
+  preto: { label: "Preto", bg: "#141414", fg: "#FFFFFF", ctl: "#292929" },
+  colorido: { label: "Colorido", bg: "#F3F2F1", fg: "#201F1E", ctl: "#FFFFFF" },
+};
 
 const GREENS = ["#2BD94A", "#1F9D4C", "#14743A"];
 const SIZES = [16, 32, 64, 80, 128];
@@ -96,8 +105,17 @@ const IconStrip = () => (
 const App = () => {
   const [width, setWidth] = React.useState("320");
   const [mode, setMode] = React.useState("light");
+  const [sim, setSim] = React.useState("claro");
   const dark = mode === "dark";
   const w = Number(width);
+  const sm = SIMS[sim];
+  const dDark = lum(sm.bg) < 0.179;
+  const dTheme = {
+    ...(dDark ? webDarkTheme : webLightTheme),
+    colorNeutralBackground1: sm.bg,
+    colorNeutralBackground2: sm.ctl,
+    colorNeutralForeground1: sm.fg,
+  };
   return (
     <FluentProvider
       theme={dark ? webDarkTheme : webLightTheme}
@@ -119,11 +137,27 @@ const App = () => {
         <RadioGroup
           layout="horizontal"
           value={mode}
-          onChange={(_, d) => setMode(d.value)}
+          onChange={(_, d) => {
+            setMode(d.value);
+            setSim(d.value === "dark" ? "cinzento" : "claro"); // drives D's default simulated theme
+          }}
           aria-label="Tema"
         >
           <Radio value="light" label="Claro" />
           <Radio value="dark" label="Escuro" />
+        </RadioGroup>
+      </div>
+      <div style={{ marginBottom: 16, color: dark ? "#fff" : "#000" }}>
+        <Text weight="semibold">Tema do Outlook simulado (só variante D): </Text>
+        <RadioGroup
+          layout="horizontal"
+          value={sim}
+          onChange={(_, d) => setSim(d.value)}
+          aria-label="Tema do Outlook simulado"
+        >
+          {Object.entries(SIMS).map(([k, t]) => (
+            <Radio key={k} value={k} label={`${t.label} (${t.bg}/${t.fg})`} />
+          ))}
         </RadioGroup>
       </div>
       <div
@@ -138,10 +172,16 @@ const App = () => {
         {VARIANTS.map((v) => (
           <div key={v.label} style={{ flex: "none" }}>
             <p style={{ margin: "0 0 4px", fontWeight: 600, color: dark ? "#fff" : "#000" }}>
-              {v.label} &middot; {w} px &middot; {dark ? "escuro" : "claro"}
+              {v.label} &middot; {w} px &middot;{" "}
+              {v.dir === "D" ? sm.label.toLowerCase() : dark ? "escuro" : "claro"}
             </p>
+            {v.dir === "D" && (
+              <p style={{ margin: "0 0 4px", fontSize: 12, color: dark ? "#fff" : "#000" }}>
+                Cores do Outlook do utilizador · só o logótipo e o nome são DIMSCALE
+              </p>
+            )}
             <FluentProvider
-              theme={themes(v.accent)[mode as "light" | "dark"]}
+              theme={v.dir === "D" ? dTheme : themes(v.accent)[mode as "light" | "dark"]}
               style={{
                 width: w,
                 boxSizing: "border-box",
@@ -149,7 +189,7 @@ const App = () => {
                 overflow: "hidden",
               }}
             >
-              <Panel dir={v.dir} dark={dark} wide={w >= 400} />
+              <Panel dir={v.dir} dark={v.dir === "D" ? dDark : dark} wide={w >= 400} />
             </FluentProvider>
           </div>
         ))}
