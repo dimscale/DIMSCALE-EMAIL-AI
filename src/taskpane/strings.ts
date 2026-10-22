@@ -1,6 +1,6 @@
 // All UI strings live here (English only; localization is out of scope for F-001).
 export const strings = {
-  title: "DIMSCALE Mail AI",
+  title: "DIMSCALE Mail AI · test",
   noItem: "Open a message to use DIMSCALE Mail AI",
   loading: "Loading message...",
   noSubject: "(no subject)",
