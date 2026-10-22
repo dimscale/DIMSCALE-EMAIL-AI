@@ -106,4 +106,29 @@ Sources: [Quickstart](https://supabase.com/docs/guides/functions/quickstart), [D
   Accepted as is:
   - the case-sensitive `Bearer` scheme (per the spec);
   - jose's generic reason codes.
-- **Not yet done:** step 0 (P1 app registration, P2 Supabase CLI), step 7 (deploy), step 10 (live AC-18, AC-19 and AC-21), and spec open question 2 (the `apikey` header).
+### 2026-10-22: prerequisites, deploy and live checks of the function
+- **P1:** done by the user, who owns the existing Entra app "DIMSCALE AI Email Assistant", client ID `d157a20c-8820-43ad-8dbf-174a5cade5ea`, single tenant `c4333a40-3082-416f-80a2-dd502b43f30f`.
+  - Done: SPA redirect `brk-multihub://localhost:3000`; `requestedAccessTokenVersion: 2`; App ID URI `api://<client-id>`; scope `access_as_user` (admins and users); the app itself authorized as client; `access_as_user` as the only configured permission.
+  - Pending with the tenant admin: revoke the old Graph grants (`Mail.ReadWrite`, `offline_access`, `User.Read`) that were consented tenant-wide earlier; Assignment required with the group (AC-21); admin consent.
+  - A legacy public-client redirect `http://localhost` is still present and is unused by the add-in.
+- **P1.9:** the public OpenID metadata confirms the issuer `https://login.microsoftonline.com/c4333a40-…/v2.0` and the JWKS URI `…/discovery/v2.0/keys`, which match the function.
+- **P2:** Supabase CLI 2.121.0 (exact dev dependency), `supabase init`, linked to project `qepzpkseyzclxnqguqta` (eu-west-1).
+- **P3:** classic Outlook Version 2609 (Build 20430.20182).
+- **Step 7:**
+  - `supabase secrets set` for `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` and `ALLOWED_ORIGINS=https://localhost:3000`.
+  - `supabase functions deploy whoami --use-api` ("Deployed Functions."). The uploaded files were only `deno.json`, `index.ts` and `handler.ts`.
+- **Live checks with `curl` against the deployed function:**
+
+| Request | Result |
+|---|---|
+| GET with no `Authorization` and no `apikey` | 401 `{"ok":false,"error":"unauthorized"}`, the function's own body. **Spec open question 2 is answered: no `apikey` is needed.** |
+| GET `Bearer abc.def.ghi` | 401 |
+| GET with a forged `alg: none` token carrying the right `aud` and `iss` | 401 |
+| OPTIONS from `https://localhost:3000` | 204, `Access-Control-Allow-Origin: https://localhost:3000`, `Vary: Origin`, methods `GET, OPTIONS`, header `authorization` |
+| OPTIONS from `https://evil.example` | 204 with no `Access-Control-Allow-Origin` (blocked) |
+| POST | 405 `method_not_allowed` |
+
+- **Still to do:**
+  - AC-18 live in Outlook;
+  - AC-19 with a Microsoft Graph token and with an expired token (the no-token and bad-token cases pass);
+  - AC-21 (needs the admin's group assignment).
