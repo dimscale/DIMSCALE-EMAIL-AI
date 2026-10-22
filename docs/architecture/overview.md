@@ -23,7 +23,7 @@ _Historical. For the current state see [status](../status.md)._
 
 Sign-in is limited to one DIMSCALE Entra group (enterprise app, Assignment required). Details: [security](security.md#authentication-and-authorization).
 
-Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md). All three are Accepted (ADR-0003: Supabase Edge Functions). Feature: [F-002](../specs/F-002-authenticated-backend.md).
+Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md), [ADR-0004 task pane hosting](../decisions/0004-taskpane-hosting.md) (GitHub Pages). All three are Accepted (ADR-0003: Supabase Edge Functions). Feature: [F-002](../specs/F-002-authenticated-backend.md).
 
 ## Capability boundaries
 

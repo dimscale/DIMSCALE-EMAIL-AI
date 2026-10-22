@@ -22,6 +22,7 @@ F-002 code is done and verified offline (see the plan's Evidence section). Waiti
 | F-008 | NAA sign-in and Graph `Mail.Read`: list and select recent messages | Mailbox | ADR-0002 | Not started |
 | F-009 | Graph reply draft (`createReply` plus `PATCH`, needs `Mail.ReadWrite`) as an alternative to F-005 | Mailbox | F-008 | Not started |
 | F-010 | Compose-mode support (refine the text being written) | Active item + AI | F-006 | Needs research |
+| F-011 | Production hosting on GitHub Pages: deploy Action, hashed assets, production manifest, Entra redirect, `ALLOWED_ORIGINS`, centralized deployment by the admin | Platform | ADR-0004, F-002 | Not started |
 
 ## Open decisions
 | # | Decision | Owner | Blocks |
@@ -34,9 +35,12 @@ F-002 code is done and verified offline (see the plan's Evidence section). Waiti
 | D11 | ~~Supabase project~~: ref `qepzpkseyzclxnqguqta`, region `eu-west-1` (Ireland, EU). Linked with the CLI on 2026-10-22 | User | — |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
 | D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
-| D7 | Production hosting URL (replaces the `contoso.com` placeholder; the production build fails until it is set) | User | Any deployment |
+| D7 | ~~Production hosting~~: GitHub Pages, default domain, accepted 2026-10-22 (ADR-0004). `mailai.dimscale.com` optional later (DNS CNAME) | User | F-011 |
 | D8 | Keep the IE11 polyfills (`core-js`, `es6-promise`, browserslist `ie 11`)? Depends on D2 (classic Outlook webview) | User | Bundle cleanup |
 | D9 | `package.json` license: MIT (generator default) or proprietary/UNLICENSED | User | — |
 
 ## Blockers
 F-002 code: none. F-002 deploy and live tests are blocked by D4 and D11.
+
+## Working agreements
+- Tell the user before starting any UI or visual design work (requested 2026-10-22).
