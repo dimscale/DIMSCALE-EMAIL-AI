@@ -1,6 +1,6 @@
 # Plan F-011: Production hosting on GitHub Pages
 
-- **Spec:** [F-011](../specs/F-011-github-pages-hosting.md). **Status:** Not started (spec is Draft, not approved).
+- **Spec:** [F-011](../specs/F-011-github-pages-hosting.md). **Status:** In progress.
 - **Blocked by:** spec approval; F-002 code merged to `main` (the workflow runs from `main`; `src/taskpane/config.ts` already has the real, non-secret IDs, so the production placeholder guard passes).
 - **Branch:** implement on a new branch `f-011-github-pages-hosting` created from the F-002 branch tip or from `main` once F-002 is merged. Do not implement on `f-002-ai-backend`.
 

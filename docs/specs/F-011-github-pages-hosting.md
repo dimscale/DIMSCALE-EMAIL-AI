@@ -1,6 +1,6 @@
 # F-011: Production hosting on GitHub Pages
 
-- **Status:** Draft (awaiting user review)
+- **Status:** Approved (2026-10-22). Defaults accepted: no production source maps, the admin uploads the manifest file, CI on Node 24, manifest validation blocks the deploy, the shared-origin risk is accepted (ADR-0004), and dev and prod share one manifest `<Id>` (remove the sideload once the add-in is centrally deployed). The repo admin is the user.
 - **Tier:** Platform (hosting, CI/CD, deployment). No Office.js change, no Graph, no AI, no new backend.
 - **Depends on:** [ADR-0004](../decisions/0004-taskpane-hosting.md) (Accepted), F-002 code merged to `main` (the workflow only runs from `main`).
 - **Plan:** [docs/plans/F-011-github-pages-hosting.md](../plans/F-011-github-pages-hosting.md)
