@@ -68,4 +68,42 @@ Sources: [Quickstart](https://supabase.com/docs/guides/functions/quickstart), [D
 | 11 | Close: spec status, `docs/status.md` (F-002 Done, D4 resolved), ADR-0002 status if the user accepts it. | — | orchestrator |
 
 ## Evidence
-_Empty until implementation._
+
+### 2026-10-22: steps 1 to 6, QA and review (offline). Re-run by the orchestrator after the fixes.
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` / `npm run lint` | exit 0 |
+| `npm run test` | 7 files, 59 tests passed, 0 `it.fails` (mocked Office.js, MSAL and fetch) |
+| `npm run build:dev` | compiled successfully |
+| `npm run build` | blocked on purpose by the `urlProd` guard (D7) |
+| Placeholder guard (temporary config copy with `urlProd` replaced) | blocked: "config.ts still has placeholder values" |
+| `npm run validate` | "The manifest is valid."; manifest unchanged (`ReadItem` only) |
+| `deno test` (deno 2.9.6, in `supabase/functions/whoami`) | 24 passed, 0 failed; `deno.lock` committed |
+
+- **Dependencies:**
+  - `@azure/msal-browser` 5.26.0, exact, task pane
+  - `jose` 6.2.13, exact, function
+  - `jsr:@std/assert@1`, tests only, locked in `deno.lock`
+- **QA (qa-tester, haiku):** 30 tests added. Found:
+  - D1: an `aud` array was accepted (AC-11)
+  - D2: a key-set (JWKS) outage returned 401
+  - D3: an invalid ellipsis byte in `strings.ts`
+  - D4: the "not configured" check ran before the unsupported-client check
+
+  All four are fixed and tested.
+- **Review (code-reviewer, opus): APPROVE WITH COMMENTS**, with no Critical or High findings. Medium items fixed:
+  - the invalid ellipsis byte;
+  - the "not configured" state is recorded in the spec, and a production build is blocked while placeholders remain.
+
+  Low items fixed:
+  - `exp` is required;
+  - `ALLOWED_ORIGINS` is normalized, and `*` and `null` are rejected;
+  - a key-set outage returns 503 `jwks_unavailable`;
+  - `deno.lock` is added;
+  - the single `.catch` in `auth.ts`.
+
+  Accepted as is:
+  - the case-sensitive `Bearer` scheme (per the spec);
+  - jose's generic reason codes.
+- **Not yet done:** step 0 (P1 app registration, P2 Supabase CLI), step 7 (deploy), step 10 (live AC-18, AC-19 and AC-21), and spec open question 2 (the `apikey` header).

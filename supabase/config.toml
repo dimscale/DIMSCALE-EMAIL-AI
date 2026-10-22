@@ -1,0 +1,4 @@
+# Minimal hand-written config for F-002. `supabase init` / `supabase link` (user, P2) may add more fields.
+# verify_jwt = false: Entra tokens are not Supabase JWTs; the handler validates them itself (see whoami/handler.ts).
+[functions.whoami]
+verify_jwt = false

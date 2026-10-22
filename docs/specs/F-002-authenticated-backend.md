@@ -45,6 +45,7 @@ Below the F-001 message context, the panel shows one backend status line:
 - success: "Backend connected as {name}", or "Backend connected" when the function returns no name
 - unsupported client: "This Outlook version doesn't support sign-in for DIMSCALE Mail AI. Update Outlook or use Outlook on the web."
 - sign-in needed: "Sign in to connect to the DIMSCALE backend" with a "Sign in" button
+- not configured (added during implementation, awaiting user acceptance): "DIMSCALE backend sign-in is not configured yet". This shows while `src/taskpane/config.ts` still has placeholder IDs or URL. MSAL is not created and no request is sent. A production build must fail while the placeholders remain.
 - error: a short message for the error class (sign-in failed, backend rejected the sign-in, backend unreachable), the MSAL `errorCode` or HTTP status when there is one, and a "Retry" button
 
 ## Acceptance criteria

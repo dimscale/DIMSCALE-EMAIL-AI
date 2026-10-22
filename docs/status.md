@@ -7,13 +7,13 @@ _Last updated: 2026-10-22_
 - F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
 
 ## Next step
-Implement F-002 plan steps 1 to 6 (code and local tests). In parallel, the DIMSCALE tenant admin does P1 (app registration and group assignment) and the user does P2 (Supabase CLI and project link).
+F-002 code is done and verified offline (see the plan's Evidence section). Waiting for: the tenant admin to do P1 (app registration, group assignment, then send the client ID and tenant ID), and the user to do P2 (Supabase CLI login and link, project ref) and to accept the "not configured" state. Then: deploy (step 7) and the live tests (step 10).
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
 |---|---|---|---|---|
 | F-001 | Task pane shell and active message context | Active item | ADR-0001 | Done (live-tested in classic Outlook on Windows) |
-| F-002 | Authenticated AI backend skeleton (token validation, a health operation, no OpenAI yet) | Backend | ADR-0002, ADR-0003 | Not started |
+| F-002 | Authenticated AI backend skeleton (token validation, a health operation, no OpenAI yet) | Backend | ADR-0002, ADR-0003 | Code done and verified offline; live steps pending |
 | F-003 | Summarize the open message | Active item + AI | F-001, F-002 | Not started |
 | F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003 | Not started |
 | F-005 | Open a prefilled reply form with the suggestion (`displayReplyFormAsync`; the user sends) | Active item | F-004 | Not started |

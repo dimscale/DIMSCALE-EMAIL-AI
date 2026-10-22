@@ -24,6 +24,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@azure/msal-browser": "5.26.0",
     "@fluentui/react-components": "^9.55.1",
     "core-js": "^3.36.0",
     "es6-promise": "^4.2.8",

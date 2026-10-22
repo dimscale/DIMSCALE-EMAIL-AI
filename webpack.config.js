@@ -18,6 +18,12 @@ module.exports = async (env, options) => {
   if (!dev && urlProd.includes("contoso.com")) {
     throw new Error("Production build blocked: set urlProd in webpack.config.js to the real hosting URL (it is still contoso.com).");
   }
+  if (!dev) {
+    const cfgText = require("fs").readFileSync(require("path").join(__dirname, "src/taskpane/config.ts"), "utf8");
+    if (cfgText.includes("00000000-0000-0000-0000-000000000000") || cfgText.includes("PROJECT-REF")) {
+      throw new Error("Production build blocked: src/taskpane/config.ts still has placeholder values (00000000-... or PROJECT-REF).");
+    }
+  }
   const config = {
     devtool: "source-map",
     entry: {

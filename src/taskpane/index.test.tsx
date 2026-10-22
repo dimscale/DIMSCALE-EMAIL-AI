@@ -14,7 +14,7 @@ describe("taskpane entry (mocked Office.onReady)", () => {
       }),
       CoercionType: { Text: "text" },
       AsyncResultStatus: { Succeeded: "succeeded", Failed: "failed" },
-      context: { mailbox: { item: undefined } },
+      context: { mailbox: { item: undefined }, requirements: { isSetSupported: () => false } },
     };
     vi.resetModules();
     await import("./index");
