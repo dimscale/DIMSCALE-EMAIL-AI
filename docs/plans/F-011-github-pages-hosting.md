@@ -145,3 +145,5 @@ _To be filled during implementation. Record the real command output for each AC,
 ### Known behavior: Outlook may show an old version for up to about 10 minutes
 After the rollback (step 12) the site served the original bundle within 209 s, but the user's Outlook still showed the drill title "DIMSCALE Mail AI · test" when the pane was reopened soon afterwards. GitHub Pages serves `taskpane.html` with `Cache-Control: max-age=600`, which can't be changed on Pages, so a webview may keep the old HTML, which points to the old hashed JS, for up to 10 minutes. Expect up to about 10 minutes before a deploy or rollback is visible; restarting Outlook may refresh it sooner. A custom host with short HTML caching would remove this (see ADR-0004 options).
 
+**Confirmed live (2026-10-22):** some minutes later the user reported that the drill title had disappeared in Outlook, so the rollback reached the client within the cache window.
+
