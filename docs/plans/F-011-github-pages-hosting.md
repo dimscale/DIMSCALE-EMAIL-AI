@@ -48,7 +48,7 @@ Source: [Deploy Office Add-ins](https://learn.microsoft.com/microsoft-365/admin/
 | 9 | M4 with scope "Just me" first, then live in classic Outlook on Windows: the add-in appears (record the delay), opens on a message, shows the F-001 context and the F-002 status line, console shows no CORS error and no email content. Then widen to the group. | AC-16 | tenant admin + user |
 | 10 | Code-only change test: a one-string change on `main` (a branch and PR for it, merged by the user), wait for the deploy, then in Outlook record what is needed to see it (reopen the pane, Ctrl+F5, restart Outlook). Revert the string afterwards through the normal flow. | AC-17 | user + orchestrator |
 | 11 | Failure gate: on a throwaway branch add a deliberately failing test, open a PR (and, if wanted, `workflow_dispatch` on that branch). Confirm the `build` job fails, no deploy runs, and the site is unchanged. Delete the branch. | AC-11 | user + orchestrator |
-| 12 | Rollback drill: re-run the workflow for the previous good commit (Actions > the run > Re-run all jobs, or `workflow_dispatch` on a tag or branch of that commit) or revert the last commit on `main`. Confirm the served hashed filenames changed back. Write the chosen procedure (and which one worked) in the Evidence section. A re-run uses the original run's commit; the `github-pages` environment rules still apply. | AC-18 | user + orchestrator |
+| 12 | Rollback drill: re-run the workflow for the previous good commit (Actions > the run > Re-run all jobs, (a `workflow_dispatch` on another ref builds but never deploys, because the deploy needs `refs/heads/main`)) or revert the last commit on `main`. Confirm the served hashed filenames changed back. Write the chosen procedure (and which one worked) in the Evidence section. A re-run uses the original run's commit; the `github-pages` environment rules still apply. | AC-18 | user + orchestrator |
 | 13 | Close: spec status (the user decides Approved and Done), `docs/status.md` (F-011 Done, D7 resolved), commit message `F-011: ...`. | AC-20 | orchestrator |
 
 ## Evidence
@@ -72,5 +72,28 @@ Coder-reported checks:
 
 Fixed: the config-placeholder guard matched `PROJECT-REF` inside `isConfigured()`. It now matches `//PROJECT-REF.`.
 
-**Blocked:** the deploy (steps 7 and later) waits for D7. The repo is private, so free GitHub Pages is unavailable (see ADR-0004).
+**D7 resolved:** the repo is now public (ADR-0004). Function `ALLOWED_ORIGINS` set to `https://localhost:3000,https://dimscale.github.io`. Live preflight results:
+- `dimscale.github.io`: allowed
+- `localhost:3000`: allowed
+- `evil.example`: no `Access-Control-Allow-Origin`
+
+It took effect without redeploying the function.
+
+### 2026-10-22: step 5 review (code-reviewer, opus), APPROVE WITH COMMENTS
+No Critical or High findings. A fork pull request can't deploy, can't get the Pages or OIDC tokens, can't read secrets and can't poison `main`'s npm cache. All 5 action SHAs were verified with `git ls-remote`.
+
+Fixed:
+- **Medium:** the workflow-level `concurrency` let PR runs cancel or delay a pending `main` deploy. It is now on the deploy job only.
+- **Low:** checkout uses `persist-credentials: false`.
+- **Low:** `configure-pages` was dropped (its outputs were unused and it needed the `pages` permission).
+- **Low:** the rollback wording in step 12.
+- Added `.github/dependabot.yml` (github-actions and npm, weekly).
+
+Repo settings recommended to the user:
+- fork PR approval for external contributors;
+- `github-pages` environment limited to `main`;
+- protection on `main`;
+- Dependabot and secret scanning.
+
+Still open: the first Linux CI run is the evidence for `npm ci --ignore-scripts` on Ubuntu.
 _To be filled during implementation. Record the real command output for each AC, the run URLs, the `curl -I` headers, and the dates of the live checks. A live Outlook test is claimed only if it was actually performed._
