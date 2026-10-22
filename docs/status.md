@@ -1,17 +1,21 @@
 # Project Status
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-22 (afternoon)_
 
 ## Current state
-- Milestone 0 (SDD setup) is done: the rules, agents, architecture, security, ADRs, test strategy and the F-001 spec and plan are written.
-- F-002 is Done: NAA sign-in to the Supabase `whoami` function, live-tested in Outlook (AC-21 pending the admin).
-- F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
+- F-001, F-002 and F-011 are Done. The add-in is live at `https://dimscale.github.io/DIMSCALE-EMAIL-AI/`, deployed by GitHub Actions from `main`, and tested in classic Outlook from the production manifest (sideloaded by the user).
+- The repo `dimscale/DIMSCALE-EMAIL-AI` is public (ADR-0004). The Supabase `whoami` function is deployed in eu-west-1.
+- In progress: F-012 (task pane design, spec being written from the user's reference mockup) and F-013 (server-side automatic reply drafts; ADR-0005 and the spec being written).
 
 ## Next step
-F-011 (GitHub Pages hosting): the spec is being written, then the user approves it. In parallel, the tenant admin:
-- revokes the old Graph grants (`Mail.ReadWrite`, `offline_access`, `User.Read`);
-- grants admin consent for `access_as_user`;
-- sets Assignment required with the group (F-002 AC-21).
+1. The user reviews the F-012 spec and picks a visual direction from the prototype.
+2. The user reviews ADR-0005 and the F-013 spec, then takes the questions to the tenant admin (MMSI) and the DPO.
+3. Centralized deployment by the admin comes after the design (user decision).
+
+Pending with the tenant admin:
+- revoke the old delegated Graph grants (`Mail.ReadWrite`, `offline_access`, `User.Read`);
+- grant admin consent for `access_as_user`;
+- set Assignment required with the group (F-002 AC-21).
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
@@ -26,7 +30,9 @@ F-011 (GitHub Pages hosting): the spec is being written, then the user approves 
 | F-008 | NAA sign-in and Graph `Mail.Read`: list and select recent messages | Mailbox | ADR-0002 | Not started |
 | F-009 | Graph reply draft (`createReply` plus `PATCH`, needs `Mail.ReadWrite`) as an alternative to F-005 | Mailbox | F-008 | Not started |
 | F-010 | Compose-mode support (refine the text being written) | Active item + AI | F-006 | Needs research |
-| F-011 | Production hosting on GitHub Pages: deploy Action, hashed assets, production manifest, Entra redirect, `ALLOWED_ORIGINS`, centralized deployment by the admin | Platform | ADR-0004, F-002 | Not started |
+| F-011 | Production hosting on GitHub Pages: deploy Action, hashed assets, production manifest, Entra redirect, `ALLOWED_ORIGINS`, centralized deployment by the admin | Platform | ADR-0004, F-002 | Done 2026-10-22 (admin deployment deferred until after design) |
+| F-012 | Task pane UI/UX design (DIMSCALE brand, Fluent UI, tabs Analisar/Responder/Escrever per the user's reference) | Active item | F-001, F-002 | Spec being written |
+| F-013 | Server-side automatic reply drafts (Graph change notifications, Supabase, never sends) | Backend + Mailbox | ADR-0005 | ADR and spec being written |
 
 ## Open decisions
 | # | Decision | Owner | Blocks |
@@ -38,7 +44,8 @@ F-011 (GitHub Pages hosting): the spec is being written, then the user approves 
 | D10 | Access limited to one Entra group, via Assignment required (needs Entra ID P1 or P2). Which group, and is P1 or P2 licensed? | User / admin | F-002 AC-21 |
 | D11 | ~~Supabase project~~: ref `qepzpkseyzclxnqguqta`, region `eu-west-1` (Ireland, EU). Linked with the CLI on 2026-10-22 | User | — |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
-| D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
+| D6 | UI language: PT-PT proposed, following the user's reference mockup. To be confirmed with F-012. Strings are in `src/taskpane/strings.ts` | User | F-012 |
+| D12 | Automatic drafts for incoming mail with Outlook closed (requested 2026-10-22): permission model, filters, and the GDPR/DPO decision (see ADR-0005) | User / admin / DPO | F-013 |
 | D7 | ~~Production hosting~~: GitHub Pages with the repo made public, decided 2026-10-22 (ADR-0004) | User | — |
 | D8 | Keep the IE11 polyfills (`core-js`, `es6-promise`, browserslist `ie 11`)? Depends on D2 (classic Outlook webview) | User | Bundle cleanup |
 | D9 | `package.json` license: MIT (generator default) or proprietary/UNLICENSED | User | — |

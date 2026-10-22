@@ -1,6 +1,6 @@
 # Plan F-011: Production hosting on GitHub Pages
 
-- **Spec:** [F-011](../specs/F-011-github-pages-hosting.md). **Status:** In progress.
+- **Spec:** [F-011](../specs/F-011-github-pages-hosting.md). **Status:** Done (see the spec Status for exceptions).
 - **Blocked by:** spec approval; F-002 code merged to `main` (the workflow runs from `main`; `src/taskpane/config.ts` already has the real, non-secret IDs, so the production placeholder guard passes).
 - **Branch:** implement on a new branch `f-011-github-pages-hosting` created from the F-002 branch tip or from `main` once F-002 is merged. Do not implement on `f-002-ai-backend`.
 
@@ -141,4 +141,7 @@ _To be filled during implementation. Record the real command output for each AC,
   - Revert commit `439828d`. Run `39784614507` succeeded.
   - The site served the original `taskpane.0cd7a9f794114aaa02a2.js` again, byte-identical to the pre-drill build, 209 s after the push.
   - Procedure: `git revert <sha>` on `main` and push. Alternative: Actions → the last good `main` run → "Re-run all jobs".
+
+### Known behavior: Outlook may show an old version for up to about 10 minutes
+After the rollback (step 12) the site served the original bundle within 209 s, but the user's Outlook still showed the drill title "DIMSCALE Mail AI · test" when the pane was reopened soon afterwards. GitHub Pages serves `taskpane.html` with `Cache-Control: max-age=600`, which can't be changed on Pages, so a webview may keep the old HTML, which points to the old hashed JS, for up to 10 minutes. Expect up to about 10 minutes before a deploy or rollback is visible; restarting Outlook may refresh it sooner. A custom host with short HTML caching would remove this (see ADR-0004 options).
 
