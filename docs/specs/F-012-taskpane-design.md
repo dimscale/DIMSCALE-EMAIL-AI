@@ -521,3 +521,17 @@ The source files are in the local, git-ignored `Modelo_DIMSCALE/` folder; the br
 - **Icons (16–128 px):** the full wordmark is unreadable at these sizes, so the proposal is the "D" glyph from the wordmark, **white on a black square**, which keeps to the black-and-white rule. The user's green-"D" sample breaks the colour rule and is listed as an open question.
 - **Tagline** "Architecture Cost Management ®": its height must match the logo height when it sits beside it. It is omitted in the pane header for space.
 
+## User decisions (2026-10-22)
+- **UI language (D6):** **PT-PT.** The literals in the F-001 and F-002 ACs are amended accordingly; the amendment was approved by the user.
+- **Icon:** **green "D" on a white background**, the user's choice. This deviates from the brandbook rule that the logo is black or white only. The "D" icon is not the wordmark, so it is accepted as an icon-only deviation, while the wordmark in the pane stays black or white. The exact green is to be picked from the prototype.
+- **"Competências"** means **"Resumo da conversa"**: summarise an email exchange or thread, for example internal emails.
+  - v1 uses the quoted history inside the open message body, which needs no new permission.
+  - A full thread summary needs Graph `Mail.Read` (messages by `conversationId`) and is a later feature.
+- **Pane placement:** the user wants it easy to open and close and asked about the left side or a tab.
+  - Microsoft docs: the task pane "opens a vertical task pane to the right"; there is no left docking for web add-ins. https://learn.microsoft.com/office/dev/add-ins/outlook/pinnable-taskpane
+  - **Adopt a pinnable task pane:** `<SupportsPinning>true</SupportsPinning>` (VersionOverrides v1.1, Mailbox 1.5), plus an `Office.EventType.ItemChanged` handler that updates the pane when the user selects another message.
+  - Supported in classic Outlook 2016+ on Windows, new Outlook, the web and Mac.
+  - **This changes `manifest.xml`, so the admin uploads it at the final deployment**, which is already planned after the design.
+  - A custom ribbon tab is an open question to verify.
+- **Prototype:** approved (plan step 1).
+
