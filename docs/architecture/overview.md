@@ -1,6 +1,7 @@
 # Architecture Overview
 
-## Assessment of the existing repository (2026-10-22)
+## Assessment at project start (2026-10-22)
+_Historical. For the current state see [status](../status.md)._
 - Repo `dimscale/DIMSCALE-EMAIL-AI`, branch `main`, 1 commit ("Initial commit") containing only an empty `README.md`.
 - **Nothing exists yet:** no framework, package manager, manifest, auth, Graph integration or backend. There is no working code to preserve.
 - Local toolchain: Node 24.22.0, npm 11.19.1. pnpm and the GitHub CLI are not installed.
@@ -19,7 +20,7 @@
                                      └─ OpenAI API (key held in the backend secret store)
 ```
 
-Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md). All three are **Proposed**.
+Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md). ADR-0001 and ADR-0003 are Accepted. ADR-0002 is Proposed.
 
 ## Capability boundaries
 

@@ -1,6 +1,6 @@
 # ADR-0003: Backend for OpenAI calls
 
-- **Status:** Proposed (blocking for F-002 and later)
+- **Status:** Accepted (2026-10-22). Option A, Supabase Edge Functions. The user created the Supabase project.
 - **Date:** 2026-10-22
 
 ## Context
@@ -13,7 +13,7 @@ The OpenAI API key must never reach the client, so a server component is require
 | B. Azure Functions | Same cloud as Microsoft 365, native Entra integration (Easy Auth) | Azure subscription and ops overhead |
 | C. n8n or a VPS | — | Excluded by the brief without strong justification; more ops and attack surface |
 
-## Decision (proposed)
+## Decision
 Option A, one stateless function per AI operation (or one function with an operation field):
 1. Validate the Entra ID token (issuer = DIMSCALE tenant, audience = add-in API, expiry).
 2. Validate and truncate the input.
@@ -22,6 +22,6 @@ Option A, one stateless function per AI operation (or one function with an opera
 5. Store nothing and log metadata only.
 
 ## Open
-- The user approves the vendor (Supabase or Azure).
+- ~~Vendor~~: Supabase (accepted 2026-10-22).
 - The DIMSCALE OpenAI account and model choice (verify the current models and data-usage terms on the OpenAI docs at implementation time).
 - Per-user rate limiting and a cost cap.

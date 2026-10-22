@@ -7,7 +7,7 @@ _Last updated: 2026-10-22_
 - F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
 
 ## Next step
-Merge the PRs (`sdd/setup`, then F-001). Decide D3 and D4 to unblock F-002 (authenticated AI backend).
+Write and approve the F-002 spec. Resolve D4.
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
@@ -28,7 +28,7 @@ Merge the PRs (`sdd/setup`, then F-001). Decide D3 and D4 to unblock F-002 (auth
 |---|---|---|---|
 | D1 | ~~Approve ADR-0001~~ (accepted 2026-10-22) | User | — |
 | D2 | Which Outlook clients DIMSCALE uses | User | Manifest and testing |
-| D3 | Backend vendor: Supabase (recommended) or Azure Functions (ADR-0003) | User | F-002 |
+| D3 | ~~Backend vendor~~: Supabase, accepted 2026-10-22 (ADR-0003) | User | — |
 | D4 | Entra tenant and who creates the app registration and grants consent | User / IT | F-002, F-008 |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
 | D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
@@ -37,4 +37,4 @@ Merge the PRs (`sdd/setup`, then F-001). Decide D3 and D4 to unblock F-002 (auth
 | D9 | `package.json` license: MIT (generator default) or proprietary/UNLICENSED | User | — |
 
 ## Blockers
-None for F-001. F-002 is blocked by D3 and D4.
+F-002 spec: none. F-002 implementation is blocked by D4 (Entra app registration).
