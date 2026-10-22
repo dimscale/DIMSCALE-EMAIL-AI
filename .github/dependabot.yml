@@ -8,3 +8,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # majors are planned as their own feature with a spec; security updates are not affected by this
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
