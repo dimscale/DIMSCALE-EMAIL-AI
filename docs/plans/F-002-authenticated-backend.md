@@ -1,6 +1,6 @@
 # Plan F-002: Authenticated AI backend skeleton
 
-- **Spec:** [F-002](../specs/F-002-authenticated-backend.md). **Status:** In progress (spec approved 2026-10-22).
+- **Spec:** [F-002](../specs/F-002-authenticated-backend.md). **Status:** Done except AC-21 and part of AC-19 (both wait on the tenant admin or on test tokens).
 - **Blocked by:** D4 (app registration), ADR-0002 acceptance, spec approval. Steps 0 and 1 can start once the spec is approved; step 0 needs IT.
 
 ## Configuration values
@@ -128,7 +128,7 @@ Sources: [Quickstart](https://supabase.com/docs/guides/functions/quickstart), [D
 | OPTIONS from `https://evil.example` | 204 with no `Access-Control-Allow-Origin` (blocked) |
 | POST | 405 `method_not_allowed` |
 
+- **AC-18, PASS (live), 2026-10-22:** classic Outlook on Windows 2609, `npm start` sideload, a received message open. The task pane showed the F-001 context and the status line **"Backend connected as Thiago Santos"**: NAA token for `api://<client-id>/access_as_user`, validated by the deployed `whoami`.
 - **Still to do:**
-  - AC-18 live in Outlook;
   - AC-19 with a Microsoft Graph token and with an expired token (the no-token and bad-token cases pass);
   - AC-21 (needs the admin's group assignment).

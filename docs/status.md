@@ -4,16 +4,20 @@ _Last updated: 2026-10-22_
 
 ## Current state
 - Milestone 0 (SDD setup) is done: the rules, agents, architecture, security, ADRs, test strategy and the F-001 spec and plan are written.
+- F-002 is Done: NAA sign-in to the Supabase `whoami` function, live-tested in Outlook (AC-21 pending the admin).
 - F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
 
 ## Next step
-F-002 code is done and verified offline (see the plan's Evidence section). Waiting for: the tenant admin to do P1 (app registration, group assignment, then send the client ID and tenant ID), and the user to do P2 (Supabase CLI login and link, project ref) and to accept the "not configured" state. Then: deploy (step 7) and the live tests (step 10).
+F-011 (GitHub Pages hosting): the spec is being written, then the user approves it. In parallel, the tenant admin:
+- revokes the old Graph grants (`Mail.ReadWrite`, `offline_access`, `User.Read`);
+- grants admin consent for `access_as_user`;
+- sets Assignment required with the group (F-002 AC-21).
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
 |---|---|---|---|---|
 | F-001 | Task pane shell and active message context | Active item | ADR-0001 | Done (live-tested in classic Outlook on Windows) |
-| F-002 | Authenticated AI backend skeleton (token validation, a health operation, no OpenAI yet) | Backend | ADR-0002, ADR-0003 | Code done and verified offline; live steps pending |
+| F-002 | Authenticated AI backend skeleton (token validation, a health operation, no OpenAI yet) | Backend | ADR-0002, ADR-0003 | Done (live-tested 2026-10-22). AC-21 is pending the admin |
 | F-003 | Summarize the open message | Active item + AI | F-001, F-002 | Not started |
 | F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003 | Not started |
 | F-005 | Open a prefilled reply form with the suggestion (`displayReplyFormAsync`; the user sends) | Active item | F-004 | Not started |
