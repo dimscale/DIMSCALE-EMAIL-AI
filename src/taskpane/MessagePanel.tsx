@@ -11,7 +11,7 @@ const MessagePanel: React.FC = () => {
   const [attempt, setAttempt] = React.useState(0);
 
   React.useEffect(() => {
-    const item = Office.context.mailbox.item as Office.MessageRead | undefined;
+    const item = Office.context.mailbox?.item as Office.MessageRead | undefined; // undefined outside Outlook
     if (!item) {
       setState({ kind: "none" });
       return undefined;
