@@ -1,6 +1,6 @@
 # ADR-0004: Task pane hosting
 
-- **Status:** Accepted (2026-10-22), **on hold**. The repo `dimscale/DIMSCALE-EMAIL-AI` turned out to be **private**, and GitHub Pages on the free plan needs a public repo (Settings → Pages shows "Upgrade or make this repository public to enable Pages"). Re-decision pending between: make the repo public; the GitHub Team plan; Azure Static Web Apps; a separate public repo holding only the build output. The earlier "repo is public" assumption was wrong: the clone worked through cached Git credentials.
+- **Status:** Accepted (2026-10-22). The repo turned out to be private, and free GitHub Pages needs a public repo. The user decided to make `dimscale/DIMSCALE-EMAIL-AI` **public**. Azure Static Web Apps was dropped because creating an Azure account required a payment card. Before the switch, the full history (20 commits, all branches) was scanned: no secrets, no sensitive files, and no personal data beyond the commit author identity.
 - **Date:** 2026-10-22
 
 ## Context
