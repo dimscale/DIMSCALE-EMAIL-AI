@@ -7,7 +7,7 @@
 The repo is empty. Microsoft's quickstart scaffolds Outlook add-ins with the Yeoman generator (`yo office`), which offers both manifest types.
 Source: https://learn.microsoft.com/office/dev/add-ins/quickstarts/outlook-quickstart-yo
 
-## Decision (proposed)
+## Decision
 - Scaffold with `yo office`: Outlook task pane, **TypeScript**, React if the generator offers React for Outlook (to verify when scaffolding; fall back to plain TypeScript).
 - Package manager: **npm** (already installed, used by the generator).
 - Manifest: **add-in only (XML)** for the MVP. It is production-supported for Outlook. Move to the unified manifest only after verifying its client support on the Outlook clients DIMSCALE uses.

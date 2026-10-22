@@ -22,5 +22,8 @@
 - Email content leaves Microsoft 365 when it is sent to the OpenAI API. Before production, **verify OpenAI's current API data-usage and retention policy** and document it here. Also confirm with DIMSCALE that this is acceptable under its GDPR obligations (a DPA with OpenAI, and the region).
 - Show users a one-line notice in the panel that content is processed by an external AI service.
 
+## Supply chain
+- Dev-only tooling (`office-addin-debugging`, `office-addin-dev-certs`, and others) pulls packages with install scripts: `keytar`, `@azure/msal-node-extensions`, `@microsoft/m365agentstoolkit-cli`, `core-js`. None of them ship in the bundle. CI should use `npm ci --ignore-scripts` where the build allows it.
+
 ## Classification safety
 - The "potentially suspicious" label is advisory, shown with its reasons and a "may be wrong" notice. The add-in never reports phishing, moves mail to junk or blocks senders on its own.
