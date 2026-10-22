@@ -6,7 +6,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://dimscale.github.io/DIMSCALE-EMAIL-AI/"; // GitHub Pages, see ADR-0004
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -18,14 +18,17 @@ module.exports = async (env, options) => {
   if (!dev && urlProd.includes("contoso.com")) {
     throw new Error("Production build blocked: set urlProd in webpack.config.js to the real hosting URL (it is still contoso.com).");
   }
+  if (!dev && (!urlProd.startsWith("https://") || !urlProd.endsWith("/"))) {
+    throw new Error("Production build blocked: urlProd must start with https:// and end with /.");
+  }
   if (!dev) {
     const cfgText = require("fs").readFileSync(require("path").join(__dirname, "src/taskpane/config.ts"), "utf8");
-    if (cfgText.includes("00000000-0000-0000-0000-000000000000") || cfgText.includes("PROJECT-REF")) {
-      throw new Error("Production build blocked: src/taskpane/config.ts still has placeholder values (00000000-... or PROJECT-REF).");
+    if (cfgText.includes("00000000-0000-0000-0000-000000000000") || cfgText.includes("//PROJECT-REF.")) {
+      throw new Error("Production build blocked: src/taskpane/config.ts still has placeholder values (00000000-... or //PROJECT-REF.).");
     }
   }
   const config = {
-    devtool: "source-map",
+    devtool: dev ? "source-map" : false, // no source maps in the published artifact (F-011)
     entry: {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
       react: ["react", "react-dom"],
@@ -36,6 +39,8 @@ module.exports = async (env, options) => {
     },
     output: {
       clean: true,
+      // publicPath stays default "auto" so the /DIMSCALE-EMAIL-AI/ subpath works with relative URLs
+      ...(dev ? {} : { filename: "[name].[contenthash].js", chunkFilename: "[name].[contenthash].js" }),
     },
     resolve: {
       extensions: [".ts", ".tsx", ".html", ".js"],

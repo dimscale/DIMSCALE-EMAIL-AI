@@ -52,4 +52,25 @@ Source: [Deploy Office Add-ins](https://learn.microsoft.com/microsoft-365/admin/
 | 13 | Close: spec status (the user decides Approved and Done), `docs/status.md` (F-011 Done, D7 resolved), commit message `F-011: ...`. | AC-20 | orchestrator |
 
 ## Evidence
+
+### 2026-10-22: steps 1 to 4 (re-run by the orchestrator)
+
+| Check | Result |
+|---|---|
+| typecheck, lint | exit 0 |
+| test | 59 passed |
+| `deno test` (deno 2.9.6) | 24 passed |
+| `npm run build` | passes (3 bundle-size warnings). Hashed `polyfill.*.js`, `react.*.js` and `taskpane.*.js`; unhashed `taskpane.html`, `manifest.xml` and `assets/` |
+| `dist/` | no `.map` files |
+| `dist/manifest.xml` | 0 `localhost`, `ReadItem` only, validates |
+
+Coder-reported checks:
+- AC-5 subpath served locally under `/DIMSCALE-EMAIL-AI/`: all script refs return 200.
+- AC-6 hash stability: only the changed bundle got a new name.
+- `npm ci --ignore-scripts` build works in a clean copy (Windows).
+- Actions pinned to SHAs: checkout v7.0.1, setup-node v7.1.0, configure-pages v6.0.0, upload-pages-artifact v5.0.0, deploy-pages v5.0.1.
+
+Fixed: the config-placeholder guard matched `PROJECT-REF` inside `isConfigured()`. It now matches `//PROJECT-REF.`.
+
+**Blocked:** the deploy (steps 7 and later) waits for D7. The repo is private, so free GitHub Pages is unavailable (see ADR-0004).
 _To be filled during implementation. Record the real command output for each AC, the run URLs, the `curl -I` headers, and the dates of the live checks. A live Outlook test is claimed only if it was actually performed._

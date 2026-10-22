@@ -1,6 +1,6 @@
 # ADR-0004: Task pane hosting
 
-- **Status:** Accepted (2026-10-22)
+- **Status:** Accepted (2026-10-22), **on hold**. The repo `dimscale/DIMSCALE-EMAIL-AI` turned out to be **private**, and GitHub Pages on the free plan needs a public repo (Settings → Pages shows "Upgrade or make this repository public to enable Pages"). Re-decision pending between: make the repo public; the GitHub Team plan; Azure Static Web Apps; a separate public repo holding only the build output. The earlier "repo is public" assumption was wrong: the clone worked through cached Git credentials.
 - **Date:** 2026-10-22
 
 ## Context

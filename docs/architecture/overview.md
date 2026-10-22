@@ -10,8 +10,11 @@ _Historical. For the current state see [status](../status.md)._
 ## Target architecture
 
 ```
+ GitHub Actions build ─► GitHub Pages (https://dimscale.github.io/DIMSCALE-EMAIL-AI/)
+                              │ static files + public production manifest
+                              ▼
  Outlook (web / new Windows / classic Windows / Mac)
- └─ Task pane (React + TypeScript, Office.js)            ← served over HTTPS
+ └─ Task pane (React + TypeScript, Office.js)            ← served over HTTPS (localhost:3000 in dev)
       ├─ Office.js: read the active item, open the reply form   (no Graph, ReadItem)
       ├─ MSAL.js with nested app auth (NAA) ─► Microsoft Graph  (only for mailbox-tier features)
       └─ MSAL.js NAA ─► Entra token for api://<client-id>/access_as_user
@@ -22,6 +25,8 @@ _Historical. For the current state see [status](../status.md)._
 ```
 
 Sign-in is limited to one DIMSCALE Entra group (enterprise app, Assignment required). Details: [security](security.md#authentication-and-authorization).
+
+Production hosting ([F-011](../specs/F-011-github-pages-hosting.md)): the tenant admin uploads the production manifest once in the Microsoft 365 admin center, and later code changes reach users through a normal deploy. Entra has the SPA redirects `brk-multihub://localhost:3000` and `brk-multihub://dimscale.github.io`, and the function's `ALLOWED_ORIGINS` is `https://localhost:3000,https://dimscale.github.io`. The Pages origin is shared org-wide, see [security](security.md#hosting-github-pages-adr-0004-f-011).
 
 Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](../decisions/0002-auth-nested-app-auth.md), [ADR-0003 AI backend](../decisions/0003-ai-backend.md), [ADR-0004 task pane hosting](../decisions/0004-taskpane-hosting.md) (GitHub Pages). All four are Accepted. Feature: [F-002](../specs/F-002-authenticated-backend.md).
 

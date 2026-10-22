@@ -39,7 +39,7 @@ F-011 (GitHub Pages hosting): the spec is being written, then the user approves 
 | D11 | ~~Supabase project~~: ref `qepzpkseyzclxnqguqta`, region `eu-west-1` (Ireland, EU). Linked with the CLI on 2026-10-22 | User | — |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
 | D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
-| D7 | ~~Production hosting~~: GitHub Pages, default domain, accepted 2026-10-22 (ADR-0004). `mailai.dimscale.com` optional later (DNS CNAME) | User | F-011 |
+| D7 | Production hosting: ADR-0004 (GitHub Pages) is on hold because the repo is private. Choose between: public repo; GitHub Team; Azure Static Web Apps; a separate public build repo | User | F-011 deploy |
 | D8 | Keep the IE11 polyfills (`core-js`, `es6-promise`, browserslist `ie 11`)? Depends on D2 (classic Outlook webview) | User | Bundle cleanup |
 | D9 | `package.json` license: MIT (generator default) or proprietary/UNLICENSED | User | — |
 
