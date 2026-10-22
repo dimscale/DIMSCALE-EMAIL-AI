@@ -36,6 +36,8 @@ module.exports = async (env, options) => {
         import: ["./src/taskpane/index.tsx", "./src/taskpane/taskpane.html"],
         dependOn: "react",
       },
+      // F-012 throwaway prototype: development only, never in the production build
+      ...(dev ? { prototype: { import: ["./src/prototype/index.tsx"], dependOn: "react" } } : {}),
     },
     output: {
       clean: true,
@@ -79,6 +81,9 @@ module.exports = async (env, options) => {
         template: "./src/taskpane/taskpane.html",
         chunks: ["polyfill", "taskpane", "react"],
       }),
+      ...(dev
+        ? [new HtmlWebpackPlugin({ filename: "prototype.html", template: "./src/prototype/prototype.html", chunks: ["polyfill", "prototype", "react"] })]
+        : []),
       new CopyWebpackPlugin({
         patterns: [
           {
