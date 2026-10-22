@@ -1,6 +1,6 @@
 # ADR-0002: User authentication with nested app authentication (NAA)
 
-- **Status:** Proposed (needed by F-002; F-001 needs no auth)
+- **Status:** Accepted (2026-10-22, with the F-002 spec)
 - **Date:** 2026-10-22
 
 ## Context

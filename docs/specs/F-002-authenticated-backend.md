@@ -1,6 +1,6 @@
 # F-002: Authenticated AI backend skeleton
 
-- **Status:** Draft (awaiting user approval)
+- **Status:** Approved (2026-10-22)
 - **Tier:** Backend + user authentication. No Graph scope, no email content, no OpenAI.
 - **Depends on:** F-001 (Done), ADR-0002 (Proposed, must be accepted before implementation), ADR-0003 (Accepted), decision D4 (Entra tenant and app registration).
 - **Plan:** [docs/plans/F-002-authenticated-backend.md](../plans/F-002-authenticated-backend.md)
@@ -69,6 +69,7 @@ Below the F-001 message context, the panel shows one backend status line:
 | F-002/AC-17 | The manifest is unchanged: `ReadItem` only, no new permission, no `AppDomains` entry (unless AC-18 shows one is required, which then needs a spec change). | Manifest inspection, `npm run validate` |
 | F-002/AC-18 | Live, classic Outlook on Windows (Version 2409 or later): opening the pane on a message shows "Backend connected as {the signed-in user's name}" against the deployed function, with no console CORS error. | Live sideload, recorded in the plan |
 | F-002/AC-19 | Live negative: calling the deployed function with no token, and with a Microsoft Graph token or an expired token, returns 401. | Live `curl`/script against the deployed function, recorded in the plan |
+| F-002/AC-21 | Access is limited to the DIMSCALE group chosen by the admin. The enterprise app has **Assignment required = Yes** and only that group is assigned (needs Entra ID P1 or P2). A user outside the group gets no token: sign-in fails with an Entra error and the panel shows "Sign-in failed". The function code does not change. Source: https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal | Live, with a user outside the group, or recorded as not tested |
 | F-002/AC-20 | Typecheck, lint, unit tests, build and `npm run validate` pass for the add-in; `deno test` passes for the function; the root `tsconfig`, lint and vitest do not try to compile the Deno function code. | Command output |
 
 ## Edge cases

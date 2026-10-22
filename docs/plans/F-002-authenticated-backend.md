@@ -1,6 +1,6 @@
 # Plan F-002: Authenticated AI backend skeleton
 
-- **Spec:** [F-002](../specs/F-002-authenticated-backend.md). **Status:** Draft (spec not approved yet).
+- **Spec:** [F-002](../specs/F-002-authenticated-backend.md). **Status:** In progress (spec approved 2026-10-22).
 - **Blocked by:** D4 (app registration), ADR-0002 acceptance, spec approval. Steps 0 and 1 can start once the spec is approved; step 0 needs IT.
 
 ## Configuration values
@@ -36,8 +36,9 @@ Sources: [Enable NAA](https://learn.microsoft.com/office/dev/add-ins/develop/ena
    - User consent display name and description: same text; State **Enabled**.
 5. Expose an API > **Authorized client applications** > Add a client application > the same client ID > tick `access_as_user`.
 6. **API permissions**: remove the auto-added Microsoft Graph `User.Read` (F-002 needs no Graph). Add a permission > **My APIs** > `DIMSCALE Mail AI (dev)` > Delegated > `access_as_user`. Then **Grant admin consent for DIMSCALE**.
-7. Do **not** create a client secret or certificate. Do not add Graph `Mail.*` permissions.
-8. Open `https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration` in a browser and send the orchestrator the `issuer` and `jwks_uri` values (expected `https://login.microsoftonline.com/<tenant-id>/v2.0` and `https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys`). They are public.
+7. **Restrict to the group** (user decision 2026-10-22): Enterprise apps > `DIMSCALE Mail AI (dev)` > Properties > **Assignment required? = Yes**. Then Users and groups > Add user/group > the chosen group > Assign. Group assignment needs Entra ID **P1 or P2**; without it, tell the orchestrator, because a code-side group or role check would be needed instead. Apps that require assignment need admin consent ([source](https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal)).
+8. Do **not** create a client secret or certificate. Do not add Graph `Mail.*` permissions.
+9. Open `https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration` in a browser and send the orchestrator the `issuer` and `jwks_uri` values (expected `https://login.microsoftonline.com/<tenant-id>/v2.0` and `https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys`). They are public.
 
 ### P2. Supabase CLI and project link (the user)
 Sources: [Quickstart](https://supabase.com/docs/guides/functions/quickstart), [Deploy](https://supabase.com/docs/guides/functions/deploy).
@@ -47,7 +48,7 @@ Sources: [Quickstart](https://supabase.com/docs/guides/functions/quickstart), [D
 4. Tell the orchestrator the project ref and region (spec open question 5).
 
 ### P3. Outlook build
-Check classic Outlook: File > Office Account > About Outlook. It must be Version 2409 (Build 18025.20000) or later ([requirement set](https://learn.microsoft.com/javascript/api/requirement-sets/common/nested-app-auth-requirement-sets)). Record it in Evidence.
+**Done 2026-10-22:** classic Outlook Version 2609 (Build 20430.20182, Current Channel), which meets the requirement. Check: File > Office Account > About Outlook. It must be Version 2409 (Build 18025.20000) or later ([requirement set](https://learn.microsoft.com/javascript/api/requirement-sets/common/nested-app-auth-requirement-sets)). Record it in Evidence.
 
 ## Steps
 

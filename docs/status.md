@@ -7,7 +7,7 @@ _Last updated: 2026-10-22_
 - F-001 is Done: implemented, QA'd, reviewed and live-tested in classic Outlook on Windows. The evidence is in the [plan](plans/F-001-active-message-context.md#evidence).
 
 ## Next step
-Write and approve the F-002 spec. Resolve D4.
+Implement F-002 plan steps 1 to 6 (code and local tests). In parallel, the DIMSCALE tenant admin does P1 (app registration and group assignment) and the user does P2 (Supabase CLI and project link).
 
 ## Backlog (prioritized)
 | ID | Feature | Tier | Depends on | Status |
@@ -29,7 +29,9 @@ Write and approve the F-002 spec. Resolve D4.
 | D1 | ~~Approve ADR-0001~~ (accepted 2026-10-22) | User | — |
 | D2 | Which Outlook clients DIMSCALE uses | User | Manifest and testing |
 | D3 | ~~Backend vendor~~: Supabase, accepted 2026-10-22 (ADR-0003) | User | — |
-| D4 | Entra tenant and who creates the app registration and grants consent | User / IT | F-002, F-008 |
+| D4 | The Entra app registration and consent are done by the DIMSCALE tenant admin (agreed 2026-10-22). Waiting for the client ID and tenant ID | Tenant admin | F-002 live steps 7 and 10 |
+| D10 | Access limited to one Entra group, via Assignment required (needs Entra ID P1 or P2). Which group, and is P1 or P2 licensed? | User / admin | F-002 AC-21 |
+| D11 | Supabase project ref and region (GDPR) | User | F-002 step 7 |
 | D5 | The OpenAI account, model, and GDPR acceptance of sending email content to OpenAI | User / DPO | F-003 |
 | D6 | UI language (PT or EN). EN is used for now, with strings in `src/taskpane/strings.ts` | User | — |
 | D7 | Production hosting URL (replaces the `contoso.com` placeholder; the production build fails until it is set) | User | Any deployment |
@@ -37,4 +39,4 @@ Write and approve the F-002 spec. Resolve D4.
 | D9 | `package.json` license: MIT (generator default) or proprietary/UNLICENSED | User | — |
 
 ## Blockers
-F-002 spec: none. F-002 implementation is blocked by D4 (Entra app registration).
+F-002 code: none. F-002 deploy and live tests are blocked by D4 and D11.
