@@ -10,3 +10,7 @@ coverage/
 *.pem
 *.crt
 *.key
+
+# local brand source files (brandbook, .ai): never publish
+Modelo_DIMSCALE/
+Thumbs.db

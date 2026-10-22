@@ -509,3 +509,15 @@ Each has a recommendation. Questions 1 to 6 block plan step 2 (implementation); 
 17. **Pane width.** Microsoft gives 320x570 for Outlook on the web and nothing for Outlook on Windows. Is 320 to 500 px right for DIMSCALE's users? Measure live.
 18. **Reduced motion.** Whether Fluent's Skeleton and Spinner honor `prefers-reduced-motion` is not confirmed; record it (AC-22).
 19. **Fluent docs.** The Fluent v9 theming docs page returned no text to the fetch tool. The theme API was verified from the installed package's type definitions and token source (9.74.10) instead. A reviewer with a browser should confirm the `BrandVariants` ramp guidance on react.fluentui.dev.
+
+## Brandbook rules (read from the DIMSCALE Brand Book, 2026-10-22)
+The source files are in the local, git-ignored `Modelo_DIMSCALE/` folder; the brandbook and the `.ai` file are never committed to this public repo.
+- **Logo colour:** the logo is used only in **black or white**, on clean surfaces. It is never coloured, and never placed in colour over a colour (p. 7, "WRONG 3"). On complex backgrounds it sits in a box with safety margins.
+  - This means: black wordmark on light theme, white wordmark on dark theme or on a navy band.
+  - It also rules out a teal- or orange-tinted logo.
+- **Minimum size:** 20 mm for the digital wordmark only (p. 4), about 76 px. The clear space equals the logo height `x` (p. 3).
+- **Typography:** the main family is **Rational** (René Bieder, 2016; commercial). For **"e-mail or other online editable platforms"** the brandbook prescribes **Helvetica** (and Courier). Flama is used for "ARCH COST MGMT" and text highlights.
+  - The task pane therefore uses the Helvetica stack; no font files are bundled. The PDF embeds only subset or DEMO fonts, which are not reusable.
+- **Icons (16–128 px):** the full wordmark is unreadable at these sizes, so the proposal is the "D" glyph from the wordmark, **white on a black square**, which keeps to the black-and-white rule. The user's green-"D" sample breaks the colour rule and is listed as an open question.
+- **Tagline** "Architecture Cost Management ®": its height must match the logo height when it sits beside it. It is omitted in the pane header for space.
+
