@@ -2,6 +2,7 @@
 
 - **Status:** Approved (2026-10-23) with the user's choices: **direction D "Outlook nativo"** (Fluent stock themes plus the user's Office theme colours; only the wordmark and the name are DIMSCALE), **320 px compact** (only the information the user needs), and a **"DIMSCALE MAIL" ribbon entry** that opens a pinnable pane. The "Responder" tab hosts the contact selection for automatic drafts (F-013). Earlier directions A, B and C are dropped.
 - **Amended 2026-10-23** (requirements-architect) to match that approval. Superseded and removed: directions A/B/C, the DIMSCALE navy/teal Fluent ramps, the brand contrast table, the full-layout wireframe with future AI slots, the future-slot components, and "no manifest change". AC IDs are kept; superseded ACs are marked.
+- **Amended again 2026-10-23** (requirements-architect) with the user's answers and one orchestrator decision: button label "DIMSCALE MAIL" (Q-R2 closed); the user wants an own "DIMSCALE MAIL" tab (Q-R1 becomes the experiment ACs 37 to 40, production manifest unchanged until it passes); clients in use are classic Windows, new Outlook and Mac (D2: Mac facts and live checks added); pinned-pane behaviour clarified (AC-36, AC-41); the message excerpt is **collapsed by default** in a "Mensagem" accordion (AC-10, AC-12).
 - **Tier:** Active item, presentation, plus the manifest (ribbon entry, pinning). No Graph, no new add-in permission (`ReadItem` stays), no new backend call, no AI.
 - **Depends on:** F-001, F-002, F-011 (all Done).
 - **Plan:** [docs/plans/F-012-taskpane-design.md](../plans/F-012-taskpane-design.md)
@@ -36,6 +37,11 @@ A compact pane that looks like part of Outlook, opened from a "DIMSCALE MAIL" ri
 | "In Office on the web, if you're using the single-line or simplified ribbon layout, the add-in name isn't shown on the ribbon. Only the add-in's command icon is shown." | https://learn.microsoft.com/office/dev/add-ins/design/add-in-commands |
 | **Pinning:** `<SupportsPinning>true</SupportsPinning>` on the `ShowTaskpane` `<Action>`; it is in the VersionOverrides **v1.1** schema, so both v1.0 and v1.1 are needed. Available in modern Outlook on the web, new Outlook on Windows, classic Outlook 2016+ on Windows, Mac 16.13+; **not** for appointments or Outlook.com. Handler: `Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, handler)` in `Office.onReady`; when it fires "`Office.context.mailbox.item` is already updated"; the handler "should check whether or not the `Office.context.mailbox.item` is null". | https://learn.microsoft.com/office/dev/add-ins/outlook/pinnable-taskpane |
 | Ribbon icons: PNG 16/32/80 for `bt:Image`; manifest `IconUrl` 64 and `HighResolutionIconUrl` 128 for mail add-ins. | https://learn.microsoft.com/office/dev/add-ins/design/add-in-icons, https://learn.microsoft.com/javascript/api/manifest/iconurl |
+| **Mac (D2, checked 2026-10-23):** new Mac UI (Outlook 16.38.506 or later) supports Mailbox 1.1 to **1.14**, NestedAppAuth 1.1 and DialogAPI; the **classic** Mac UI supports only Mailbox 1.1 to **1.8** (so no `officeTheme` or `OfficeThemeChanged`, which are 1.14), although the table also lists NestedAppAuth 1.1 for it. Classic Outlook on Windows: 1.14 from Version 2404, 1.16 from 2602. New Outlook on Windows and modern web: 1.1 to 1.16 and NestedAppAuth 1.1. | https://learn.microsoft.com/javascript/api/requirement-sets/outlook/outlook-api-requirement-sets |
+| Add-ins using the **unified manifest** can't be installed in Outlook on Mac, so this add-in stays on the add-in only (XML) manifest while Mac is a target. | https://learn.microsoft.com/office/dev/add-ins/outlook/compare-outlook-add-in-support-in-outlook-for-mac |
+| **Pinning on Mac:** supported from Outlook on Mac Version 16.13 (18050300) (Mailbox 1.5 feature). By default a task pane closes when another message is selected; pinned panes stay. Pinning isn't supported across modes (a pane pinned in read mode isn't shown in compose) and isn't available for appointments or Outlook.com. Docs say nothing on whether a pinned pane reopens after Outlook restarts. | https://learn.microsoft.com/office/dev/add-ins/outlook/pinnable-taskpane |
+| `OfficeThemeChanged`: per-platform firing is **not documented** beyond the requirement set (1.14: new Mac UI yes, classic Mac no). Live check on each client. | https://learn.microsoft.com/javascript/api/requirement-sets/outlook/outlook-requirement-set-1-14 |
+| Custom tab position elements `InsertBefore`/`InsertAfter` are PowerPoint-only; `OfficeGroup` is not available in Outlook; add-ins get one custom tab; the tab `Label` resid is at most 32 characters. Custom tab placement markup "is only available in PowerPoint on the web". | https://learn.microsoft.com/javascript/api/manifest/customtab, https://learn.microsoft.com/office/dev/add-ins/design/custom-tab-placement |
 | A manifest change needs a `<Version>` bump and an admin re-upload (F-011 runbook); code-only changes reach users without it. | [F-011](F-011-github-pages-hosting.md) |
 
 ## Approved design (direction D "Outlook nativo")
@@ -61,9 +67,10 @@ Designed for 320 px, one column, vertical scroll only; works up to 500 px (colum
 | Pedido de orcamento - Obra 203       |  Analisar: subject (wraps)
 | Ana Silva <ana@exemplo.pt>           |  sender
 | 02/01/2026 03:04                     |  date
-| +----------------------------------+ |  body preview, pre-wrap,
-| | Bom dia, segue o pedido...       | |  max-height ~120 px, focusable
-| +----------------------------------+ |  scroll region; (truncado) + length
+| v Mensagem                           |  accordion, COLLAPSED by default
+|   +--------------------------------+ |  when open: body preview, pre-wrap,
+|   | Bom dia, segue o pedido...     | |  max-height ~120 px, focusable
+|   +--------------------------------+ |  scroll region; (truncado) + length
 | (sparkle) IA (resumo e resposta      |  one "em breve" card
 |  sugerida) em breve.                 |
 | (shield) Sem envio automatico.       |  assurance
@@ -73,7 +80,7 @@ Designed for 320 px, one column, vertical scroll only; works up to 500 px (colum
 ```
 - **Header:** wordmark + "Mail"; one `h1` with accessible name "DIMSCALE Mail". No tagline.
 - **Tabs:** "Analisar" (default) and "Responder", Fluent `TabList`. "Escrever" is not rendered (compose mode is F-010).
-- **Analisar:** subject, sender (name and address, or address alone, never `<>`/"undefined"), date, body preview (F-001 limit 2,000 characters, "(truncado)" marker, length line), the `comingSoon` card, the assurance line. States: loading (Skeleton, `aria-busy`), no message, body error with "Tentar novamente" (subject, sender and date still shown when the item has them).
+- **Analisar:** subject, sender (name and address, or address alone, never `<>`/"undefined") and date always visible; the body excerpt (F-001 limit 2,000 characters, "(truncado)" marker, length line) sits inside a Fluent `Accordion` item titled "Mensagem" that is **collapsed by default** (compact pane, orchestrator decision 2026-10-23; the body is still read on load so opening it is instant); the `comingSoon` card, the assurance line. States: loading (Skeleton, `aria-busy`), no message, body error with "Tentar novamente" (subject, sender and date still shown when the item has them).
 - **Responder:** the F-013 contact selection UI ([F-013](F-013-automatic-reply-drafts.md), section "Pane: Responder tab"). Until that F-013 step ships, Responder shows one static card: "Respostas automáticas para contactos escolhidos: em breve." No fake controls.
 - **Footer:** the F-002 status (table below), `role="status"`. Actionable states also show a Fluent `MessageBar` above the tab content.
 
@@ -89,13 +96,20 @@ Designed for 320 px, one column, vertical scroll only; works up to 500 px (colum
 
 ### Ribbon entry "DIMSCALE MAIL" (manifest)
 - **v1 approach (documented on every platform):** `MessageReadCommandSurface` → `<OfficeTab id="TabDefault">` → **one** `<Group>` with label "DIMSCALE MAIL" → one `Button` whose label is also **"DIMSCALE MAIL"**, `Supertip` title "DIMSCALE MAIL", `Action xsi:type="ShowTaskpane"` with `<SupportsPinning>true</SupportsPinning>`. In classic Outlook this shows a "DIMSCALE MAIL" group on the default (Home/Base) tab; in new Outlook and the web the command sits on the default tab for that platform and mode, where the simplified ribbon may show only the icon (documented for Office on the web), so the button label and tooltip carry the name.
-- **No `CustomTab` in v1.** Microsoft documents it only for classic Outlook and does not document what other clients do with it, nor whether Outlook accepts `OfficeTab` and `CustomTab` together in one extension point. A classic-only "DIMSCALE MAIL" tab is an option only after Q-R1's experiment proves it safe in new Outlook and the web.
+- **No `CustomTab` in the production manifest until the experiment below passes** (user wants an own tab, 2026-10-23). Microsoft documents `CustomTab` as classic-Outlook-on-Windows only and does not document what the other clients do with a manifest that declares it, nor whether Outlook accepts `OfficeTab` and `CustomTab` together.
 - No group `Icon` (not supported in Outlook). Button icons 16/32/80 as today.
-- Note for the coder: the current working `manifest.xml` has group "DIMSCALE MAIL" and button label "Abrir"; this spec asks for the button label "DIMSCALE MAIL" (Q-R2 if the user prefers "Abrir").
+- Button label: **"DIMSCALE MAIL"** (user decision 2026-10-23, Q-R2 closed). The working `manifest.xml` still has the label "Abrir", which the coder replaces.
+
+### Custom tab experiment (user wants a "DIMSCALE MAIL" tab; 2026-10-23)
+What the docs say: the tab is **not available** in Outlook on the web, on Mac and in new Outlook on Windows ("you can put *custom* groups of controls on one of the built-in OfficeTabs instead"); only classic Outlook on Windows supports it. So on Mac and new Outlook a custom tab is **documented as unavailable**; the open point is only whether those clients ignore it gracefully (and still show the `TabDefault` group) or reject the manifest. The user's clients are classic Windows, new Outlook and Mac, so a tab that works only in classic is a partial result; the production manifest adopts it only if all three behave.
+- **Test manifest** `manifest.customtab-test.xml` (repo root, never deployed, not built into `dist/` by default): a copy of the production manifest with a **different `<Id>`** (new GUID), `DisplayName` "DIMSCALE MAIL (teste)" and a distinct `<Version>`. Variant **B** (try first): one `MessageReadCommandSurface` extension point with `<CustomTab id="DIMSCALE.TabMail">` (its own `Group`, the same `Button`, tab `Label` "DIMSCALE MAIL") **plus** the existing `<OfficeTab id="TabDefault">` group with a distinct group ID and control IDs. If B fails validation or install, variant **A**: `CustomTab` only (no `TabDefault`), same file name with suffix `-a`. Same task pane URL, same permission `ReadItem`, `SupportsPinning` kept.
+- **Procedure:** the user sideloads the test manifest in classic Windows, new Outlook and Mac (procedure per client: https://learn.microsoft.com/office/dev/add-ins/outlook/testing-and-tips, not verified per client here) and records, per client: install result or error text, where "DIMSCALE MAIL" appears (own tab, default tab, overflow, nowhere), whether the button opens the pane, whether pinning works. Then the user removes the test add-in.
+- **Decision rule:** all three clients install it and each shows a usable "DIMSCALE MAIL" entry (own tab in classic is enough; the default-tab group is acceptable on the others) and no client shows two competing entries that confuse users, then the production manifest adopts variant B (a spec amendment and a new approval by the user first). Otherwise production keeps the `TabDefault` group only.
 - Any manifest change ships with the centralized deployment (F-011 runbook: `<Version>` bump, admin upload). After that, code-only changes reach users without the admin.
 
 ### Pinning and item change
 - `SupportsPinning` as above (VersionOverrides v1.0 and v1.1 both present).
+- **Behaviour (user, 2026-10-23):** once pinned, the pane stays open across messages until the user closes it. The "DIMSCALE MAIL" ribbon button reopens it. Whether it reopens by itself after an Outlook restart is **undocumented**, so it is a live check (AC-41); the design must not depend on it.
 - Register `ItemChanged` with `Office.context.mailbox.addHandlerAsync` in `Office.onReady`. On change: discard any pending body read for the previous item (its result must not be shown), reset the Analisar state, read the new item; if `item` is null show the "no message" state. The Responder tab and the F-002 status are not reset by an item change.
 
 ## Strings (PT-PT, all in `src/taskpane/strings.ts`)
@@ -118,15 +132,15 @@ F-001/F-002 strings as approved on 2026-10-22 (D6 = PT-PT), plus: `title` "DIMSC
 | F-012/AC-5 (amended) | The pane uses `webLightTheme`/`webDarkTheme` (and the Fluent high-contrast theme under forced colours). No custom brand ramp, no DIMSCALE accent colour in the theme. | Mocks |
 | F-012/AC-6 (amended) | The Office body-colour guard: a test feeds pairs above and below 4.5:1 and asserts Office colours are applied only above it; otherwise the Fluent neutrals are used. Semantic pairs actually rendered (MessageBar intents, status icons) are measured in both themes and listed in the plan evidence. | Mocks, Visual |
 | F-012/AC-7 | Theme resolution as in "Theme": (a) 1.14 + dark `bodyBackgroundColor` → dark; (b) light → light; (c) no 1.14 + `prefers-color-scheme: dark` → dark; (d) neither → light; (e) invalid hex → step 2; (f) `forced-colors` → high contrast; (g) `OfficeThemeChanged` registered via `addHandlerAsync`, applied when fired, removed on unmount; (h) a mock without `officeTheme` or `isSetSupported` does not throw; (i) `isDarkTheme`/`themeId` absent from `src/`. | Mocks |
-| F-012/AC-8 | Live: for each Office theme offered (record the list), the pane follows it with no seam the user considers a defect; record `bodyBackgroundColor` per theme and whether a change with the pane open applies live. Repeat once in new Outlook or the web if available (record which). | Live (user) |
+| F-012/AC-8 | Live: for each Office theme offered (record the list), the pane follows it with no seam the user considers a defect; record `bodyBackgroundColor` per theme and whether a change with the pane open applies live. Repeat in new Outlook and on Mac (the user's clients, D2; Mac see AC-42). | Live (user) |
 | F-012/AC-9 | Live: with the four Windows contrast themes, all text, buttons, focus and status icons are visible; record whether `forced-colors` applies. | Live (user) |
 
 ### Layout and content
 | ID | Criterion | Verify by |
 |---|---|---|
-| F-012/AC-10 (amended) | Production renders exactly the content set: header, tabs, Analisar (message context, `comingSoon`, assurance), Responder (placeholder card until F-013's UI step, then the F-013 UI), footer, notices when needed. No other section, no disabled fake control. | Mocks |
+| F-012/AC-10 (amended) | Production renders exactly the content set: header, tabs, Analisar (subject, sender and date, the "Mensagem" accordion **collapsed on open**, `comingSoon`, assurance), Responder (placeholder card until F-013's UI step, then the F-013 UI), footer, notices when needed. No other section, no disabled fake control. | Mocks |
 | F-012/AC-11 (amended) | Header is one row ≤ 40 px at 320 px: inline wordmark SVG with an accessible name, the text "Mail", exactly one `h1` named "DIMSCALE Mail"; wordmark black on light, white on dark. | Mocks, Visual |
-| F-012/AC-12 | Message context shows subject, sender (rules above), date, body preview with "(truncado)" when cut and the length line, with all F-001 edge cases (empty subject/body, no item, loading, body error with Retry and `role="alert"`, large body, emoji, injection text). On body error, subject, sender and date are still shown. Body text ≤ 2,000 characters, whitespace kept. | Mocks |
+| F-012/AC-12 (amended) | Message context shows subject, sender (rules above) and date always. The body excerpt is inside a Fluent `Accordion` item "Mensagem" that is **collapsed by default** (the body text is not in the accessibility tree or tab order until the user opens it; opening it needs a click or Enter/Space, never happens on its own, and an item change collapses it again). When opened it shows the excerpt with "(truncado)" when cut and the length line. All F-001 edge cases hold (empty subject/body, no item, loading, body error with Retry and `role="alert"`, large body, emoji, injection text); the body error notice and "Tentar novamente" stay visible **outside** the collapsed accordion. On body error, subject, sender and date are still shown. Body text ≤ 2,000 characters, whitespace kept. F-001 ACs that check the body text are verified after opening the accordion in the test. | Mocks |
 | F-012/AC-13 | Backend status renders the six F-002 states per the table, same state machine and handlers, visible text for every state, footer `role="status"`, error notice `role="alert"`, sign-in popup only from the "Iniciar sessão" click. | Mocks |
 | F-012/AC-14 | **Superseded** (future-slot components dropped by the compact content set). | — |
 | F-012/AC-15 | The assurance line is present in every Analisar state that shows the message, static, not removable by a prop. | Mocks |
@@ -148,21 +162,31 @@ F-001/F-002 strings as approved on 2026-10-22 (D6 = PT-PT), plus: `title` "DIMSC
 | F-012/AC-23 | Every user-visible string comes from `strings.ts` (allow-list test or grep); PT-PT reviewed by the user. | Mocks, user review |
 | F-012/AC-24 (amended) | `assets/icon-16/32/64/80/128.png`: exact sizes, 32-bit RGBA, the green "D" on white chosen by the user, SVG master in the repo, legible at 16 and 32 px on light and dark ribbons (person-checked). | Mocks (PNG header), Visual |
 | F-012/AC-25 | Live: ribbon and File > Manage add-ins show the new icons; record what refreshed a cached icon. | Live |
-| F-012/AC-26 (amended) | Manifest diff contains only: the ribbon entry of AC-32, `SupportsPinning` (AC-34), the icon files if renamed, and a `<Version>` bump. Permission stays `ReadItem`; no `CustomTab`; `npm run validate` and `manifest.test.ts` pass; `dist/manifest.xml` has the production URLs. | Diff, command output |
+| F-012/AC-26 (amended) | Manifest diff contains only: the ribbon entry of AC-32 (button label "DIMSCALE MAIL" instead of "Abrir"), `SupportsPinning` (AC-34), the icon files if renamed, and a `<Version>` bump. Permission stays `ReadItem`; no `CustomTab` in the production manifest (until AC-40 is decided and the user approves an amendment); `npm run validate` and `manifest.test.ts` pass; `dist/manifest.xml` has the production URLs. | Diff, command output |
 | F-012/AC-27 | No new network host (no webfont, CDN, external image, analytics). F-011 checks still pass (hashed names, no source maps, no secrets, no `localhost` in the production manifest). Bundle size delta recorded against the step-0 budget. | Build output, grep |
 | F-012/AC-28 | Dependency change limited to `@fluentui/react-icons` as a direct dependency at the version already in the lockfile; `npm audit` recorded with no new High/Critical. | Diff, command output |
 | F-012/AC-29 | Typecheck, lint, tests, `npm run build`, `build:dev`, `validate` pass. After merge, the F-011 workflow deploys. | Command output |
-| F-012/AC-30 | Visual acceptance by the user in classic Outlook, light and dark, default/narrow/wide pane, for: message loaded, loading, no message, body error, the reachable backend states. Screenshots without real email content. | Live (user) |
+| F-012/AC-30 (amended) | Visual acceptance by the user in classic Outlook (then new Outlook and Mac), light and dark, default/narrow/wide pane, for: message loaded (accordion collapsed and open), loading, no message, body error, the reachable backend states. Screenshots without real email content. | Live (user) |
 | F-012/AC-31 | **Superseded** (the prototype gate was met: direction D chosen 2026-10-23). | — |
 
 ### Ribbon and pinning (new)
 | ID | Criterion | Verify by |
 |---|---|---|
-| F-012/AC-32 | The manifest's `MessageReadCommandSurface` has exactly one `<OfficeTab id="TabDefault">` with exactly one `<Group>` labelled "DIMSCALE MAIL" containing one `Button` labelled "DIMSCALE MAIL" (Supertip title "DIMSCALE MAIL") whose action is `ShowTaskpane`. No `<CustomTab>` anywhere. | `manifest.test.ts`, `npm run validate` |
-| F-012/AC-33 | Live: after the add-in is installed from the production manifest, classic Outlook shows the "DIMSCALE MAIL" group on the default tab and clicking it opens the pane. Record where the entry appears in new Outlook on Windows and/or Outlook on the web (if the user has them) and what text or icon is visible there. | Live (user) |
+| F-012/AC-32 | The manifest's `MessageReadCommandSurface` has exactly one `<OfficeTab id="TabDefault">` with exactly one `<Group>` labelled "DIMSCALE MAIL" containing one `Button` labelled "DIMSCALE MAIL" (Supertip title "DIMSCALE MAIL") whose action is `ShowTaskpane`. No `<CustomTab>` in `manifest.xml` (the test manifests of AC-37 are separate files). | `manifest.test.ts`, `npm run validate` |
+| F-012/AC-33 (amended) | Live: after the add-in is installed from the production manifest, **classic Outlook on Windows, new Outlook on Windows and Outlook on Mac** each show a "DIMSCALE MAIL" entry and clicking it opens the pane. Record per client where it appears and what text or icon is visible. | Live (user) |
 | F-012/AC-34 | `<SupportsPinning>true</SupportsPinning>` is inside that button's `ShowTaskpane` action, in the VersionOverrides v1.1 block nested in v1.0. | `manifest.test.ts`, `npm run validate` |
 | F-012/AC-35 | `ItemChanged`: registered once via `addHandlerAsync` after `Office.onReady`; on fire the Analisar view shows the new item; a body read started for the previous item that resolves late is discarded (test with two items and a delayed first `getAsync`); `item === null` gives the "no message" state; the active tab, the Responder state and the F-002 status are unchanged; focus is not moved. | Mocks |
-| F-012/AC-36 | Live: pin the pane, select three different messages in turn, then a calendar item or nothing: the pane follows each message with no stale content and no error. Record the client and build. | Live (user) |
+| F-012/AC-36 (amended) | Live, in **classic Windows, new Outlook and Mac** (Mac 16.13 or later; record versions): pin the pane, select three different messages in turn, then a calendar item or nothing: the pane follows each message with no stale content and no error. Record the client and build. | Live (user) |
+
+### Custom tab experiment, theme and pinning on Mac (new, 2026-10-23)
+| ID | Criterion | Verify by |
+|---|---|---|
+| F-012/AC-37 | `manifest.customtab-test.xml` exists as a separate file with its own `<Id>` (different from production), a distinct `<Version>` and DisplayName "DIMSCALE MAIL (teste)". Variant B contains one `<CustomTab>` (label "DIMSCALE MAIL", resid ≤ 32 chars) and one `<OfficeTab id="TabDefault">` with unique group and control IDs, in `MessageReadCommandSurface`; permission `ReadItem`; no other change from production. It passes `npm run validate`. `manifest.xml` and the CI deploy are untouched, and the test manifest is not published to Pages. | `manifest.test.ts` (or a script), `npm run validate`, diff |
+| F-012/AC-38 | Live, per client (classic Windows, new Outlook, Mac), the user records for the test manifest: installs or error text, where "DIMSCALE MAIL" shows, whether the button opens the pane, whether pinning works. If variant B fails validation or install anywhere, the same record is made for variant A. | Live (user), table in the plan |
+| F-012/AC-39 | Results are written in the plan with date, client, build/version and screenshots without email content. Microsoft's statement that `CustomTab` is unavailable on Mac and new Outlook is compared with what was observed; any difference is recorded as a finding. | Live (user), review |
+| F-012/AC-40 | Decision: the production manifest adopts the custom tab only if all three clients behave per the decision rule in "Custom tab experiment". Otherwise it stays with the `TabDefault` group. Adoption needs a spec amendment approved by the user, a `<Version>` bump and an admin re-upload. | User decision |
+| F-012/AC-41 | Live: with the pane pinned, selecting other messages leaves it open until the user closes it; after closing, the "DIMSCALE MAIL" button reopens it; after quitting and restarting Outlook, record whether the pane reopens by itself (undocumented). Per client: classic Windows, new Outlook, Mac. | Live (user) |
+| F-012/AC-42 | Live on Mac: record the Outlook version and UI (classic or new), `isSetSupported("Mailbox","1.14")` and `isSetSupported("NestedAppAuth","1.1")` results (shown by a temporary diagnostic or the dev console, not committed), whether the pane follows the Office theme, and whether `OfficeThemeChanged` fires when the theme changes with the pane open. Expected from the docs: new Mac UI has 1.14, classic Mac UI (max 1.8) falls back to `prefers-color-scheme`. | Live (user) |
 
 ## Edge cases
 - Very long unbroken subject, address or body line: wraps, no horizontal scroll.
@@ -178,11 +202,12 @@ F-001/F-002 strings as approved on 2026-10-22 (D6 = PT-PT), plus: `title` "DIMSC
 
 ## Out of scope
 - Any AI feature or backend call (F-003 onward). The F-013 contact UI itself is specified and built under F-013.
-- `CustomTab` (see Q-R1), compose mode and "Escrever" (F-010), localization machinery, first-run experience, user theme override, persisted preferences, webfonts, analytics.
+- `CustomTab` in the production manifest (only the experiment ACs 37 to 40, then a separate approval), compose mode and "Escrever" (F-010), localization machinery, first-run experience, user theme override, persisted preferences, webfonts, analytics.
 - Changing `auth.ts`, `backend.ts`, `config.ts` or Supabase functions.
 
 ## Risks
-- **CustomTab behaviour unknown outside classic Outlook.** Avoided in v1 by using only `TabDefault`.
+- **CustomTab behaviour unknown outside classic Outlook** (documented as unavailable on Mac, web and new Outlook). Production uses only `TabDefault`; the test manifest (AC-37) is separate with another `<Id>`, so a bad result can't break the production install. Two add-ins with different IDs sideloaded together on one client may both show; the user removes the test one afterwards.
+- **Classic Mac UI has Mailbox 1.8 only**: no theme API and no 1.14 features there; the pane falls back to `prefers-color-scheme` (AC-42).
 - **Theme detection under-documented for Outlook** (values per theme, whether the event fires in classic): safe fallback; AC-8 live.
 - **Stale content in a pinned pane** if a late body read wins: AC-35 test.
 - **Manifest change needs the admin**: bundled with the planned centralized deployment.
@@ -198,8 +223,11 @@ F-001/F-002 strings as approved on 2026-10-22 (D6 = PT-PT), plus: `title` "DIMSC
 - 2026-10-23: **direction D**, **320 px compact**, **"DIMSCALE MAIL" ribbon entry**, **Responder = contact selection for automatic drafts (F-013)**.
 
 ## Open questions
-- **Q-R1 (custom tab, classic only).** Do you still want a separate "DIMSCALE MAIL" tab in classic Outlook in addition to the group on the default tab? It can only be decided by an experiment: a separate test manifest (different `<Id>`, sideloaded by you, never the production one) with `TabDefault` plus `CustomTab`, run through `npm run validate`, then installed in classic Outlook, new Outlook and the web to record what each shows. Recommendation: not needed; the group on the default tab already shows "DIMSCALE MAIL" in classic.
-- **Q-R2.** Button label "DIMSCALE MAIL" (recommended, so the name shows even where only the command is visible) or "Abrir" under the "DIMSCALE MAIL" group (current working manifest)?
+- **Q-R1 (custom tab): answered 2026-10-23, the user wants an own "DIMSCALE MAIL" tab.** Handled by the experiment ACs 37 to 40. Still open: does new Outlook or Mac reject, ignore or fall back when the manifest declares `CustomTab` (undocumented), and does Outlook accept `CustomTab` with `OfficeTab` in one extension point (undocumented; variant A is the fallback)?
+- **Q-R2: answered 2026-10-23, "DIMSCALE MAIL".** Closed.
+- **Q-R3.** How does the user sideload a test manifest on Mac (and in new Outlook)? The testing-and-tips page is cited but not checked per client.
+- **Q-R4.** Does a pinned pane reopen after an Outlook restart (AC-41)? Undocumented.
+- **Q-R5.** Does `OfficeThemeChanged` fire on new Mac UI (AC-42)? Requirement set says supported, firing not documented.
 - **Q11 (kept).** Does Outlook show the add-in name above the pane? If yes, the header may keep only the wordmark.
 - **Q12 (kept).** Office theme values per theme, `OfficeThemeChanged` in classic, `forced-colors` in the webview: answered by AC-8, AC-9.
 - **Q17 (kept).** Real pane widths in classic Outlook: measure live.

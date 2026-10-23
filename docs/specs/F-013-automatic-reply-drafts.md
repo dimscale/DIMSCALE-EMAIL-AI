@@ -39,6 +39,7 @@ In the pane's **Responder** tab the user ticks the **contacts** the system answe
 | With **Assignment required**, "Applications that require users to be assigned to the application must have their permissions consented by an administrator, even if the user consent policies ... would otherwise allow a user to consent". So `Mail.ReadBasic` needs the admin's consent in this tenant. | https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal |
 | Option 2 (not chosen for v1): Outlook contacts `GET /me/contacts`, least privileged delegated **`Contacts.Read`**. | https://learn.microsoft.com/graph/api/user-list-contacts?view=graph-rest-1.0 |
 | Option 3 (rejected): People API `GET /me/people`, delegated `People.Read`; "The People API is in maintenance mode", Microsoft recommends the Search API for new development. | https://learn.microsoft.com/graph/api/user-list-people?view=graph-rest-1.0 |
+| **Mac (D2, 2026-10-23):** new Mac UI (16.38.506 or later) lists Mailbox 1.1 to 1.14 and NestedAppAuth 1.1; classic Mac UI lists Mailbox 1.1 to 1.8 and NestedAppAuth 1.1. Add-ins on the unified manifest can't be installed on Mac (this add-in uses the XML manifest). Whether the F-002 NAA flow and the second-scope consent behave on Mac is undocumented, so AC-42 is a live check. | https://learn.microsoft.com/javascript/api/requirement-sets/outlook/outlook-api-requirement-sets, https://learn.microsoft.com/office/dev/add-ins/outlook/compare-outlook-add-in-support-in-outlook-for-mac |
 | `Office.context.mailbox.userProfile.emailAddress`: "Gets the user's SMTP email address", minimum permission **read item**, compose or read. | https://learn.microsoft.com/javascript/api/outlook/office.userprofile |
 
 ## Contact allow-list (v1 trigger, added 2026-10-23)
@@ -237,7 +238,8 @@ In the pane's **Responder** tab the user ticks the **contacts** the system answe
 | F-013/AC-38 | `GET` returns only the caller's `enabled`, `status` and contacts. `DELETE` removes the caller's contacts and sets `enabled = false`; the next cron run deletes that user's subscription. CORS as specified; `OPTIONS` needs no token; other methods 405. | Unit, Local |
 | F-013/AC-39 | Logs of `auto-reply-settings` contain request ID, method, status, reason code and contact count only; a test injects marker addresses and asserts they never appear in logs. | Unit, grep |
 | F-013/AC-40 | Enabling creates the subscription within one "process" cron cycle; a `403` on creation sets `status = not_in_scope` and the pane shows "Conta fora do grupo piloto". | Unit (mocked Graph); Live (a user outside the RBAC group, if available) |
-| F-013/AC-41 | Live: in classic Outlook, the Responder tab lists recent senders after one consent (or shows the admin-approval text), a manual address can be added, "Guardar" persists the list (reopen the pane on another device or after restart and the same list and status appear), and "Apagar tudo" empties it. | Live (user) |
+| F-013/AC-41 (amended) | Live, in **classic Outlook on Windows, new Outlook and Outlook on Mac** (the user's clients, 2026-10-23): the Responder tab lists recent senders after one consent (or shows the admin-approval text), a manual address can be added, "Guardar" persists the list (reopen the pane on another client or after restart and the same list and status appear), and "Apagar tudo" empties it. | Live (user) |
+| F-013/AC-42 | Live on Mac: record the Outlook version and UI (classic or new), `isSetSupported("NestedAppAuth","1.1")`, whether the F-002 sign-in and the `Mail.ReadBasic` silent request and consent popup work, and whether the `fetch` to `auto-reply-settings` passes CORS (origin `https://dimscale.github.io`). Docs: new Mac UI (16.38.506 or later) lists NestedAppAuth 1.1 and the classic Mac UI also lists it, but Mac behaviour of `acquireTokenPopup` for a second scope is not documented. If it fails on a client, the Responder tab shows the "unsupported" notice and the server side keeps working for already saved lists. | Live (user) |
 
 ## Edge cases
 - **Spoofed `From`:** an outsider can forge a listed contact's address. The result is at most an unsent draft and an OpenAI call (cost, and the forged text reaches OpenAI). Checking `Authentication-Results` headers is a later hardening (Q-C4).
@@ -362,7 +364,7 @@ New flows:
 
 ### For the user
 - **Q-C1. Candidate source:** v1 = recent Inbox senders (last 30 days, `Mail.ReadBasic`) + manual entry. Add Outlook contacts later (`Contacts.Read`, one more admin consent)?
-- **Q-C2. Limit:** at most 50 contacts per user. Enough?
+- **Q-C2. Limit: answered 2026-10-23, the user confirmed 50 contacts per user.** Closed.
 - **Q-C3. Filters for listed contacts:** with an explicit list, should filters 6 (only CC'd) and 12 (Focused "Other") stay on? Recommendation: keep 6, turn 12 off (a chosen contact landing in "Other" should still be answered).
 - **Q-C4. Forged senders:** accept the residual risk in v1 (an unsent draft), with header-based sender checks as a later hardening?
 1. **Which emails get a draft?** Now: only listed contacts, then the defaults below: Inbox only; you're in To (not only CC); Focused (not "Other", see Q-C3); not automatic, bulk or no-reply; younger than 24 h. Internal DIMSCALE senders on your list are answered (`INTERNAL_SENDERS=allow`) unless you say otherwise.
