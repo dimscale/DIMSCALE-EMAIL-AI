@@ -57,7 +57,7 @@ revoke all on public.auto_draft_users, public.auto_reply_contacts, public.graph_
 
 -- ---- RPC functions (called only by the Edge Functions) ----
 
-create function public.ad_settings_get(p_oid text) returns jsonb language sql stable as $$
+create function public.ad_settings_get(p_oid text) returns jsonb language sql stable set search_path = '' as $$
   select coalesce(
     (select jsonb_build_object(
        'enabled', u.enabled,
@@ -68,7 +68,7 @@ create function public.ad_settings_get(p_oid text) returns jsonb language sql st
 $$;
 
 -- Replaces the list atomically (one function call is one transaction).
-create function public.ad_settings_put(p_oid text, p_enabled boolean, p_sha text, p_contacts text[]) returns jsonb language plpgsql as $$
+create function public.ad_settings_put(p_oid text, p_enabled boolean, p_sha text, p_contacts text[]) returns jsonb language plpgsql set search_path = '' as $$
 declare
   v_id uuid; v_old boolean; v_status text; v_on boolean; v_new text;
 begin
@@ -90,7 +90,7 @@ begin
   return public.ad_settings_get(p_oid);
 end $$;
 
-create function public.ad_settings_delete(p_oid text) returns jsonb language plpgsql as $$
+create function public.ad_settings_delete(p_oid text) returns jsonb language plpgsql set search_path = '' as $$
 begin
   delete from public.auto_reply_contacts where user_id = (select id from public.auto_draft_users where entra_oid = p_oid);
   update public.auto_draft_users set enabled = false, status = 'off', enabled_changed_at = now(), status_changed_at = now(), updated_at = now()
@@ -98,18 +98,18 @@ begin
   return public.ad_settings_get(p_oid);
 end $$;
 
-create function public.ad_user_for_subscription(p_sub text) returns jsonb language sql stable as $$
+create function public.ad_user_for_subscription(p_sub text) returns jsonb language sql stable set search_path = '' as $$
   select to_jsonb((select user_id from public.graph_subscriptions where subscription_id = p_sub));
 $$;
 
-create function public.ad_user_ctx(p_user uuid) returns jsonb language sql stable as $$
+create function public.ad_user_ctx(p_user uuid) returns jsonb language sql stable set search_path = '' as $$
   select to_jsonb(r) from (
     select u.entra_oid as oid, u.mail_sha256 as "mailSha256", u.enabled,
       coalesce((select jsonb_agg(c.address) from public.auto_reply_contacts c where c.user_id = u.id), '[]'::jsonb) as contacts
     from public.auto_draft_users u where u.id = p_user) r;
 $$;
 
-create function public.ad_cron_users() returns jsonb language sql stable as $$
+create function public.ad_cron_users() returns jsonb language sql stable set search_path = '' as $$
   select coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) from (
     select u.id, u.entra_oid as oid, u.status,
       (u.enabled and exists (select 1 from public.auto_reply_contacts c where c.user_id = u.id)) as active,
@@ -120,24 +120,24 @@ create function public.ad_cron_users() returns jsonb language sql stable as $$
   ) r;
 $$;
 
-create function public.ad_sub_set(p_user uuid, p_sub text, p_expires timestamptz) returns void language sql as $$
+create function public.ad_sub_set(p_user uuid, p_sub text, p_expires timestamptz) returns void language sql set search_path = '' as $$
   insert into public.graph_subscriptions (user_id, subscription_id, expires_at, last_renewed_at)
   values (p_user, p_sub, p_expires, now())
   on conflict (user_id) do update set subscription_id = excluded.subscription_id, expires_at = excluded.expires_at, last_renewed_at = now();
 $$;
-create function public.ad_sub_delete(p_user uuid) returns void language sql as $$
+create function public.ad_sub_delete(p_user uuid) returns void language sql set search_path = '' as $$
   delete from public.graph_subscriptions where user_id = p_user;
 $$;
-create function public.ad_catchup_done(p_user uuid, p_at timestamptz) returns void language sql as $$
+create function public.ad_catchup_done(p_user uuid, p_at timestamptz) returns void language sql set search_path = '' as $$
   update public.graph_subscriptions set last_catchup_at = p_at where user_id = p_user;
 $$;
-create function public.ad_user_status(p_user uuid, p_status text) returns void language sql as $$
+create function public.ad_user_status(p_user uuid, p_status text) returns void language sql set search_path = '' as $$
   update public.auto_draft_users set status = p_status, status_changed_at = now(), updated_at = now()
   where id = p_user and status is distinct from p_status;
 $$;
 
 -- Duplicate notifications collapse on the unique key.
-create function public.ad_enqueue(p_user uuid, p_ids text[]) returns int language plpgsql as $$
+create function public.ad_enqueue(p_user uuid, p_ids text[]) returns int language plpgsql set search_path = '' as $$
 declare n int;
 begin
   insert into public.auto_draft_queue (user_id, message_id) select p_user, i from unnest(p_ids) as i
@@ -149,10 +149,14 @@ end $$;
 -- Claims at most one row per mailbox (4-concurrent-requests limit) with a 5-minute lease.
 -- Eligible: pending and due, or processing with an expired lease. The advisory lock is taken
 -- before the live-lease check so two concurrent claimers cannot both pick the same mailbox.
-create function public.ad_claim(p_limit int, p_user uuid default null) returns jsonb language plpgsql as $$
+create function public.ad_claim(p_limit int, p_user uuid default null) returns jsonb language plpgsql set search_path = '' as $$
 declare
   r record; v_row record; v_out jsonb := '[]'::jsonb; n int := 0;
 begin
+  -- Attempt cap on reclaim: a row whose lease expired after 5 attempts (MAX_ATTEMPTS in processor.ts) fails instead of being retaken.
+  update public.auto_draft_queue set status = 'failed', reason_code = 'lease_expired', locked_until = null, updated_at = now()
+  where status = 'processing' and locked_until < now() and attempts >= 5
+    and (p_user is null or user_id = p_user);
   for r in
     select distinct q.user_id from public.auto_draft_queue q
     where (p_user is null or q.user_id = p_user)
@@ -176,29 +180,31 @@ begin
   return v_out;
 end $$;
 
-create function public.ad_finish(p_id uuid, p_status text, p_reason text) returns void language sql as $$
+create function public.ad_finish(p_id uuid, p_status text, p_reason text) returns void language sql set search_path = '' as $$
   update public.auto_draft_queue set status = p_status, reason_code = p_reason, locked_until = null, updated_at = now()
   where id = p_id and status = 'processing';
 $$;
-create function public.ad_retry(p_id uuid, p_reason text, p_next timestamptz) returns void language sql as $$
+create function public.ad_retry(p_id uuid, p_reason text, p_next timestamptz) returns void language sql set search_path = '' as $$
   update public.auto_draft_queue set status = 'pending', reason_code = p_reason, next_attempt_at = p_next, locked_until = null, updated_at = now()
   where id = p_id and status = 'processing';
 $$;
 
-create function public.ad_counts_today(p_user uuid) returns jsonb language sql stable as $$
+create function public.ad_counts_today(p_user uuid) returns jsonb language sql stable set search_path = '' as $$
   select jsonb_build_object(
     'user', count(*) filter (where user_id = p_user),
     'global', count(*))
   from public.auto_draft_queue
-  where status = 'drafted' and updated_at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
+  -- rows that reached the AI step: drafted, or failed with an ai_* reason (ai_unavailable, ai_output_invalid)
+  where (status = 'drafted' or (status = 'failed' and reason_code like 'ai\_%')) and updated_at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC';
 $$;
 
 -- Queue rows: 30 days. Users disabled for 90 days or not_in_scope for 30 days go with their contacts.
-create function public.ad_retention() returns void language sql as $$
+create function public.ad_retention() returns void language sql set search_path = '' as $$
   delete from public.auto_draft_queue where created_at < now() - interval '30 days';
   delete from public.auto_draft_users
-  where (enabled = false and enabled_changed_at < now() - interval '90 days')
-     or (status = 'not_in_scope' and status_changed_at < now() - interval '30 days');
+  where ((enabled = false and enabled_changed_at < now() - interval '90 days')
+     or (status = 'not_in_scope' and status_changed_at < now() - interval '30 days'))
+    and not exists (select 1 from public.graph_subscriptions g where g.user_id = public.auto_draft_users.id);
 $$;
 
 revoke all on function
@@ -217,24 +223,24 @@ grant execute on function
   to service_role;
 
 -- ---- Cron: calls auto-draft-cron with the secret read from Vault (secret name: auto_draft_cron_secret) ----
--- The secret is created by the operator with vault.create_secret(...), never in this file.
+-- Operator, once (never in this file): vault.create_secret('<cron secret>', 'auto_draft_cron_secret') and vault.create_secret('https://<project-ref>.supabase.co', 'project_url').
 select cron.schedule('auto-draft-process', '*/2 * * * *', $job$
   select net.http_post(
-    url := 'https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/auto-draft-cron',
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/auto-draft-cron',
     headers := jsonb_build_object('Content-Type', 'application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'auto_draft_cron_secret')),
     body := '{"op":"process"}'::jsonb, timeout_milliseconds := 60000);
 $job$);
 select cron.schedule('auto-draft-renew', '0 */6 * * *', $job$
   select net.http_post(
-    url := 'https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/auto-draft-cron',
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/auto-draft-cron',
     headers := jsonb_build_object('Content-Type', 'application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'auto_draft_cron_secret')),
     body := '{"op":"renew"}'::jsonb, timeout_milliseconds := 60000);
 $job$);
 select cron.schedule('auto-draft-retention', '17 3 * * *', $job$
   select net.http_post(
-    url := 'https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/auto-draft-cron',
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/auto-draft-cron',
     headers := jsonb_build_object('Content-Type', 'application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'auto_draft_cron_secret')),
     body := '{"op":"retention"}'::jsonb, timeout_milliseconds := 60000);

@@ -17,7 +17,7 @@ export type FilterCtx = {
   mailSha256: string; // SHA-256 of the owner's lower-cased address
   inboxFolderId: string;
   nowMs: number;
-  countsToday: { user: number; global: number };
+  countsToday: { user: number; global: number }; // rows that reached the AI step: drafted, plus failed with an ai_* reason
 };
 export type FilterResult = { pass: true } | { skip: string };
 

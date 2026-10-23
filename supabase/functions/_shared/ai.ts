@@ -42,7 +42,7 @@ export function buildInput(i: DraftInput): string {
   return [OPEN, `From name: ${oneLine(i.fromName, 100)}`, `From domain: ${oneLine(i.fromDomain, 100)}`, `Subject: ${oneLine(i.subject, 255)}`, "", body, CLOSE].join("\n");
 }
 
-const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+/gi;
+const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+|(?<![:\w\/])\/\/[a-z0-9][^\s<>"')\]]*/gi; // last branch: protocol-relative //host
 const MAIL_RE = /[^\s@<>"'()\[\]]+@[^\s@<>"'()\[\]]+\.[^\s@<>"'()\[\]]+/g;
 const trimEnd = (s: string) => s.replace(/[.,;:!?]+$/, "").toLowerCase();
 
@@ -82,6 +82,9 @@ export function parseOutput(res: unknown, input: string): AiResult {
   const reply = (parsed as { reply?: unknown }).reply;
   if (keys.length !== 1 || keys[0] !== "reply" || typeof reply !== "string") return bad;
   if (reply.trim() === "" || reply.length > 3000 || introducesNewLinks(reply, input)) return bad;
+  // AI output is plain text: any angle bracket is rejected, so no markup can reach the draft.
+  // shortcut: comment assumed plain text until spike V1, if HTML implement the spec's escape/PATCH fallback
+  if (/[<>]/.test(reply)) return bad;
   return { ok: true, reply };
 }
 

@@ -46,6 +46,8 @@ export async function handle(req: Request, d: WebhookDeps): Promise<Response> {
   const secret = d.get("GRAPH_CLIENT_STATE");
   const ids = new Map<string, Set<string>>();
   const lifecycle: { userId: string; subId: string; kind: string }[] = [];
+  const tenant = d.get("ENTRA_TENANT_ID")?.trim();
+  const users = new Map<string, string | null>(); // one lookup per distinct subscription per request
   try {
     for (const it of items) {
       if (!isRec(it) || !(await ctEqual(typeof it.clientState === "string" ? it.clientState : null, secret))) {
@@ -53,7 +55,12 @@ export async function handle(req: Request, d: WebhookDeps): Promise<Response> {
         continue;
       }
       const subId = typeof it.subscriptionId === "string" ? it.subscriptionId : "";
-      const userId = subId ? await d.db.userForSubscription(subId) : null;
+      // Only our own tenant (fail closed when ENTRA_TENANT_ID is not configured).
+      let userId: string | null = null;
+      if (subId && tenant && it.tenantId === tenant) {
+        if (!users.has(subId)) users.set(subId, await d.db.userForSubscription(subId));
+        userId = users.get(subId) ?? null;
+      }
       if (!userId) {
         log({ fn: FN, id, reason: "unknown_subscription" });
         continue;

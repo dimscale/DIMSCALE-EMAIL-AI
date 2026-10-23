@@ -42,7 +42,12 @@ export async function handle(req: Request, d: CronDeps): Promise<Response> {
     await syncSubscriptions(p, op === "renew");
     if (op === "process") {
       for (const u of await p.db.cronUsers()) {
-        if (u.active && u.subscriptionId) await catchUp(p, u, p.settings.maxAgeHours);
+        if (!u.active || !u.subscriptionId) continue;
+        try {
+          await catchUp(p, u, p.settings.maxAgeHours);
+        } catch {
+          log({ fn: FN, id, user_id: u.id, reason: "catchup_error" }); // one user's failure must not stop the others or processClaimed
+        }
       }
       await processClaimed(p);
     }

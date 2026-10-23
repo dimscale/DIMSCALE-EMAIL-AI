@@ -1,5 +1,6 @@
 // Test helpers only (never imported by index.ts files): an in-memory Db mirroring the SQL semantics.
 import type { Claimed, CronUser, Db, SettingsView, Status, UserCtx } from "./db.ts";
+import { MAX_ATTEMPTS } from "./processor.ts";
 
 export type Row = { id: string; userId: string; messageId: string; status: string; reason: string | null; attempts: number; nextAttemptAt: number; lockedUntil: number; createdAt: number; updatedAt: number };
 
@@ -70,6 +71,7 @@ export function fakeDb(nowMs: () => number = Date.now) {
     },
     claim: (limit, userId) => {
       const t = nowMs();
+      for (const r of queue) if (r.status === "processing" && r.lockedUntil < t && r.attempts >= MAX_ATTEMPTS && (!userId || r.userId === userId)) Object.assign(r, { status: "failed", reason: "lease_expired", lockedUntil: 0, updatedAt: t }); // mirrors ad_claim
       const out: Claimed[] = [];
       const eligible = (r: Row) => (r.status === "pending" && r.nextAttemptAt <= t) || (r.status === "processing" && r.lockedUntil < t);
       for (const r of queue) {
@@ -93,7 +95,7 @@ export function fakeDb(nowMs: () => number = Date.now) {
       return Promise.resolve();
     },
     countsToday: (userId) => {
-      const d = queue.filter((r) => r.status === "drafted");
+      const d = queue.filter((r) => r.status === "drafted" || (r.status === "failed" && (r.reason ?? "").startsWith("ai_"))); // reached the AI step
       return Promise.resolve({ user: d.filter((r) => r.userId === userId).length, global: d.length });
     },
     retention: () => (calls.push("retention"), Promise.resolve()),

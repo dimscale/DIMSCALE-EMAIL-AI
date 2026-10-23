@@ -17,7 +17,7 @@ async function setup(env: Record<string, string> = { AUTO_DRAFTS_ENABLED: "true"
     createSubscription: () => (calls.push("create"), Promise.resolve({ ok: true, data: { id: "S1", expiresAt: "2026-11-01T00:00:00Z" } })),
     renewSubscription: () => (calls.push("patch"), Promise.resolve({ ok: true, data: { expiresAt: "2026-11-01T00:00:00Z" } })),
     deleteSubscription: () => (calls.push("delete"), Promise.resolve({ ok: true, data: null })),
-    listInboxIds: () => (calls.push("list"), Promise.resolve({ ok: true, data: ["m1"] })),
+    listInboxIds: () => (calls.push("list"), Promise.resolve({ ok: true, data: { ids: ["m1"], truncated: false } })),
     readFrom: () => (calls.push("readFrom"), Promise.resolve({ ok: true, data: { from: "ana@exemplo.pt" } })),
     readMessage: () => (calls.push("readMessage"), Promise.resolve({ ok: true, data: { odataType: "", subject: "S", fromAddress: "ana@exemplo.pt", fromName: "Ana", toAddresses: [OWN], isDraft: false, inference: "focused", receivedDateTime: new Date().toISOString(), headers: {}, body: "Hi", parentFolderId: "INBOX" } })),
     inboxFolderId: () => Promise.resolve({ ok: true, data: "INBOX" }),
@@ -107,6 +107,28 @@ Deno.test("renew: disabled users lose their subscription", async () => {
     assertEquals((await handle(req("renew"), s.d)).status, 200);
     assertEquals(s.calls, ["delete"]);
     assertEquals(s.f.subs.size, 0);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("M4: one user's catch-up failure does not stop the others or the queue processing", async () => {
+  const s = await setup();
+  const u2 = s.f.addUser("44444444-4444-4444-4444-444444444444", ["ana@exemplo.pt"], await sha256Hex(OWN));
+  await s.f.db.setSubscription(s.u.id, "S1", "2026-12-01T00:00:00Z");
+  await s.f.db.setSubscription(u2.id, "S2", "2026-12-01T00:00:00Z");
+  const g = s.d.procDeps()!.graph as unknown as { listInboxIds: (oid: string) => Promise<unknown> };
+  const listed: string[] = [];
+  g.listInboxIds = (oid) => {
+    listed.push(oid);
+    if (oid === OID) throw new Error("boom");
+    return Promise.resolve({ ok: true, data: { ids: ["m9"], truncated: false } });
+  };
+  quiet();
+  try {
+    assertEquals((await handle(req("process"), s.d)).status, 200);
+    assertEquals(listed.length, 2);
+    assertEquals(s.f.queue.map((r) => [r.userId, r.status]), [[u2.id, "drafted"]]);
   } finally {
     loud();
   }

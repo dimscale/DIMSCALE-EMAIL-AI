@@ -3,7 +3,7 @@ import { fakeDb } from "../_shared/testing.ts";
 import { handle, type WebhookDeps } from "./handler.ts";
 
 const OID = "33333333-3333-3333-3333-333333333333";
-function setup(env: Record<string, string> = { AUTO_DRAFTS_ENABLED: "true", GRAPH_CLIENT_STATE: "CS" }) {
+function setup(env: Record<string, string> = { AUTO_DRAFTS_ENABLED: "true", GRAPH_CLIENT_STATE: "CS", ENTRA_TENANT_ID: "T" }) {
   const f = fakeDb();
   const u = f.addUser(OID, ["a@x.com"]);
   void f.db.setSubscription(u.id, "SUB1", "2026-11-01T00:00:00Z");
@@ -20,7 +20,7 @@ function setup(env: Record<string, string> = { AUTO_DRAFTS_ENABLED: "true", GRAP
   return { f, u, d, waits, events, release: () => pending() };
 }
 const post = (body: unknown, qs = "") => new Request(`https://f.test/graph-webhook${qs}`, { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
-const n = (id: string, over: Record<string, unknown> = {}) => ({ subscriptionId: "SUB1", clientState: "CS", changeType: "created", resourceData: { id }, ...over });
+const n = (id: string, over: Record<string, unknown> = {}) => ({ subscriptionId: "SUB1", clientState: "CS", tenantId: "T", changeType: "created", resourceData: { id }, ...over });
 let orig: typeof console.log;
 const quiet = (out: string[] = []) => { orig = console.log; console.log = (s: string) => out.push(s); return out; };
 const loud = () => { console.log = orig; };
@@ -117,9 +117,9 @@ Deno.test("AC-5: lifecycle notifications get 202 and are routed; bad clientState
   quiet();
   try {
     const res = await handle(post({ value: [
-      { subscriptionId: "SUB1", clientState: "CS", lifecycleEvent: "reauthorizationRequired" },
-      { subscriptionId: "SUB1", clientState: "CS", lifecycleEvent: "subscriptionRemoved" },
-      { subscriptionId: "SUB1", clientState: "CS", lifecycleEvent: "missed" },
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "reauthorizationRequired" },
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "subscriptionRemoved" },
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "missed" },
       { subscriptionId: "SUB1", clientState: "bad", lifecycleEvent: "missed" },
     ] }), s.d);
     assertEquals(res.status, 202);
@@ -156,6 +156,40 @@ Deno.test("AC-24: no database configured gives 503 for notifications (Graph retr
   quiet();
   try {
     assertEquals((await handle(post({ value: [n("m1")] }), s.d)).status, 503);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("L1: a notification from another tenant is ignored like an unknown subscription", async () => {
+  const s = setup();
+  const out = quiet();
+  try {
+    const res = await handle(post({ value: [n("m1", { tenantId: "OTHER" }), n("m2", { tenantId: undefined }), n("m3")] }), s.d);
+    assertEquals(res.status, 202);
+    assertEquals(s.f.queue.map((r) => r.messageId), ["m3"]);
+    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "unknown_subscription").length, 2);
+    s.release();
+    // not configured: fail closed
+    const t = setup({ AUTO_DRAFTS_ENABLED: "true", GRAPH_CLIENT_STATE: "CS" });
+    await handle(post({ value: [n("m1")] }), t.d);
+    assertEquals(t.f.queue.length, 0);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("L2: each distinct subscription is looked up once per request", async () => {
+  const s = setup();
+  let lookups = 0;
+  const orig = s.d.db!.userForSubscription;
+  s.d.db!.userForSubscription = (id) => (lookups++, orig(id));
+  quiet();
+  try {
+    await handle(post({ value: [n("m1"), n("m2"), n("m3"), n("m4", { subscriptionId: "NOPE" }), n("m5", { subscriptionId: "NOPE" })] }), s.d);
+    assertEquals(lookups, 2);
+    assertEquals(s.f.queue.length, 3);
+    s.release();
   } finally {
     loud();
   }

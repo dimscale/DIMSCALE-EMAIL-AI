@@ -244,7 +244,7 @@ function subSetup(o: SG = {}) {
     createSubscription: (oid: unknown) => (calls.push(`create:${oid}`), Promise.resolve({ ok: true, data: { id: `S-${oid}`, expiresAt: "2026-11-01T00:00:00Z" } })),
     renewSubscription: (id: unknown) => (calls.push(`patch:${id}`), Promise.resolve({ ok: true, data: { expiresAt: "2026-11-02T00:00:00Z" } })),
     deleteSubscription: (id: unknown) => (calls.push(`delete:${id}`), Promise.resolve({ ok: true, data: null })),
-    listInboxIds: (oid: unknown, since: unknown) => (calls.push(`list:${oid}:${since}`), Promise.resolve({ ok: true, data: ["a", "b"] })),
+    listInboxIds: (oid: unknown, since: unknown) => (calls.push(`list:${oid}:${since}`), Promise.resolve({ ok: true, data: { ids: ["a", "b"], truncated: false } })),
   };
   const graph = { ...dflt, ...o } as unknown as Graph;
   return { f, calls, d: { fn: "t", db: f.db, graph, nowMs: () => now } };
@@ -308,7 +308,7 @@ Deno.test("AC-8: catch-up window is max(last catch-up, now - MAX_AGE), ids enque
   assertEquals(s.f.queue.length, 2);
   assertEquals(s.f.subs.get(u.id)!.lastCatchupAt, iso(NOW0));
   await catchUp(s.d, { id: u.id, oid: "A", lastCatchupAt: iso(NOW0 - 3600_000) }, 24);
-  assertEquals(s.calls[1], `list:A:${iso(NOW0 - 3600_000)}`);
+  assertEquals(s.calls[1], `list:A:${iso(NOW0 - 3600_000 - 300_000)}`); // 5 minute overlap (L5)
   assertEquals(s.f.queue.length, 2); // same ids: no new rows
   await catchUp(s.d, { id: u.id, oid: "A", lastCatchupAt: iso(NOW0 - 72 * 3600_000) }, 24);
   assertEquals(s.calls[2], `list:A:${iso(NOW0 - 24 * 3600_000)}`);
@@ -335,4 +335,95 @@ Deno.test("AC-5: lifecycle events", async () => {
   } finally {
     loud();
   }
+});
+
+// ---------- security review fixes ----------
+Deno.test("M1: a display name that is or contains an address never reaches the AI", async () => {
+  for (const fromName of ["ana@exemplo.pt", "ANA@Exemplo.PT", "Ana <ana@exemplo.pt>", "x@y.com"]) {
+    const s = setup({ msg: { ok: true, data: { ...okMsg, fromName } } });
+    await enqueue(s, "m1");
+    await processClaimed(s.deps);
+    assertEquals((s.aiCalls[0] as { i: { fromName: string } }).i.fromName, "");
+  }
+  const s = setup({ msg: { ok: true, data: { ...okMsg, fromName: "Ana Silva" } } });
+  await enqueue(s, "m1");
+  await processClaimed(s.deps);
+  assertEquals((s.aiCalls[0] as { i: { fromName: string } }).i.fromName, "Ana Silva");
+});
+
+Deno.test("M2: an expired lease after 5 attempts fails the row (lease_expired) instead of reclaiming it; a row over the cap is failed before any call", async () => {
+  const s = setup();
+  await enqueue(s, "m1");
+  for (let i = 0; i < 5; i++) {
+    assertEquals((await s.f.db.claim(5)).length, 1);
+    s.advance(301_000);
+  }
+  assertEquals(row(s).attempts, 5);
+  assertEquals((await s.f.db.claim(5)).length, 0);
+  assertEquals([row(s).status, row(s).reason], ["failed", "lease_expired"]);
+  // processor guard: a claimed row with attempts > MAX_ATTEMPTS
+  const t = setup();
+  await enqueue(t, "m1");
+  row(t).attempts = 5; // the next claim makes it 6
+  assertEquals(await processClaimed(t.deps), 1);
+  assertEquals([row(t).status, row(t).reason, t.calls.length, t.aiCalls.length], ["failed", "lease_expired", 0, 0]);
+});
+
+Deno.test("M3: a successful draft sets the user status to active; a successful renewal does too (enabled users only)", async () => {
+  const s = setup();
+  s.user.status = "error";
+  await enqueue(s, "m1");
+  await processClaimed(s.deps);
+  assertEquals(s.user.status, "active");
+  quiet();
+  try {
+    const r = subSetup();
+    const u = r.f.addUser("A", ["a@x.com"], "", true, "error");
+    await r.f.db.setSubscription(u.id, "SA", iso(NOW0 + 3600_000));
+    r.f.subs.get(u.id)!.lastRenewedAt = iso(NOW0 - 3600_000); // outside the 10 minute guard
+    await syncSubscriptions(r.d, false);
+    assertEquals([r.calls, u.status], [["patch:SA"], "active"]);
+    const l = subSetup();
+    const off = l.f.addUser("B", [], "", false, "off");
+    await l.f.db.setSubscription(off.id, "SB", iso(NOW0 + 3600_000));
+    await handleLifecycle(l.d, off.id, "SB", "reauthorizationRequired", 24);
+    assertEquals(off.status, "off"); // a disabled user is not resurrected
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("M5: daily caps count drafted rows and rows that failed at the AI step, not other failures", async () => {
+  const s = setup({}, () => Promise.resolve({ ok: false, reason: "ai_output_invalid", retryable: false }), { DAILY_CAP_PER_USER: "2" });
+  await enqueue(s, "m1", "m2", "m3");
+  await processClaimed(s.deps);
+  assertEquals(s.f.queue.map((r) => [r.status, r.reason]), [["failed", "ai_output_invalid"], ["failed", "ai_output_invalid"], ["skipped", "cap_reached"]]);
+  assertEquals(s.aiCalls.length, 2);
+  const g = setup({ from: fail(400) }); // graph_error is not an AI-step failure
+  await enqueue(g, "m1");
+  await processClaimed(g.deps);
+  assertEquals(await g.f.db.countsToday(g.user.id), { user: 0, global: 0 });
+});
+
+Deno.test("L4: missing AI config fails ai_unavailable after the sender check and before the full read", async () => {
+  for (const env of [{ OPENAI_API_KEY: "" }, { OPENAI_MODEL: "" }] as Record<string, string>[]) {
+    const s = setup({}, undefined, env);
+    await enqueue(s, "m1");
+    await processClaimed(s.deps);
+    assertEquals([row(s).status, row(s).reason], ["failed", "ai_unavailable"]);
+    assertEquals(s.calls, ["readFrom:m1"]);
+  }
+});
+
+Deno.test("L5: a truncated catch-up enqueues what it found but does not advance last_catchup_at", async () => {
+  const s = subSetup({ listInboxIds: () => Promise.resolve({ ok: true, data: { ids: ["a"], truncated: true } }) });
+  const u = s.f.addUser("A", ["a@x.com"]);
+  await s.f.db.setSubscription(u.id, "SA", iso(NOW0 + 9 * 24 * 3600_000));
+  quiet();
+  try {
+    await catchUp(s.d, { id: u.id, oid: "A", lastCatchupAt: null }, 24);
+  } finally {
+    loud();
+  }
+  assertEquals([s.f.queue.length, s.f.subs.get(u.id)!.lastCatchupAt], [1, null]);
 });

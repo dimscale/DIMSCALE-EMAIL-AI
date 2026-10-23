@@ -51,7 +51,9 @@ export function makeGraph(d: GraphDeps) {
 
   async function call(method: string, url: string, opts: { body?: unknown; prefer?: string[] } = {}): Promise<GResult<unknown>> {
     if (!url.startsWith(`${BASE}/`)) throw new Error("graph_url_not_allowed");
-    const path = new URL(url).pathname.slice("/v1.0".length);
+    const pathname = new URL(url).pathname; // normalised: dot segments and encodings resolved
+    if (!pathname.startsWith("/v1.0/")) throw new Error("graph_url_not_allowed");
+    const path = pathname.slice("/v1.0".length);
     if (!ALLOWED.some((a) => a.method === method && a.path.test(path))) throw new Error("graph_call_not_allowed");
     let token: string;
     try {
@@ -124,21 +126,27 @@ export function makeGraph(d: GraphDeps) {
 
     /** Folder id only (no mail content), for filter 3. */
     async inboxFolderId(oid: string): Promise<GResult<string>> {
-      return map(await call("GET", `${inbox(oid)}?$select=id`), (j) => (isRec(j) ? str(j.id) : ""));
+      return map(await call("GET", `${inbox(oid)}?$select=id`, { prefer: [IMMUTABLE] }), (j) => (isRec(j) ? str(j.id) : ""));
     },
 
-    /** Catch-up: Inbox message IDs since a time, `$select=id` only, following @odata.nextLink (max 10 pages). */
-    async listInboxIds(oid: string, sinceIso: string): Promise<GResult<string[]>> {
-      let url: string | null = `${inbox(oid)}/messages?$filter=${encodeURIComponent(`receivedDateTime ge ${sinceIso}`)}&$select=id&$top=50`;
+    /** Catch-up: Inbox message IDs since a time, `$select=id` only, following @odata.nextLink (max 10 pages; `truncated` if more remain). */
+    async listInboxIds(oid: string, sinceIso: string): Promise<GResult<{ ids: string[]; truncated: boolean }>> {
+      // $orderby is allowed with this $filter because it uses the same property (https://learn.microsoft.com/graph/api/user-list-messages).
+      let url: string | null = `${inbox(oid)}/messages?$filter=${encodeURIComponent(`receivedDateTime ge ${sinceIso}`)}&$orderby=receivedDateTime%20desc&$select=id&$top=50`;
       const ids: string[] = [];
       for (let page = 0; url && page < 10; page++) {
-        const r: GResult<unknown> = await call("GET", url, { prefer: [IMMUTABLE] });
+        let r: GResult<unknown>;
+        try {
+          r = await call("GET", url, { prefer: [IMMUTABLE] });
+        } catch {
+          return { ok: false, status: 502 }; // a nextLink outside the allow-list is a failure, not a crash
+        }
         if (!r.ok) return r;
         const j = r.data;
         if (isRec(j) && Array.isArray(j.value)) for (const m of j.value) if (isRec(m) && typeof m.id === "string") ids.push(m.id);
         url = isRec(j) && typeof j["@odata.nextLink"] === "string" ? j["@odata.nextLink"] : null;
       }
-      return { ok: true, data: ids };
+      return { ok: true, data: { ids, truncated: url !== null } };
     },
 
     /** The one draft-creating call. Recipients are never set by us. */

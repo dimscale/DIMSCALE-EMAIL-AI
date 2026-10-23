@@ -238,10 +238,13 @@ Deno.test("generateDraft: invalid outputs are ai_output_invalid", async () => {
   assertEquals(await run(okBody("see www.evil.example")), invalid);
 });
 
-Deno.test("parseOutput: links already in the email are allowed; HTML is kept as literal text", () => {
+Deno.test("parseOutput: links already in the email are allowed; any markup is rejected (H1)", () => {
   const input = buildInput({ ...DI, body: "See https://exemplo.pt/doc. Contact ana@exemplo.pt" });
   assertEquals(parseOutput(okBody("Read https://exemplo.pt/doc, and write ana@exemplo.pt."), input), { ok: true, reply: "Read https://exemplo.pt/doc, and write ana@exemplo.pt." });
-  assertEquals(parseOutput(okBody("<b>hi</b><script>x()</script>"), input), { ok: true, reply: "<b>hi</b><script>x()</script>" });
+  const invalid = { ok: false, reason: "ai_output_invalid", retryable: false } as const;
+  for (const t of ["<b>hi</b><script>x()</script>", "a < b", "a > b", "<!-- x -->", "<?xml?>"]) assertEquals(parseOutput(okBody(t), input), invalid);
+  assertEquals(parseOutput(okBody("see //evil.example/x"), input), invalid); // protocol-relative link (H1)
+  assertEquals(parseOutput(okBody("ok https://exemplo.pt/doc and 10/20 and a//b"), input).ok, true);
 });
 
 Deno.test("generateDraft: timeout, 429 and 5xx are retryable; other 4xx and no key are not", async () => {

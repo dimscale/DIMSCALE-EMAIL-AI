@@ -101,15 +101,15 @@ Deno.test("AC-8: catch-up uses $select=id, pages, never asks for bodies", async 
     j({ value: [{ id: "a" }, { id: "b" }], "@odata.nextLink": `https://graph.microsoft.com/v1.0/users/${OID}/mailFolders('inbox')/messages?$skiptoken=zz` }),
     j({ value: [{ id: "c" }] }),
   ]);
-  assertEquals(await graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), { ok: true, data: ["a", "b", "c"] });
-  assertEquals(calls[0].url, `https://graph.microsoft.com/v1.0/users/${OID}/mailFolders('inbox')/messages?$filter=receivedDateTime%20ge%202026-10-23T00%3A00%3A00.000Z&$select=id&$top=50`);
+  assertEquals(await graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), { ok: true, data: { ids: ["a", "b", "c"], truncated: false } });
+  assertEquals(calls[0].url, `https://graph.microsoft.com/v1.0/users/${OID}/mailFolders('inbox')/messages?$filter=receivedDateTime%20ge%202026-10-23T00%3A00%3A00.000Z&$orderby=receivedDateTime%20desc&$select=id&$top=50`);
   assertEquals(calls.length, 2);
   assert(calls.every((c) => !c.url.includes("body")));
 });
 
-Deno.test("a nextLink pointing elsewhere is refused (no request is made)", async () => {
+Deno.test("a nextLink pointing elsewhere is refused as a failure result, no second request (M4)", async () => {
   const { graph, calls } = setup([j({ value: [], "@odata.nextLink": "https://evil.example/v1.0/x" })]);
-  await assertRejects(() => graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), Error, "graph_url_not_allowed");
+  assertEquals(await graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), { ok: false, status: 502 });
   assertEquals(calls.length, 1);
 });
 
@@ -155,4 +155,24 @@ Deno.test("AC-19: the client refuses forbidden calls even if asked (no fetch hap
   await assertRejects(() => g.readFrom(`${OID}/../..`, "x"), Error, "graph_call_not_allowed");
   // An id containing a slash is URL-encoded, so it stays one path segment (here the stubbed fetch throws, reported as a network error).
   assertEquals(await g.createReply(OID, "x/send", "c"), { ok: false, status: 0, reason: "network" });
+});
+
+Deno.test("M6: the inbox folder lookup sends the same ImmutableId Prefer header as the message read", async () => {
+  const { graph, calls } = setup([j({ id: "INBOX-ID" })]);
+  assertEquals(await graph.inboxFolderId(OID), { ok: true, data: "INBOX-ID" });
+  assertEquals(calls[0].headers.get("Prefer"), 'IdType="ImmutableId"');
+});
+
+Deno.test("L3: paths are matched after normalisation and must stay under /v1.0/", async () => {
+  // this normalises to /beta/users/...: before the fix slice(5) made it look like an allowed /users/... path
+  const withNextLink = setup([j({ value: [], "@odata.nextLink": `https://graph.microsoft.com/v1.0/../beta/users/${OID}/messages/x` })]);
+  assertEquals(await withNextLink.graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), { ok: false, status: 502 });
+  assertEquals(withNextLink.calls.length, 1);
+});
+
+Deno.test("L5: catch-up paging that stops at the page limit reports truncated", async () => {
+  const next = `https://graph.microsoft.com/v1.0/users/${OID}/mailFolders('inbox')/messages?$skiptoken=zz`;
+  const { graph, calls } = setup(() => j({ value: [{ id: "a" }], "@odata.nextLink": next }));
+  assertEquals(await graph.listInboxIds(OID, "2026-10-23T00:00:00.000Z"), { ok: true, data: { ids: Array(10).fill("a"), truncated: true } });
+  assertEquals(calls.length, 10);
 });

@@ -16,7 +16,7 @@ export type ProcDeps = {
   budgetMs?: number; // stop claiming new rows after this (Free plan wall clock is 150 s)
 };
 
-const MAX_ATTEMPTS = 5;
+export const MAX_ATTEMPTS = 5; // keep equal to the attempts cap in ad_claim (migration)
 
 export async function processClaimed(d: ProcDeps, userId?: string): Promise<number> {
   if (!autoDraftsEnabled(d.get)) return 0; // kill switch: claim nothing, read nothing
@@ -27,6 +27,7 @@ export async function processClaimed(d: ProcDeps, userId?: string): Promise<numb
   while (now() - start < (d.budgetMs ?? 100_000)) {
     const rows = await d.db.claim(5, userId); // at most one row per mailbox, so one request chain per mailbox
     if (rows.length === 0) break;
+    // shortcut: concurrent rows of one batch (at most 4) can exceed the global daily cap, and finish has no fencing token (accepted risk R5).
     await Promise.all(rows.map(async (row) => {
       const t0 = now();
       try {
@@ -67,6 +68,9 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
     return await done("failed", "graph_error");
   };
 
+  // Reclaimed too often (crashes or lease expiry): stop before any Graph or OpenAI call.
+  if (row.attempts > MAX_ATTEMPTS) return await done("failed", "lease_expired");
+
   const user = await d.db.userCtx(row.userId);
   if (!user || !user.enabled || user.contacts.length === 0) return await done("skipped", "user_disabled");
 
@@ -74,6 +78,9 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
   const from = await d.graph.readFrom(user.oid, row.messageId);
   if (!from.ok) return await graphFail(from, row.userId);
   if (!isAllowedSender(from.data.from, user.contacts)) return await done("skipped", "sender_not_allowed");
+
+  // AI config before the full read: without it nothing could be drafted anyway.
+  if (!d.get("OPENAI_API_KEY") || !d.settings.openaiModel) return await done("failed", "ai_unavailable");
 
   const msg = await d.graph.readMessage(user.oid, row.messageId);
   if (!msg.ok) return await graphFail(msg, row.userId);
@@ -93,8 +100,10 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
   }, d.settings);
   if ("skip" in verdict) return await done("skipped", verdict.skip);
 
+  // Never send an address to OpenAI: a display name that contains one, or is the sender address, is dropped.
+  const fromName = msg.data.fromName.includes("@") || msg.data.fromName.trim().toLowerCase() === msg.data.fromAddress.trim().toLowerCase() ? "" : msg.data.fromName;
   const ai = await (d.ai ?? ((i, c) => generateDraft(i, c)))(
-    { subject: msg.data.subject, fromName: msg.data.fromName, fromDomain: domainOf(msg.data.fromAddress), body: msg.data.body },
+    { subject: msg.data.subject, fromName, fromDomain: domainOf(msg.data.fromAddress), body: msg.data.body },
     { apiKey: d.get("OPENAI_API_KEY") ?? "", model: d.settings.openaiModel, maxOutputTokens: d.settings.openaiMaxOutputTokens },
   );
   if (!ai.ok) return ai.retryable ? await retryOrFail(ai.reason) : await done("failed", ai.reason);
@@ -102,5 +111,6 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
   // Exactly one draft-creating call. The reply text goes in as the comment, unmodified, after the marker line.
   const draft = await d.graph.createReply(user.oid, row.messageId, `${MARKER_LINE}\n\n${ai.reply}`);
   if (!draft.ok) return await graphFail(draft, row.userId);
+  await d.db.setUserStatus(row.userId, "active"); // a recovered mailbox leaves the error state
   return await done("drafted", "ok");
 }
