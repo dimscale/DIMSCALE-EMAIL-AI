@@ -1,6 +1,7 @@
 # Plan F-012: Task pane UI/UX design
 
-- **Spec:** [F-012](../specs/F-012-taskpane-design.md). **Status:** Not started (spec is Draft).
+- **Spec:** [F-012](../specs/F-012-taskpane-design.md). **Status:** spec Approved 2026-10-23 (direction D).
+- **Amendment note (2026-10-23):** the spec now uses Fluent stock themes (no brand ramps: step 3 shrinks to the body-colour contrast guard), a compact content set (step 8 future-slot components dropped, AC-14 superseded), a Responder placeholder, and **does change `manifest.xml`** (AC-26, AC-32, AC-34: `TabDefault` group and button "DIMSCALE MAIL", `SupportsPinning`, `<Version>` bump) plus `ItemChanged` (AC-35). The rule reminder below about `manifest.xml` no longer applies. Steps 1 and 2 are complete.
 - **Blocked by:** the user's answers to spec questions Q1 to Q6 (direction, accent, icon, language, production visibility, tab bar) and spec approval. Step 1 (prototype) can start before approval because it is throwaway and merges nothing.
 - **Branch:** `f-012-taskpane-design`, created from `origin/main` (`git fetch`, then `git checkout -b f-012-taskpane-design origin/main`). The prototype lives on a separate throwaway branch `f-012-prototype` created from it, and is never merged.
 - **Rule reminders:** no change to `auth.ts`, `backend.ts`, `config.ts`, `supabase/` or (unless Q13 says otherwise) `manifest.xml`; no new network host; email and AI text only as text nodes; no logging; no browser storage.

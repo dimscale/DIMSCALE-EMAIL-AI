@@ -6,6 +6,7 @@
 - **Plan:** [docs/plans/F-015-manual-batch-drafts.md](../plans/F-015-manual-batch-drafts.md)
 - **Basis:** [research 2026-10-22](../research/2026-10-22-email-selection-and-learning.md), recommendations approved by the user the same day.
 - **User decisions (2026-10-22) that bind this spec:** (1) order is manual first, then assisted, then automatic (F-013); (2) at most **10 emails per batch**; (3) no email content is stored, only the derived profile (F-016); (4) no fine-tuning.
+- **Reprioritized 2026-10-23 (user direction):** F-013 with the contact allow-list now comes first. F-015 follows and reuses F-013's draft engine (`generateDraft`) and the shared auth module instead of creating them; its D-2 "engine" and step-3b work shrink accordingly when it is resumed.
 - **Supersedes in the backlog:** the list part of F-008 and the draft part of F-009 (see [Required doc changes](#required-doc-changes)). The sign-in part of F-008 already exists (F-002).
 
 ## Goal

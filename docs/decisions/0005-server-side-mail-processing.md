@@ -1,11 +1,13 @@
 # ADR-0005: Server-side mail processing (automatic reply drafts)
 
-- **Status:** Proposed (2026-10-22). Needs the user's acceptance, the DPO's answer on D5, and the tenant admin's agreement on the permission model before any implementation.
-- **Date:** 2026-10-22
+- **Status:** Accepted (2026-10-23) by the user, with the approval of F-013. The tenant-admin setup (MMSI) and the DPO items are still pending.
+- **Date:** 2026-10-22, amended 2026-10-23
 - **Feature:** [F-013 automatic reply drafts](../specs/F-013-automatic-reply-drafts.md)
 
 ## Context
 New user requirement (2026-10-22): "When an email arrives, even with Outlook closed, the system runs, creates the reply emails and leaves them in Drafts." The user still reviews and sends every reply by hand. Nothing is ever sent automatically.
+
+**Amendment (user direction 2026-10-23):** the trigger is a per-user **contact allow-list**. In the pane's "Responder" tab the user ticks the contacts the system answers; only mail from those senders gets a draft. The user still requires it to work **with Outlook closed**, so the server-side architecture below is unchanged; the allow-list only narrows what it reads and sends to OpenAI.
 
 This is the first feature that runs **without the user and without Outlook**. It changes three things that the current architecture rules out:
 - The backend is no longer stateless. It must remember subscriptions and which messages it already handled.
@@ -58,9 +60,14 @@ CLAUDE.md rule 8 requires an ADR for this.
    - `auto-draft-cron`, called by Supabase Cron with a shared secret. It retries queued work, renews subscriptions, catches up after lifecycle events, and deletes old metadata.
 4. **Supabase Postgres (eu-west-1)** stores metadata only: enabled users, subscriptions, and processed message IDs with their status and reason code. RLS is enabled with no policies. No subject, body, address or AI output is stored.
 5. **OpenAI** gets only what [F-013](../specs/F-013-automatic-reply-drafts.md) lists, through the Responses API with `store: false`, no tools and a strict JSON schema. The output becomes a reply draft through `createReply`, with a visible "AI draft" marker. The user sends it, or doesn't.
-6. **Kill switches**, from fastest to slowest:
+6. **Contact allow-list (amendment 2026-10-23).**
+   - The pane lists candidate contacts from the user's recent Inbox senders with **delegated `Mail.ReadBasic`** (the Graph token stays in the pane) plus manual entry, and saves the chosen addresses and an on/off switch through a third function, `auto-reply-settings`, authenticated with the F-002 token validation. The client never writes the database directly.
+   - Postgres gains `auto_reply_contacts` (lower-cased addresses keyed by the user's Entra `oid`): third-party personal data, deletable by the user, with a retention rule (DPO).
+   - For every notified message the processor first reads only `from`; a sender not on the list ends the row with no further read and no OpenAI call. Subscriptions exist only for enabled users with at least one contact.
+   - This does not change the permission model: the app-only roles still allow reading any message of an in-scope mailbox, so the allow-list is an application control, not a security boundary. The RBAC group remains the boundary.
+7. **Kill switches**, from fastest to slowest:
    - the `AUTO_DRAFTS_ENABLED` function secret (read on every call, no redeploy needed);
-   - per-user `enabled = false`;
+   - per-user switch off in the Responder tab (or `enabled = false`);
    - removing the certificate from the app registration (no new tokens);
    - removing the Exchange role assignments (takes effect in 30 minutes to 2 hours).
 
@@ -72,12 +79,13 @@ CLAUDE.md rule 8 requires an ADR for this.
 - A new secret class appears: the certificate private key, the `clientState`, the cron shared secret and the OpenAI key, all in Supabase secrets or Vault. The private key needs rotation before the certificate expires.
 - The tenant admin has to run Exchange Online PowerShell (Organization Management) and create or reuse a **mail-enabled** group with **direct** members.
 - The pending admin request to **revoke the old delegated `Mail.ReadWrite`, `offline_access` and `User.Read` grants** on the add-in's SPA registration is still correct and still needed. Option B doesn't use delegated grants, and leaving them would widen the SPA's reach.
-- Email content of incoming mail, including from external senders, is processed by OpenAI without a user action. This **needs the DPO's decision (D5)** before going live.
+- Email content of incoming mail from the **senders the user chose**, including external ones, is processed by OpenAI without a per-message user action. This **needs the DPO's decision (D5)** before going live. The allow-list makes the flow narrower and easier to justify than the 2026-10-22 "every Inbox message" design.
+- Supabase stores each user's chosen contact addresses (personal data of third parties) and the delegated `Mail.ReadBasic` scope is added to the add-in app (admin consent is required in this tenant because Assignment required is on).
 - The public webhook URL can be called by anyone. Requests without a valid `clientState` are dropped. Anything they could cost is limited to Supabase invocations, since they never reach Graph or OpenAI.
 - Graph may mark a slow endpoint "slow" or "drop" and lose notifications. Mitigations: the fast ack, catch-up on `missed`, and a periodic catch-up window. A switch to Event Hubs would need Azure (excluded for now).
 
 ## Open
-- User: accept option B, or ask for C or D.
-- DPO: D5 for automated processing of third-party mail by OpenAI, plus the DPAs with OpenAI and Supabase.
-- Tenant admin: whether RBAC for Applications is acceptable without any Entra consent, and which mail-enabled group to use.
+- User: accept option B with the contact allow-list, or ask for C or D.
+- DPO: D5 for automated processing of mail from chosen contacts by OpenAI; storage and retention of the contact list; the DPAs with OpenAI and Supabase.
+- Tenant admin (MMSI): the checklist in [docs/admin/2026-10-23-mmsi-request.md](../admin/2026-10-23-mmsi-request.md): RBAC for Applications without any Entra application consent, the mail-enabled group, the certificate, and delegated `Mail.ReadBasic` consent on the add-in app.
 - To verify in the F-013 spike: whether a subscription and `createReply` work with RBAC-only grants (Microsoft documents Graph as a supported protocol, but doesn't say anything specific about subscriptions).

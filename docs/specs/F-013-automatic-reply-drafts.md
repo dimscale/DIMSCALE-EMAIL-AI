@@ -1,12 +1,13 @@
-# F-013: Automatic reply drafts (server side, Outlook closed)
+# F-013: Automatic reply drafts for selected contacts (server side, Outlook closed)
 
-- **Status:** Draft (2026-10-22). Not approved. Blocked by ADR-0005 acceptance, D5 (the DPO and OpenAI account), and the tenant admin checklist in the plan.
-- **Tier:** Mailbox, **server side, app-only** (Microsoft Graph application access scoped by Exchange RBAC for Applications) + AI. No Office.js and no task pane change.
-- **Depends on:** [ADR-0005](../decisions/0005-server-side-mail-processing.md) (Proposed), ADR-0003 (Supabase, Accepted), F-002 (Supabase project, function conventions, `jose`), D5 (the OpenAI account, model and GDPR).
+- **Status:** Approved (2026-10-23) by the user ("f-13 aprovado").
+- **Tier:** Mailbox, **server side, app-only** (Graph application access scoped by Exchange RBAC for Applications) + AI, plus the **task pane "Responder" tab** (Office.js `ReadItem` for the user's own address, delegated Graph `Mail.ReadBasic` for the candidate list) and one authenticated settings function.
+- **Depends on:** [ADR-0005](../decisions/0005-server-side-mail-processing.md), ADR-0003 (Supabase), F-002 (token validation, function conventions, `jose`), F-012 (tabs, theme, strings), D5 (the OpenAI account, model and GDPR).
 - **Plan:** [docs/plans/F-013-automatic-reply-drafts.md](../plans/F-013-automatic-reply-drafts.md)
+- **Priority (user direction 2026-10-23):** F-013 with the contact allow-list comes **before** F-015 and F-016. Its `ai` module is the shared draft engine (`generateDraft`, pure, no HTTP/Graph), which F-015 (manual batch) and F-004 reuse later.
 
 ## Goal
-When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlook closed on every device, the backend creates a **reply draft** in that user's Drafts folder, threaded with the conversation and clearly marked as AI generated. The user reviews, edits, sends or deletes it. **The system never sends, deletes, moves or reports any message.**
+In the pane's **Responder** tab the user ticks the **contacts** the system answers and switches the feature on. When a message from one of those contacts arrives in the user's Inbox, even with Outlook closed on every device, the backend reads it, creates a **reply draft** in the user's Drafts folder, threaded with the conversation and marked as AI generated. Mail from anyone else is not read beyond its sender and is never sent to the AI. The user reviews, edits, sends or deletes each draft. **The system never sends, deletes, moves or reports any message.**
 
 ## Verified platform facts
 | Fact | Source |
@@ -34,6 +35,55 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 | RLS: "Enable RLS on every table in an exposed schema." With RLS on and no policies, nothing is accessible through the API with a publishable key. Secret keys bypass RLS. | https://supabase.com/docs/guides/database/postgres/row-level-security |
 | OpenAI API: data isn't used for training by default. Abuse monitoring logs are kept up to 30 days. `/v1/responses` keeps application state for 30 days when `store` is true, and `store` defaults to true, so we send `store: false`. EU data residency (`eu.api.openai.com`) needs ZDR, Modified Abuse Monitoring or a similar control, approved by OpenAI. | https://developers.openai.com/api/docs/guides/your-data, https://developers.openai.com/api/docs/guides/migrate-to-responses |
 | Structured Outputs: Responses API `text.format: {type: "json_schema", strict: true, schema}`. Every field must be `required`, and `additionalProperties: false` is mandatory. A refusal comes back as a `refusal` item, and an incomplete response has an incomplete status. Both must be checked. | https://developers.openai.com/api/docs/guides/structured-outputs |
+| **Candidate contacts, option 1 (chosen):** list Inbox messages, delegated least privileged **`Mail.ReadBasic`** ("read email ... except body, previewBody, attachments and any extended properties"). `$filter` plus `$orderby` must use the same properties first, in order. Delegated admin consent required: No (but see the next row). | https://learn.microsoft.com/graph/api/user-list-messages?view=graph-rest-1.0, https://learn.microsoft.com/graph/permissions-reference |
+| With **Assignment required**, "Applications that require users to be assigned to the application must have their permissions consented by an administrator, even if the user consent policies ... would otherwise allow a user to consent". So `Mail.ReadBasic` needs the admin's consent in this tenant. | https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal |
+| Option 2 (not chosen for v1): Outlook contacts `GET /me/contacts`, least privileged delegated **`Contacts.Read`**. | https://learn.microsoft.com/graph/api/user-list-contacts?view=graph-rest-1.0 |
+| Option 3 (rejected): People API `GET /me/people`, delegated `People.Read`; "The People API is in maintenance mode", Microsoft recommends the Search API for new development. | https://learn.microsoft.com/graph/api/user-list-people?view=graph-rest-1.0 |
+| `Office.context.mailbox.userProfile.emailAddress`: "Gets the user's SMTP email address", minimum permission **read item**, compose or read. | https://learn.microsoft.com/javascript/api/outlook/office.userprofile |
+
+## Contact allow-list (v1 trigger, added 2026-10-23)
+
+### Pane: Responder tab (PT-PT, inside the F-012 shell)
+```
++--------------------------------------+
+| Respostas automáticas  [ Ligado  o]  |  Switch (per user)
+| Estado: Ativo                        |  status text
+| Contactos a responder (3)            |  selected count
+| [x] Ana Silva  ana@exemplo.pt        |  selected, always on top
+| [ ] Rui Costa  rui@cliente.pt        |  candidates (recent senders)
+| [ ] ...                              |
+| [ Adicionar endereço ] [Adicionar]   |  manual entry
+| [ Guardar ]                          |  primary
+| Só é criado um rascunho. Nada é      |
+| enviado. O texto destes e-mails é    |
+| processado por um serviço de IA      |
+| externo.                             |
++--------------------------------------+
+```
+- **Candidates, v1 = recent senders + manual entry** (minimal permission). On first open of the tab the pane requests delegated `Mail.ReadBasic` (NAA `acquireTokenSilent`, popup only from an "Autorizar acesso" click) and calls
+  `GET /me/mailFolders/inbox/messages?$select=from&$filter=receivedDateTime ge {now − 30 days}&$orderby=receivedDateTime desc&$top=100`
+  (follows `@odata.nextLink` up to 300 messages). It keeps distinct `from.emailAddress.address` values, lower-cased and trimmed, with the display name, excluding the user's own address (`userProfile.emailAddress`) and addresses whose local part is in the no-reply list of filter 11. At most 50 candidates are shown, most recent first. No subject, date or body is read or shown.
+  - Outlook contacts (`Contacts.Read`) are not used in v1 (one more scope for the admin; Q-C1). The People API is rejected (maintenance mode).
+  - Manual entry accepts one address at a time, validated (see storage), added to the list as selected.
+- **List:** selected contacts first, then candidates, each with a Fluent `Checkbox` named "{name} {address}" (address alone when no name). Counter "Contactos a responder ({n})". Maximum **50** selected (Q-C2); beyond it the unticked boxes are disabled with "Máximo de 50 contactos.". Selection lives in memory until "Guardar".
+- **Switch** "Respostas automáticas": off by default. Turning it on with zero contacts is blocked with "Escolha pelo menos um contacto.".
+- **Guardar** sends the whole list and the switch state to the settings function in one `PUT`. "Apagar tudo" (secondary, with a confirmation) calls `DELETE`, which turns the feature off and deletes the list.
+- **Status text** from the server: "Desligado", "A ativar…" (enabled, no subscription yet), "Ativo", "Conta fora do grupo piloto" (subscription refused with `403`), "Erro, a tentar novamente" (other failures).
+- Without `Mail.ReadBasic` consent (denied, closed, admin approval required) the tab still works with manual entry only and shows "Sem autorização para listar remetentes recentes. Pode adicionar endereços à mão.". The Analisar tab and the F-002 status are unaffected.
+- The Graph token stays in the pane. Only the ticked addresses (and display names are **not** sent) go to the backend.
+
+### Settings function `auto-reply-settings`
+- `verify_jwt = false`; authenticates with the **F-002 validation module moved to `supabase/functions/_shared/`** (unchanged checks; `whoami` tests still pass), and additionally requires a GUID `oid` and `tid` = the configured tenant. All rows are keyed by the `oid` from the validated token, never by a value in the body.
+- CORS: exact `ALLOWED_ORIGINS`, methods `GET, PUT, DELETE, OPTIONS`, headers `authorization, content-type`, `Vary: Origin`.
+- `GET` → `{ "enabled": bool, "status": "off"|"pending"|"active"|"not_in_scope"|"error", "contacts": [string] }`.
+- `PUT` body (strict, unknown fields rejected): `{ "enabled": bool, "ownAddress": string, "contacts": [string] }`. Each contact is trimmed and lower-cased, ≤ 254 characters, matches `^[^@\s]+@[^@\s]+\.[^@\s]+$`, no duplicates, at most 50, never equal to `ownAddress`. `ownAddress` (from `userProfile.emailAddress`) is stored only as `mail_sha256` for filter 5. Invalid input → 422 `payload_invalid` and nothing is written. The list is replaced in one transaction.
+- `DELETE` → deletes the user's contacts, sets `enabled = false`; the next cron run deletes the subscription.
+- No email content passes through this function. Logs: request ID, method, status, reason code, count of contacts; never addresses, `oid` or tokens.
+- The client never writes Supabase directly (no publishable key, no Data API; tables in RLS-locked storage).
+
+### Server pipeline change
+- Subscriptions exist only for users with `enabled = true` **and** at least one contact. The 2-minute "process" cron also creates missing subscriptions, so "A ativar…" becomes "Ativo" within minutes; a `403` sets status `not_in_scope`.
+- **Sender check before any content read.** For each queued message: read `GET /users/{oid}/messages/{id}?$select=from` first; if the lower-cased `from` address is not in that user's allow-list, the row ends `skipped` / `sender_not_allowed` and nothing else is read. Only allow-listed messages get the full minimal read (below), the remaining filters, the OpenAI call and `createReply`.
 
 ## Design decisions in this spec
 - **Permission model:** app-only, per ADR-0005. App registration "DIMSCALE Mail AI Drafts" with a certificate credential, and Exchange RBAC roles `Application Mail.Read` and `Application Mail.ReadWrite`, scoped to a mail-enabled group. No Entra Graph application consent. No `Mail.Send` anywhere.
@@ -51,7 +101,7 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
   - Terminal states: `drafted`, `skipped` (with a reason code), `failed` (with a reason code).
 - **Processing after the ack:** the webhook returns `202` once the rows are inserted, then calls `EdgeRuntime.waitUntil(processClaimedRows())`. Every 2 minutes the cron function also claims `pending` rows and rows whose lease expired, so work cut off by function limits isn't lost.
 - **Per mailbox:** rows for one mailbox are processed one at a time. That respects the limit of 4 concurrent requests per mailbox.
-- **Message fetch (minimal):**
+- **Message fetch (minimal, after the sender check passed):**
   - Call: `GET /users/{oid}/messages/{id}?$select=subject,from,toRecipients,isDraft,inferenceClassification,receivedDateTime,internetMessageHeaders,uniqueBody,parentFolderId`.
   - Headers: `Prefer: outlook.body-content-type="text"` and `Prefer: IdType="ImmutableId"`.
   - We don't request `body`, attachments, `ccRecipients`, `bccRecipients` or `replyTo`.
@@ -61,7 +111,8 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
   | # | Skip when | Reason code | Default |
   |---|---|---|---|
   | 1 | Kill switch `AUTO_DRAFTS_ENABLED` is not `true` | `kill_switch` | on (feature off by default) |
-  | 2 | The user isn't in `auto_draft_users`, or `enabled = false` | `user_disabled` | on |
+  | 2 | The user isn't in `auto_draft_users`, or `enabled = false`, or has no contacts | `user_disabled` | on |
+  | 2b | The `from` address (lower-cased) is not in the user's allow-list (checked with a `$select=from` read only) | `sender_not_allowed` | on, not configurable |
   | 3 | `isDraft = true`, or the message isn't in the Inbox any more (`parentFolderId` isn't the Inbox) | `not_inbox_message` | on |
   | 4 | Meeting or event message | `event_message` | on |
   | 5 | The sender is the mailbox owner (SHA-256 of the lowercased `from` address equals the stored `mail_sha256`) | `from_self` | on |
@@ -111,11 +162,12 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
   - on `reauthorizationRequired`: `PATCH` at once (the cron skips a subscription it patched in the last 10 min).
 - **App token:** client credentials with a PS256 certificate assertion (5 min `exp`). The token is cached in memory per function instance until 5 min before `expires_in`.
 - **Storage** (Supabase Postgres, eu-west-1, RLS enabled, no policies, accessed only by the functions with the secret key):
-  - `auto_draft_users`: `id` (uuid), `entra_oid`, `mail_sha256`, `enabled`, `created_at`. Managed by the operator with SQL in v1.
+  - `auto_draft_users`: `id` (uuid), `entra_oid` (unique), `mail_sha256`, `enabled`, `status`, `created_at`, `updated_at`. Written only by `auto-reply-settings` (from the validated token) and by the cron (`status`). The operator no longer edits it by hand.
+  - `auto_reply_contacts`: `user_id`, `address` (lower-cased, plain text, needed to show the list on any device), `created_at`; unique `(user_id, address)`. **Personal data of third parties** (DPO question D-3).
   - `graph_subscriptions`: `user_id`, `subscription_id`, `expires_at`, `last_renewed_at`, `last_catchup_at`.
   - `auto_draft_queue`: `user_id`, `message_id` (immutable ID), `status`, `reason_code`, `attempts`, `next_attempt_at`, `locked_until`, `created_at`, `updated_at`.
-  - No subject, body, address (only the owner's hash), AI output or token is stored.
-  - A daily cron deletes queue rows older than 30 days.
+  - No subject, body, display name, AI output or token is stored. The only plain addresses stored are the user's chosen contacts.
+  - Retention: queue rows are deleted after 30 days (daily cron). Contacts live until the user removes them or presses "Apagar tudo"; a user row disabled for 90 days, or whose subscription stays `not_in_scope` for 30 days, is deleted with its contacts (proposal, D-3). An operator script deletes by `oid` for leavers.
 - **Logging:** request ID, function name, the internal `user_id` (not the OID), status, fixed reason code, attempt and duration. Never message IDs, subjects, bodies, addresses, headers, AI output, tokens, the `clientState` or the assertion.
 - **Retries:**
   - Graph `429` and `503`: honor `Retry-After` by setting `next_attempt_at`. Other Graph 5xx: exponential backoff.
@@ -125,7 +177,7 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
   - Graph `403`: `failed` / `graph_forbidden` (likely out of the RBAC scope).
 
 ## Behavior
-- An enabled user receives an ordinary email from a customer while every Outlook client is closed. Within about 5 minutes (Graph's maximum latency is 3 min, plus processing), the user's **Drafts** folder has a reply draft:
+- An enabled user receives an ordinary email from a contact on their list while every Outlook client is closed. Within about 5 minutes (Graph's maximum latency is 3 min, plus processing), the user's **Drafts** folder has a reply draft:
   - its subject is the normal "RE:" subject from `createReply`;
   - it's in the same conversation;
   - it's addressed as Graph's `createReply` decides;
@@ -133,8 +185,8 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
   - it has the category "DIMSCALE AI draft".
 - The original message is unchanged (same folder, read state and categories).
 - Nothing appears in Sent Items.
-- For filtered messages nothing happens in the mailbox. The queue row records the reason code.
-- The task pane (F-001, F-002, F-012) is unaffected. Drafts created here show up in Outlook's normal Drafts folder. A status in the F-012 "Atividade IA" view is out of scope.
+- For filtered messages nothing happens in the mailbox. The queue row records the reason code. A message from anyone not on the list is read only for its `from` field.
+- The pane's Analisar tab (F-001, F-002, F-012) is unaffected. Drafts appear in Outlook's normal Drafts folder. A per-draft activity view in the pane is out of scope; the Responder tab shows only the feature status.
 
 ## Acceptance criteria
 "Unit" means `deno test` with mocked `fetch` and an in-memory or mocked DB. "Local" means `supabase start` plus `supabase functions serve` with a local database. "Live" means the deployed functions and a pilot mailbox. "Admin" means output provided by the tenant admin.
@@ -150,9 +202,9 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 | F-013/AC-7 | Renewal run: subscriptions that expire within 48 h are `PATCH`ed. Enabled users without a subscription get one. Disabled users' subscriptions are `DELETE`d. A subscription `PATCH`ed in the last 10 min is skipped. | Unit |
 | F-013/AC-8 | Catch-up enqueues (idempotently) every Inbox message ID received since `max(last_catchup_at, now − MAX_AGE_HOURS)`. It uses `$select=id` and pages with `@odata.nextLink`. It never fetches bodies in the listing call. | Unit |
 | F-013/AC-9 | With `AUTO_DRAFTS_ENABLED` unset or not exactly `true`: the webhook still answers validation and returns `202` for notifications but inserts nothing, the cron makes no Graph write and no OpenAI call, and renewal doesn't run. Changing the secret takes effect without a redeploy. The default in every environment is off. | Unit; Live (toggle once and record) |
-| F-013/AC-10 | Only users in `auto_draft_users` with `enabled = true` are subscribed and processed. A queued row for a user disabled after enqueueing ends as `skipped` / `user_disabled` with no Graph message read. | Unit |
-| F-013/AC-11 | The message read uses exactly the `$select` list and both `Prefer` headers in "Design decisions". No other Graph read of message content happens (no `body`, no attachments, no `$value`). | Unit (assert the URL and headers) |
-| F-013/AC-12 | Each filter 3 to 16 in the table, given a fixture that triggers only that filter, ends `skipped` with its reason code, and makes no OpenAI call and no `createReply`. A fixture that triggers none reaches the OpenAI call. | Unit (one case per filter plus one pass case) |
+| F-013/AC-10 (amended) | Only users with `enabled = true` and at least one contact are subscribed and processed. A queued row for a user disabled (or left with no contacts) after enqueueing ends `skipped` / `user_disabled` with no Graph message read. | Unit |
+| F-013/AC-11 (amended) | For each processed row the first Graph read is exactly `GET /users/{oid}/messages/{id}?$select=from`. Only if the sender is allow-listed does the second read use exactly the `$select` list and both `Prefer` headers in "Design decisions". No other Graph read of message content happens (no `body`, no attachments, no `$value`). | Unit (assert URLs and headers in order) |
+| F-013/AC-12 (amended) | Filter 2b: a message whose `from` is not in the list (including a case and whitespace variant of a listed address, which **must** match, and a different address at the same domain, which must not) ends `skipped` / `sender_not_allowed` after the `$select=from` read only, with no second read, no OpenAI call and no `createReply`. Each filter 3 to 16, given an allow-listed fixture that triggers only that filter, ends `skipped` with its code and makes no OpenAI call and no `createReply`. An allow-listed fixture that triggers none reaches the OpenAI call. | Unit (one case per filter plus pass cases) |
 | F-013/AC-13 | Filter settings (`MAX_AGE_HOURS`, `SKIP_SENDER_DOMAINS`, `INTERNAL_SENDERS`, `INTERNAL_DOMAINS`, `DAILY_CAP_PER_USER`, `DAILY_CAP_GLOBAL`, and on/off for filters 8, 12, 16) come from env values with the documented defaults. A missing or invalid value falls back to the default and logs `config_default`. | Unit |
 | F-013/AC-14 | When the per-user or global count of `drafted` rows today (UTC) reaches its cap, further rows end `skipped` / `cap_reached` with no OpenAI call. | Unit |
 | F-013/AC-15 | The OpenAI request body contains only: the fixed instructions, and an input made of the subject (≤ 255 chars), the sender display name, the sender domain, and `uniqueBody` text ≤ 4,000 chars plus `[truncated]` when cut, between the markers. The full address, recipients, headers, message or conversation IDs and the owner's identity never appear. Marker strings inside the email are removed. | Unit (inspect the mocked request) |
@@ -164,16 +216,36 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 | F-013/AC-21 | Graph `429` or `503` with `Retry-After: n` sets `next_attempt_at` ≥ now + n s. Other 5xx: exponential backoff. After 5 attempts, or past `MAX_AGE_HOURS`: `failed` with the last reason code. `404` → `skipped` / `message_gone`. `403` → `failed` / `graph_forbidden`. Only one request at a time per mailbox. | Unit |
 | F-013/AC-22 | OpenAI timeout, `429` or 5xx: retried with backoff on the same rules as AC-21, then `failed` / `ai_unavailable`. No draft is created. | Unit |
 | F-013/AC-23 | The app token request uses a certificate assertion whose header is `alg: PS256`, `typ: JWT`, `x5t#S256: <configured thumbprint>`, and whose claims are `aud` = the tenant token endpoint, `iss` = `sub` = the client ID, a unique `jti`, and `exp − nbf` ≤ 600 s. Scope is `https://graph.microsoft.com/.default`. The token is reused until 5 min before expiry. | Unit (decode the generated assertion with the test public key) |
-| F-013/AC-24 | `auto-draft-cron` returns `401` without the right `x-cron-secret` (constant-time compare) and does nothing. Both functions have `verify_jwt = false` in `supabase/config.toml`. `whoami` is unchanged. | Unit; file inspection |
-| F-013/AC-25 | The migration creates only the three tables in "Storage", with RLS enabled and no policies. Columns hold no subject, body, plain address, AI output or token. The retention job deletes queue rows older than 30 days. | File inspection; Local (run the retention SQL on seeded rows) |
+| F-013/AC-24 | `auto-draft-cron` returns `401` without the right `x-cron-secret` (constant-time compare) and does nothing. `graph-webhook`, `auto-draft-cron` and `auto-reply-settings` have `verify_jwt = false` in `supabase/config.toml`. `whoami` behaviour is unchanged (its validation code may move to `_shared/`, its tests pass untouched). | Unit; file inspection |
+| F-013/AC-25 (amended) | The migration creates only the four tables in "Storage", with RLS enabled and no policies (not reachable through the Data API). Columns hold no subject, body, display name, AI output or token; the only plain addresses are in `auto_reply_contacts`. The retention jobs delete queue rows older than 30 days and apply the user/contact retention rule. | File inspection; Local (run the retention SQL on seeded rows) |
 | F-013/AC-26 | Logs contain only request ID, function, internal `user_id`, status, reason code, attempt and duration. No `console.*` call outputs message IDs, subjects, bodies, addresses, headers, AI output, tokens, `clientState`, the assertion or the private key. | Grep; review; Live (inspect one day of function logs) |
 | F-013/AC-27 | Secrets (`GRAPH_CERT_PRIVATE_KEY`, `GRAPH_CLIENT_STATE`, `CRON_SHARED_SECRET`, `OPENAI_API_KEY`) exist only in Supabase function secrets, plus the cron secret in Vault. None are in the repo, the bundle or `supabase/config.toml`. `supabase/functions/.env` is git-ignored. The secret scan is clean. | Secret scan; review |
 | F-013/AC-28 | Admin scope: `Test-ServicePrincipalAuthorization -Identity <sp> -Resource <pilot>` shows `InScope = True` for both roles. Against a mailbox outside the group it shows `InScope = False`. The app has no Microsoft Graph application permission consented in Entra. A live `GET /users/{outside-oid}/messages?$top=1` with the app token returns `403`. | Admin output; Live |
-| F-013/AC-29 | **End to end:** with every Outlook client of the pilot user closed, an email sent from an external test account to the pilot mailbox gives the draft described in AC-18 within 5 minutes, and AC-20 holds. | Live, recorded in the plan with date and times |
-| F-013/AC-30 | **Live negatives:** a test email with a `List-Unsubscribe` header, an automatic reply (an out-of-office reply from a test account), and a message sent to the pilot only in CC produce no draft. With the kill switch off, a normal test email produces no draft. | Live |
+| F-013/AC-29 (amended) | **End to end:** the pilot user ticks an external test account in the Responder tab, switches on and saves; once the status reads "Ativo", with every Outlook client closed, an email from that test account gives the draft described in AC-18 within 5 minutes, and AC-20 holds. | Live, recorded in the plan with date and times |
+| F-013/AC-30 (amended) | **Live negatives:** an email from a second test account **not** on the list produces no draft; a listed sender's message with a `List-Unsubscribe` header, an out-of-office reply from a listed test account, and a listed sender's message with the pilot only in CC produce no draft. With the switch off (or the kill switch off), a listed sender's email produces no draft. | Live |
 | F-013/AC-31 | `deno test` passes for the new functions. `deno lint` and `deno check` pass for them. The root `npm run typecheck`, `lint`, `test` and `build` still pass, and the root toolchain doesn't compile the Deno code. | Command output |
 
+### Contact allow-list (added 2026-10-23)
+| ID | Criterion | Verify by |
+|---|---|---|
+| F-013/AC-32 | Opening Responder requests only `Mail.ReadBasic` (silent first; popup only from the "Autorizar acesso" click). The candidate request is exactly the URL in "Pane: Responder tab" (`$select=from` only, the 30-day `$filter`, `$orderby=receivedDateTime desc`, `$top=100`), paging via `@odata.nextLink` up to 300 messages. Without consent no Graph call is made and manual entry still works with the "Sem autorização…" text. | Mocks |
+| F-013/AC-33 | Candidates: distinct lower-cased addresses, own address and no-reply local parts excluded, at most 50, most recent first; display names and addresses rendered as text nodes with `dir="auto"`; markup in a display name shows literally. | Mocks |
+| F-013/AC-34 | Selection: counter "Contactos a responder ({n})"; at 50 the unticked boxes are disabled with "Máximo de 50 contactos."; manual entry rejects invalid, duplicate and own addresses with a text message; the switch cannot be saved on with 0 contacts; selection is in memory until "Guardar"; no browser storage. | Mocks |
+| F-013/AC-35 | "Guardar" makes one `PUT` to `auto-reply-settings` with exactly `{enabled, ownAddress, contacts}` (no display names, no Graph token), headers `Authorization: Bearer <access_as_user token>` and `Content-Type: application/json`. "Apagar tudo" asks for confirmation, then makes one `DELETE`. The status text maps each server status to the PT-PT strings. | Mocks |
+| F-013/AC-36 | `auto-reply-settings` rejects every F-002 negative token case with 401 (shared module; `whoami` tests unchanged), and also a token without a GUID `oid` or with another `tid`. Validation runs before any DB access. | Unit (`deno test`) |
+| F-013/AC-37 | `PUT` validation: unknown fields, non-boolean `enabled`, more than 50 contacts, an address over 254 characters or not matching the pattern, duplicates after normalisation, or a contact equal to `ownAddress` → 422 `payload_invalid` and no write. A valid `PUT` replaces the user's list atomically and stores `mail_sha256` of the normalised `ownAddress`. Rows are keyed only by the token `oid`: a body that tries to name another user has no effect. | Unit + Local (Postgres) |
+| F-013/AC-38 | `GET` returns only the caller's `enabled`, `status` and contacts. `DELETE` removes the caller's contacts and sets `enabled = false`; the next cron run deletes that user's subscription. CORS as specified; `OPTIONS` needs no token; other methods 405. | Unit, Local |
+| F-013/AC-39 | Logs of `auto-reply-settings` contain request ID, method, status, reason code and contact count only; a test injects marker addresses and asserts they never appear in logs. | Unit, grep |
+| F-013/AC-40 | Enabling creates the subscription within one "process" cron cycle; a `403` on creation sets `status = not_in_scope` and the pane shows "Conta fora do grupo piloto". | Unit (mocked Graph); Live (a user outside the RBAC group, if available) |
+| F-013/AC-41 | Live: in classic Outlook, the Responder tab lists recent senders after one consent (or shows the admin-approval text), a manual address can be added, "Guardar" persists the list (reopen the pane on another device or after restart and the same list and status appear), and "Apagar tudo" empties it. | Live (user) |
+
 ## Edge cases
+- **Spoofed `From`:** an outsider can forge a listed contact's address. The result is at most an unsent draft and an OpenAI call (cost, and the forged text reaches OpenAI). Checking `Authentication-Results` headers is a later hardening (Q-C4).
+- **A contact writes from a second address:** not on the list, so no draft. The user adds it.
+- **A contact is removed while a message is queued:** the sender check runs at processing time, so the row ends `sender_not_allowed`.
+- **The user's own address added by hand:** rejected (AC-34, AC-37).
+- **Display name changes:** irrelevant; matching is on the lower-cased address only.
+- **The user is not in the RBAC group:** status "Conta fora do grupo piloto"; nothing is read.
 - **The user deletes the auto-draft:** nothing happens. We never recreate it (the queue row is `drafted`).
 - **The user opens the message and uses F-012 "Resposta sugerida" too:** a second suggestion may be generated (extra cost). See open question 6.
 - **The message is moved out of the Inbox before processing:** immutable IDs still resolve. Filter 3 skips it (`not_inbox_message`).
@@ -184,7 +256,7 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 - **Encrypted (S/MIME or IRM) mail:** `uniqueBody` is likely empty or unreadable → `empty_body`. Not verified (V6).
 - **A very large body:** only `uniqueBody` is fetched, and it's cut to 4,000 chars before OpenAI.
 - **A shared mailbox, or a delegate's mailbox:** out of scope. Only the user mailboxes of enabled users are subscribed.
-- **A user leaves the group:** Exchange denies access after the RBAC cache (30 min to 2 h) → `graph_forbidden`. The operator sets `enabled = false`, and the subscription is deleted on the next renewal.
+- **A user leaves the group:** Exchange denies access after the RBAC cache (30 min to 2 h) → `graph_forbidden`, and the user status becomes `not_in_scope` (shown in the pane). The user row and contacts follow the retention rule; the subscription is deleted on the next renewal.
 - **Certificate expiry:** token requests fail. Every row ends `failed` / `token_unavailable`. The plan sets a rotation reminder.
 - **Graph marks the endpoint "slow" or "drop":** some notifications are delayed or lost. The cron catch-up window covers messages younger than `MAX_AGE_HOURS`.
 - **The Supabase function cold start exceeds 3 s:** Graph retries (up to 4 h). Watch this in the live phase (risk R6).
@@ -196,8 +268,9 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 - Folders other than the Inbox, shared mailboxes, delegated mailboxes, personal (MSA) accounts.
 - Attachments: not read and not attached.
 - The Outlook signature in the draft (Graph doesn't add it; open question 3).
-- A self-service opt-in or opt-out UI in the task pane, and any task pane status of auto-drafts (a later feature, after F-012).
-- A per-user prompt, tone or template, and learning from the user's sent mail.
+- A per-draft activity list in the pane (only the feature status is shown).
+- Drafting for every incoming message (all-senders mode), domain-level allow-list entries, Outlook contacts as candidates (`Contacts.Read`, Q-C1), the People or Search API.
+- A per-user prompt, tone or template, and learning from the user's sent mail (F-016).
 - Classification-based routing (F-007).
 - Delta query tokens, rich notifications (`includeResourceData`), Event Hubs or Event Grid.
 - Multi-tenant use.
@@ -206,10 +279,13 @@ When a message arrives in the Inbox of an enabled DIMSCALE user, even with Outlo
 
 ## Security notes (data flow change)
 New flows:
+- task pane → Graph (delegated `Mail.ReadBasic`, `from` of recent Inbox messages; the token stays in the pane);
+- task pane → `auto-reply-settings` (`access_as_user` token; the switch, the user's own address and the chosen contact addresses);
+- `auto-reply-settings` → Supabase Postgres (contact addresses: third-party personal data, keyed by `oid`);
 - Microsoft Graph → `graph-webhook` (notification metadata only);
 - `auto-draft-cron` / `graph-webhook` → `login.microsoftonline.com` (client credentials with a certificate);
 - functions → Graph (read the minimal message fields, create a draft);
-- functions → OpenAI (minimal content of **incoming third-party mail**, without any user action);
+- functions → OpenAI (minimal content of incoming mail **only from senders the user chose**, without a per-message user action). Compared with the 2026-10-22 design (every Inbox message passing the filters), the allow-list sharply reduces both what is read (others: `from` only) and what reaches OpenAI (only listed senders);
 - functions → Supabase Postgres (metadata).
 
 `security.md` must be updated after ADR-0005 is accepted (plan step 1):
@@ -220,7 +296,9 @@ New flows:
 - the cron's shared secret;
 - stored metadata and retention;
 - the OpenAI terms (no training by default, 30-day abuse logs, `store: false`, EU residency only with approved controls);
-- that Supabase now stores metadata about users and messages.
+- that Supabase now stores metadata about users and messages, and each user's chosen contact addresses (third-party personal data, retention and deletion as in "Storage");
+- the delegated `Mail.ReadBasic` scope for the candidate list (pane only, token never sent to the backend);
+- the sender check that limits content reads and OpenAI calls to allow-listed senders.
 
 ## Risks
 | # | Risk | Mitigation |
@@ -234,6 +312,9 @@ New flows:
 | R7 | RBAC-only grants don't work for subscriptions, or work only with Entra consent. | A spike before coding (plan step 2). If Entra consent turns out to be required, escalate. Don't silently grant tenant-wide access. |
 | R8 | RBAC cache delays (30 min to 2 h) after scope changes. | Documented in the admin checklist. Our per-user `enabled` flag gives an immediate stop. |
 | R9 | Docs and rules that conflict until updated (`security.md`, `requirements.md` out-of-scope "Automatic rules"). | Plan step 1, before any code. |
+| R10 | A forged `From` of a listed contact triggers a draft and an OpenAI call. | Never sent; caps; marker. Header-based sender authentication later (Q-C4). |
+| R11 | The contact list is third-party personal data stored outside Microsoft 365. | Minimal (address only), RLS-locked, per-user deletion, retention rule, DPO D-3. |
+| R12 | `Mail.ReadBasic` needs admin consent because of Assignment required; without it only manual entry works. | Included in the admin checklist; the UI degrades to manual entry. |
 
 ## References
 - https://learn.microsoft.com/office/dev/add-ins/develop/event-based-activation
@@ -260,6 +341,11 @@ New flows:
 - https://learn.microsoft.com/entra/workload-id/workload-identity-federation
 - https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow
 - https://learn.microsoft.com/entra/identity-platform/refresh-tokens
+- https://learn.microsoft.com/graph/api/user-list-messages?view=graph-rest-1.0 (candidate senders, `Mail.ReadBasic`)
+- https://learn.microsoft.com/graph/api/user-list-contacts?view=graph-rest-1.0 (`Contacts.Read`, not used in v1)
+- https://learn.microsoft.com/graph/api/user-list-people?view=graph-rest-1.0 (People API, maintenance mode, rejected)
+- https://learn.microsoft.com/javascript/api/outlook/office.userprofile (`emailAddress`)
+- https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal (Assignment required → admin consent)
 - https://www.rfc-editor.org/rfc/rfc3834
 - https://supabase.com/docs/guides/functions/limits
 - https://supabase.com/docs/guides/functions/background-tasks
@@ -275,10 +361,14 @@ New flows:
 ## Open questions
 
 ### For the user
-1. **Which emails get a draft?** Proposed default: Inbox only; you're in To (not only CC); Focused (not "Other"); not automatic, bulk or no-reply; younger than 24 h. Internal DIMSCALE senders included (`INTERNAL_SENDERS=allow`), or skipped?
+- **Q-C1. Candidate source:** v1 = recent Inbox senders (last 30 days, `Mail.ReadBasic`) + manual entry. Add Outlook contacts later (`Contacts.Read`, one more admin consent)?
+- **Q-C2. Limit:** at most 50 contacts per user. Enough?
+- **Q-C3. Filters for listed contacts:** with an explicit list, should filters 6 (only CC'd) and 12 (Focused "Other") stay on? Recommendation: keep 6, turn 12 off (a chosen contact landing in "Other" should still be answered).
+- **Q-C4. Forged senders:** accept the residual risk in v1 (an unsent draft), with header-based sender checks as a later hardening?
+1. **Which emails get a draft?** Now: only listed contacts, then the defaults below: Inbox only; you're in To (not only CC); Focused (not "Other", see Q-C3); not automatic, bulk or no-reply; younger than 24 h. Internal DIMSCALE senders on your list are answered (`INTERNAL_SENDERS=allow`) unless you say otherwise.
 2. **AI marker:** a first body line (recipients see it if you forget to delete it) **and/or** the category "DIMSCALE AI draft" (mailbox only; whether categories travel on send is unverified, V5). Marker language: PT or EN (D6)?
 3. **Signature:** Graph's `createReply` doesn't add your Outlook signature. Is that acceptable for v1?
-4. **Pilot and opt-in:** who's in the pilot? In v1 the allow-list is managed with SQL by the operator. Is that acceptable, with a self-service toggle in the pane later?
+4. **Pilot:** who's in the pilot (they must be direct members of the mail-enabled group)? Opt-in is now self-service in the Responder tab.
 5. **Volume and cost:** expected incoming mail per user per day. Confirm the default caps (30 per user, 200 overall per day) and the model (D5).
 6. **F-012 overlap:** when an auto-draft already exists, should the pane's "Resposta sugerida" skip generation or say so? (A future feature.)
 7. Accept a change to `requirements.md`: a new R8 "Automatic reply drafts", and narrowing the out-of-scope line "Automatic rules or filters"?
@@ -286,6 +376,8 @@ New flows:
 9. Is a 30-day retention of processing metadata acceptable?
 
 ### For the tenant admin (MMSI)
+The consolidated checklist is [docs/admin/2026-10-23-mmsi-request.md](../admin/2026-10-23-mmsi-request.md).
+0. Add and consent delegated `Mail.ReadBasic` on the add-in app (needed for the candidate list; admin consent required because of Assignment required).
 1. Agree to option B: a new app registration with **no** Entra Graph application consent, and Exchange **RBAC for Applications** roles `Application Mail.Read` plus `Application Mail.ReadWrite`, scoped to a group.
 2. Which **mail-enabled** group (a Microsoft 365 group, mail-enabled security group or distribution list) with **direct** members? Can the F-002 assignment group be reused (is it mail-enabled)?
 3. Accept a certificate credential (we send only the public `.cer`)? The organization's validity and rotation policy?
@@ -299,6 +391,7 @@ New flows:
 3. A DPA with Supabase (processor, eu-west-1) for the stored metadata.
 4. Transparency: does DIMSCALE's privacy notice need to mention AI processing of incoming mail?
 5. Is 30 days of metadata retention acceptable?
+6. **D-3. Contact allow-list:** each user's chosen contact addresses (third parties) stored in Supabase eu-west-1, keyed by the user's Entra `oid`, deleted on removal, "Apagar tudo", 90 days disabled or offboarding. Acceptable lawful basis and retention? Does the privacy notice need to mention it? Deleted rows may persist in Supabase backups until they expire (not verified).
 
 ### To verify in the spike (plan step 2), not assumed
 - **V1.** Is `createReply` `comment` inserted as text or as HTML? It decides between the one-call path and the `PATCH` fallback.
