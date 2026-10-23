@@ -1,6 +1,6 @@
 # F-012: Task pane UI/UX design (DIMSCALE brand, light and dark, shell for the AI sections)
 
-- **Status:** Draft (2026-10-22). Not approved. Several decisions in [Open questions](#open-questions) need the user before the plan can start.
+- **Status:** Approved (2026-10-23) with the user's choices: **direction D "Outlook nativo"** (Fluent stock themes plus the user's Office theme colours; only the wordmark and the name are DIMSCALE), **320 px compact** (only the information the user needs), and a **"DIMSCALE MAIL" ribbon entry** that opens a pinnable pane. The "Responder" tab hosts the contact selection for automatic drafts (F-013). Earlier directions A, B and C are dropped.
 - **Tier:** Active item, presentation only. No Graph, no new Office.js permission, no new backend call, no AI.
 - **Depends on:** F-001 (Done), F-002 (Done), F-011 (Done: the pane is served from GitHub Pages, so a UI-only change reaches users without a manifest re-upload).
 - **Plan:** [docs/plans/F-012-taskpane-design.md](../plans/F-012-taskpane-design.md)
