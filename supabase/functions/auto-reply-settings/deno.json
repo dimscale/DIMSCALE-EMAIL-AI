@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "jose": "npm:jose@6.2.13",
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}

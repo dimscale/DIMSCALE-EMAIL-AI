@@ -418,3 +418,15 @@ enabled = true
 # verify_jwt = false: Entra tokens are not Supabase JWTs; the handler validates them itself (see whoami/handler.ts).
 [functions.whoami]
 verify_jwt = false
+
+# F-013: all three authenticate themselves (verify_jwt = false is required: callers are Microsoft Graph,
+# pg_cron and the Entra-token pane, none of which carry a Supabase JWT).
+# graph-webhook: Graph clientState + validation handshake. auto-draft-cron: x-cron-secret. auto-reply-settings: Entra token.
+[functions.graph-webhook]
+verify_jwt = false
+
+[functions.auto-draft-cron]
+verify_jwt = false
+
+[functions.auto-reply-settings]
+verify_jwt = false
