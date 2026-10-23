@@ -227,3 +227,21 @@ describe("MessagePanel", () => {
     expect(screen.getByText("Esta mensagem não tem conteúdo de texto")).toBeTruthy();
   });
 });
+
+describe("sender rendering (F-012/AC-12)", () => {
+  const sender = async (displayName: string, emailAddress: string) => {
+    const item = { subject: "S", from: { displayName, emailAddress }, dateTimeCreated: new Date(2026, 0, 2), body: { getAsync: (_t: string, cb: (r: unknown) => void) => cb({ status: "succeeded", value: "b" }) } };
+    (globalThis as any).Office = { CoercionType: { Text: "text" }, AsyncResultStatus: { Succeeded: "succeeded" }, context: { mailbox: { item } } };
+    const { container, unmount } = render(<MessagePanel />);
+    const text = (await screen.findByText("De")).parentElement?.textContent;
+    void container;
+    unmount();
+    return text;
+  };
+  it("formats name+address, name only, address only and neither", async () => {
+    expect(await sender("Ann", "a@b.pt")).toBe("DeAnn <a@b.pt>");
+    expect(await sender("Ann", "")).toBe("DeAnn");
+    expect(await sender("", "a@b.pt")).toBe("Dea@b.pt");
+    expect(await sender("", "")).toBe("De—");
+  });
+});

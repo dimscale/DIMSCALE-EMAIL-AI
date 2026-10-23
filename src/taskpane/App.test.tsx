@@ -16,11 +16,12 @@ describe("App layout (F-012)", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("img", { name: "DIMSCALE" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByText("Sem envio automático")).toBeTruthy();
-    expect(screen.getByText("Resumo e resposta sugerida — em breve")).toBeTruthy();
+    expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
+    expect(screen.getByText("IA (resumo e resposta sugerida) em breve.")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
-    expect(screen.getByText("Respostas automáticas para contactos selecionados — em breve")).toBeTruthy();
-    expect(screen.queryByText("Sem envio automático")).toBeNull();
+    expect(screen.getByText("Respostas automáticas para contactos escolhidos: em breve.")).toBeTruthy();
+    expect(screen.getByRole("tabpanel", { name: "Responder" })).toBeTruthy();
+    expect(screen.queryByRole("tabpanel", { name: "Analisar" })).toBeNull(); // hidden panel is out of the a11y tree
   });
 });
 
@@ -32,5 +33,21 @@ describe("source guards (F-012/AC-3, AC-4)", () => {
     expect(src).not.toMatch(/dangerouslySetInnerHTML|innerHTML|insertAdjacentHTML/);
     expect(src).not.toMatch(/localStorage|sessionStorage|document\.cookie|indexedDB|console\./);
     expect(src).not.toMatch(/isDarkTheme|themeId/);
+  });
+});
+
+describe("backend notice placement (F-012)", () => {
+  it("renders the BackendStatus notice in the host above the tab content and hides the footer line from AT", async () => {
+    vi.resetModules();
+    vi.doUnmock("./BackendStatus");
+    vi.doMock("./config", () => ({ isConfigured: () => false }));
+    vi.doMock("./auth", () => ({ isNaaSupported: () => true, getTokenSilent: vi.fn(), signIn: vi.fn() }));
+    const { default: RealApp } = await import("./App");
+    (globalThis as any).Office = { CoercionType: { Text: "text" }, context: { mailbox: { item: undefined } } };
+    const { container } = render(<RealApp />);
+    const bar = await screen.findByText(/ainda não está configurado/);
+    expect(container.querySelector("footer")?.contains(bar)).toBe(false);
+    expect(screen.queryByRole("status", { name: "" , hidden: false })).toBeNull();
+    expect(container.querySelector('footer [aria-hidden="true"]')?.textContent).toContain("Backend não configurado");
   });
 });

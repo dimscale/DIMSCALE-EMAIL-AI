@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Master of assets/icon-*.png: the DIMSCALE "D" glyph (first wordmark path) in #1F9D4C on white. -->
+  <rect width="128" height="128" fill="#FFFFFF"/>
+  <g transform="translate(64 64) scale(2.4) translate(-18.25 -21.4)">
+    <path transform="matrix(1,0,0,-1,27.449006,20.948334)" fill="#1F9D4C" d="M0 0C0 6.941-4.189 12.796-13.725 12.796H-18.789V-13.648H-13.725C-4.189-13.648 0-8.163 0 0M8.521 0C8.521-12.28 .652-20.59-13.439-20.59H-26.949V19.657H-13.439C.652 19.657 8.521 11.06 8.521 0"/>
+  </g>
+</svg>

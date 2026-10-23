@@ -97,7 +97,7 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     render(<BackendStatus />);
     expect(await screen.findByText("O backend rejeitou o início de sessão (401)")).toBeTruthy();
     fireEvent.click(screen.getByText("Tentar novamente"));
-    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
+    expect(await screen.findByText("Ligado")).toBeTruthy();
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer old" });
     expect(fetchMock.mock.calls[1][1].headers).toEqual({ Authorization: "Bearer new" });
   });
@@ -121,7 +121,7 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     fetchMock.mockResolvedValue(ok(null));
     render(<BackendStatus />);
     fireEvent.click(await screen.findByText("Iniciar sessão"));
-    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
+    expect(await screen.findByText("Ligado")).toBeTruthy();
     expect(h.popup).toHaveBeenCalledWith({ scopes: [`api://${C}/access_as_user`, "profile"] });
   });
 
@@ -168,7 +168,7 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
         <BackendStatus />
       </>
     );
-    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
+    expect(await screen.findByText("Ligado")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(URL_);
@@ -214,20 +214,20 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     fetchMock.mockResolvedValue({ status: 200, json: async () => { throw new SyntaxError("Unexpected token <"); } });
     render(<BackendStatus />);
     expect(await screen.findByText("Backend inacessível")).toBeTruthy();
-    expect(screen.queryByText(/Ligado ao backend/)).toBeNull();
+    expect(screen.queryByText(/Ligado/)).toBeNull();
   });
 
   it("a 200 with ok:false is unreachable, never connected", async () => {
     fetchMock.mockResolvedValue({ status: 200, json: async () => ({ ok: false, name: "Ada" }) });
     render(<BackendStatus />);
     expect(await screen.findByText("Backend inacessível (200)")).toBeTruthy();
-    expect(screen.queryByText(/Ligado ao backend/)).toBeNull();
+    expect(screen.queryByText(/Ligado/)).toBeNull();
   });
 
-  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])("name %j is not rendered: shows plain 'Ligado ao backend'", async (name) => {
+  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])("name %j is not rendered: shows plain 'Ligado'", async (name) => {
     fetchMock.mockResolvedValue(ok(name));
     render(<BackendStatus />);
-    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
+    expect(await screen.findByText("Ligado")).toBeTruthy();
   });
 
   it("an MSAL error without errorCode shows unknown_error, not a blank line", async () => {

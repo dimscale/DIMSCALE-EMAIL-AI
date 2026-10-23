@@ -1,6 +1,5 @@
 // All UI strings live here (PT-PT, F-012).
 export const strings = {
-  title: "DIMSCALE Mail AI",
   brandSuffix: "Mail",
   wordmarkName: "DIMSCALE",
   tabsLabel: "Vistas",
@@ -19,11 +18,11 @@ export const strings = {
   messageSection: "Mensagem",
   bodyPreview: "Pré-visualização do corpo",
   bodyLength: (n: number) => `Comprimento do corpo: ${n} caracteres`,
-  comingSoonAnalyze: "Resumo e resposta sugerida — em breve",
-  comingSoonReply: "Respostas automáticas para contactos selecionados — em breve",
-  assurance: "Sem envio automático",
+  comingSoonAnalyze: "IA (resumo e resposta sugerida) em breve.",
+  comingSoonReply: "Respostas automáticas para contactos escolhidos: em breve.",
+  assurance: "Sem envio automático. O envio é sempre feito por si.",
   backendWorking: "A ligar ao backend DIMSCALE…",
-  connected: "Ligado ao backend",
+  connected: "Ligado",
   connectedAs: (name: string) => `Ligado como ${name}`,
   unsupported:
     "Esta versão do Outlook não suporta o início de sessão do DIMSCALE Mail AI. Atualize o Outlook ou utilize o Outlook na Web.",

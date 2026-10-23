@@ -29,10 +29,11 @@ describe("manifest.xml (AC-2)", () => {
     expect(manifest).not.toMatch(/WebApplicationInfo|ItemSend|ItemInsert/);
   });
 
-  it("supports pinning and uses the DIMSCALE MAIL group and Abrir button (F-012)", () => {
+  it("supports pinning and uses the DIMSCALE MAIL group and button (F-012)", () => {
     expect(manifest).toContain("<SupportsPinning>true</SupportsPinning>");
     expect(manifest).toContain('id="GroupLabel" DefaultValue="DIMSCALE MAIL"');
-    expect(manifest).toContain('id="TaskpaneButton.Label" DefaultValue="Abrir"');
+    expect(manifest).toContain('id="TaskpaneButton.Label" DefaultValue="DIMSCALE MAIL"');
     expect(manifest).not.toContain("CustomTab");
+    expect(manifest).toContain("<Version>1.0.1.0</Version>");
   });
 });

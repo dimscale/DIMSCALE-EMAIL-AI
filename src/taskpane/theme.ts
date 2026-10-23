@@ -26,6 +26,9 @@ export function hexLuminance(hex: string | undefined): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+export const contrastRatio = (a: number, b: number) =>
+  (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
 /* Dark below 0.179: the point where white and black text have equal contrast (spec F-012). */
 export function resolveTheme(o: {
   office?: OfficeThemeColors; // only passed when Mailbox 1.14 is supported
@@ -36,18 +39,14 @@ export function resolveTheme(o: {
   const lum = hexLuminance(o.office?.bodyBackgroundColor);
   const dark = lum === null ? !!o.prefersDark : lum < 0.179;
   const base = dark ? webDarkTheme : webLightTheme;
-  if (lum === null) return { kind: dark ? "dark" : "light", theme: base };
-  const fg = HEX.test(o.office?.bodyForegroundColor ?? "")
-    ? o.office?.bodyForegroundColor
-    : undefined;
-  return {
-    kind: dark ? "dark" : "light",
-    theme: {
-      ...base,
-      colorNeutralBackground1: o.office?.bodyBackgroundColor as string,
-      ...(fg ? { colorNeutralForeground1: fg } : {}),
-    },
-  };
+  const kind = dark ? "dark" : "light";
+  const bg = o.office?.bodyBackgroundColor as string;
+  const fg = o.office?.bodyForegroundColor as string;
+  const fgLum = hexLuminance(fg);
+  // Guard against odd Office colours: apply the pair only when it is legible (WCAG AA, 4.5:1).
+  if (lum === null || fgLum === null || contrastRatio(lum, fgLum) < 4.5)
+    return { kind, theme: base };
+  return { kind, theme: { ...base, colorNeutralBackground1: bg, colorNeutralForeground1: fg } };
 }
 
 function read(office?: OfficeThemeColors) {

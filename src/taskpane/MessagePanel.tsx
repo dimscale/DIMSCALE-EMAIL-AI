@@ -34,7 +34,7 @@ const useStyles = makeStyles({
     fontFamily: "inherit",
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
-    maxHeight: "160px",
+    maxHeight: "120px",
     overflowY: "auto",
     padding: "8px",
     borderRadius: tokens.borderRadiusLarge,
@@ -45,6 +45,9 @@ const useStyles = makeStyles({
   empty: { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "24px 0", textAlign: "center" },
   hidden: { position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" },
 });
+
+const sender = (v: MessageView) =>
+  v.senderName && v.senderEmail ? `${v.senderName} <${v.senderEmail}>` : v.senderName || v.senderEmail || "—";
 
 const MessagePanel: React.FC = () => {
   const s = useStyles();
@@ -118,7 +121,7 @@ const MessagePanel: React.FC = () => {
     <div>
       <div className={s.fields}>
         {field(strings.subject, v.subject)}
-        {field(strings.from, v.senderName ? `${v.senderName} <${v.senderEmail}>` : v.senderEmail)}
+        {field(strings.from, sender(v))}
         {field(strings.date, v.date)}
       </div>
       {state.kind === "error" ? (

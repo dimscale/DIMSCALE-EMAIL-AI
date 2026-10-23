@@ -34,6 +34,18 @@ describe("theme helpers (F-012/AC-7)", () => {
     );
     expect(resolveTheme({}).theme).toBe(webLightTheme);
   });
+  it("applies the Office pair only at or above 4.5:1 (F-012/AC-6)", () => {
+    const low = resolveTheme({
+      office: { bodyBackgroundColor: "#FFFFFF", bodyForegroundColor: "#CCCCCC" },
+    });
+    expect(low.theme).toBe(webLightTheme);
+    const none = resolveTheme({ office: { bodyBackgroundColor: "#FFFFFF" } });
+    expect(none.theme).toBe(webLightTheme);
+    const ok = resolveTheme({
+      office: { bodyBackgroundColor: "#FFFFFF", bodyForegroundColor: "#767676" },
+    });
+    expect(ok.theme.colorNeutralForeground1).toBe("#767676");
+  });
   it("forced colors wins", () => {
     expect(resolveTheme({ forcedColors: true, prefersDark: true }).kind).toBe("highContrast");
   });

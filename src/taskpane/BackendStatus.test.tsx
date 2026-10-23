@@ -106,7 +106,7 @@ describe("BackendStatus", () => {
     const btn = await screen.findByText("Iniciar sessão");
     expect(h.popup).not.toHaveBeenCalled();
     fireEvent.click(btn);
-    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
+    expect(await screen.findByText("Ligado")).toBeTruthy();
     expect(h.popup).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer tok2" });
   });

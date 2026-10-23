@@ -11,7 +11,7 @@ type View = "analyze" | "reply";
 
 const useStyles = makeStyles({
   root: { minHeight: "100vh", display: "flex", flexDirection: "column", fontSize: tokens.fontSizeBase300 },
-  header: { display: "flex", alignItems: "center", height: "44px", padding: "0 12px", boxSizing: "border-box" },
+  header: { display: "flex", alignItems: "center", height: "40px", padding: "0 12px", boxSizing: "border-box" },
   h1: { display: "flex", alignItems: "center", gap: "8px", margin: 0, fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightSemibold },
   main: { flex: 1, padding: "0 12px", maxWidth: "640px" },
   panel: { display: "flex", flexDirection: "column", gap: "12px", paddingTop: "8px", paddingBottom: "12px" },
@@ -40,6 +40,7 @@ const ComingSoon = ({ text, icon }: { text: string; icon?: React.ReactNode }) =>
 const App: React.FC = () => {
   const s = useStyles();
   const { kind, theme } = useOfficeTheme();
+  const [noticeHost, setNoticeHost] = React.useState<HTMLElement | null>(null);
   const [view, setView] = React.useState<View>("analyze");
   const logo = kind === "dark" ? "#ffffff" : kind === "light" ? "#000000" : "currentColor";
   return (
@@ -59,25 +60,24 @@ const App: React.FC = () => {
             {strings.tabReply}
           </Tab>
         </TabList>
-        {view === "analyze" ? (
-          <div role="tabpanel" id="panel-analyze" aria-labelledby="tab-analyze" className={s.panel}>
-            <MessagePanel />
-            <ComingSoon text={strings.comingSoonAnalyze} icon={<SparkleRegular />} />
-            <div className={s.row}>
-              <span className={s.icon} aria-hidden="true">
-                <ShieldCheckmarkRegular />
-              </span>
-              <span className={s.secondary}>{strings.assurance}</span>
-            </div>
+        <div ref={setNoticeHost} />
+        {/* Both panels stay mounted so the message state and ItemChanged survive tab switches. */}
+        <div role="tabpanel" id="panel-analyze" aria-labelledby="tab-analyze" className={s.panel} hidden={view !== "analyze"}>
+          <MessagePanel />
+          <ComingSoon text={strings.comingSoonAnalyze} icon={<SparkleRegular />} />
+          <div className={s.row}>
+            <span className={s.icon} aria-hidden="true">
+              <ShieldCheckmarkRegular />
+            </span>
+            <span className={s.secondary}>{strings.assurance}</span>
           </div>
-        ) : (
-          <div role="tabpanel" id="panel-reply" aria-labelledby="tab-reply" className={s.panel}>
-            <ComingSoon text={strings.comingSoonReply} />
-          </div>
-        )}
+        </div>
+        <div role="tabpanel" id="panel-reply" aria-labelledby="tab-reply" className={s.panel} hidden={view !== "reply"}>
+          <ComingSoon text={strings.comingSoonReply} />
+        </div>
       </main>
       <footer className={s.footer}>
-        <BackendStatus />
+        <BackendStatus noticeHost={noticeHost} />
       </footer>
     </FluentProvider>
   );

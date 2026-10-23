@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { getTokenSilent, isNaaSupported, signIn, TokenResult } from "./auth";
 import { callWhoami } from "./backend";
 import { isConfigured } from "./config";
@@ -19,7 +20,8 @@ type State =
   | { kind: "connected"; name: string | null }
   | { kind: "error"; message: string; detail?: string };
 
-const BackendStatus: React.FC = () => {
+// noticeHost: where the MessageBar goes (above the tab content). undefined renders it inline; null waits for the host.
+const BackendStatus: React.FC<{ noticeHost?: HTMLElement | null }> = ({ noticeHost }) => {
   const [state, setState] = React.useState<State>({ kind: "working" });
   const alive = React.useRef(true);
   React.useEffect(() => {
@@ -56,45 +58,48 @@ const BackendStatus: React.FC = () => {
   };
 
   const s = useStyles();
-  const line = (icon: React.ReactNode, text: string) => (
-    <div className={s.line} role="status">
+  // With a MessageBar showing the same information the line is hidden from AT to avoid a double announcement.
+  const line = (icon: React.ReactNode, text: string, notice = false) => (
+    <div className={s.line} role={notice ? undefined : "status"} aria-hidden={notice ? "true" : undefined}>
       <span aria-hidden="true" className={s.icon}>
         {icon}
       </span>
       <span>{text}</span>
     </div>
   );
+  const notice = (bar: React.ReactNode) =>
+    noticeHost === undefined ? bar : noticeHost ? createPortal(bar, noticeHost) : null;
   switch (state.kind) {
     case "working":
       return line(<ClockRegular />, strings.backendWorking);
     case "notConfigured":
       return (
         <div>
-          <MessageBar intent="info">
+          {notice(<MessageBar intent="info">
             <MessageBarBody>{strings.notConfigured}</MessageBarBody>
-          </MessageBar>
-          {line(<WarningRegular />, strings.shortNotConfigured)}
+          </MessageBar>)}
+          {line(<WarningRegular />, strings.shortNotConfigured, true)}
         </div>
       );
     case "unsupported":
       return (
         <div>
-          <MessageBar intent="info">
+          {notice(<MessageBar intent="info">
             <MessageBarBody>{strings.unsupported}</MessageBarBody>
-          </MessageBar>
-          {line(<WarningRegular />, strings.shortUnsupported)}
+          </MessageBar>)}
+          {line(<WarningRegular />, strings.shortUnsupported, true)}
         </div>
       );
     case "needSignIn":
       return (
         <div>
-          <MessageBar intent="info">
+          {notice(<MessageBar intent="info">
             <MessageBarBody>{strings.needSignIn}</MessageBarBody>
             <MessageBarActions>
               <Button onClick={onSignIn}>{strings.signIn}</Button>
             </MessageBarActions>
-          </MessageBar>
-          {line(<WarningRegular />, strings.shortNeedSignIn)}
+          </MessageBar>)}
+          {line(<WarningRegular />, strings.shortNeedSignIn, true)}
         </div>
       );
     case "connected":
@@ -102,7 +107,7 @@ const BackendStatus: React.FC = () => {
     default:
       return (
         <div>
-          <MessageBar intent="error" role="alert">
+          {notice(<MessageBar intent="error" role="alert">
             <MessageBarBody>
               {state.message}
               {state.detail ? ` (${state.detail})` : ""}
@@ -110,8 +115,8 @@ const BackendStatus: React.FC = () => {
             <MessageBarActions>
               <Button onClick={() => void run()}>{strings.retry}</Button>
             </MessageBarActions>
-          </MessageBar>
-          {line(<ErrorCircleRegular />, strings.shortError)}
+          </MessageBar>)}
+          {line(<ErrorCircleRegular />, strings.shortError, true)}
         </div>
       );
   }
