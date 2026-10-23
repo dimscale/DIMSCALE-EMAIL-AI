@@ -55,7 +55,7 @@ export function fakeDb(nowMs: () => number = Date.now) {
     },
     setUserStatus: (id, status) => {
       const u = [...users.values()].find((x) => x.id === id);
-      if (u) u.status = status;
+      if (u && (status !== "active" || u.enabled)) u.status = status; // mirrors ad_user_status
       return Promise.resolve();
     },
     enqueue: (userId, ids) => {

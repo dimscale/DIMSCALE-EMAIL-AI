@@ -40,7 +40,7 @@ export function readSettings(get: Get): { settings: Settings; defaulted: string[
     dailyCapGlobal: pick("DAILY_CAP_GLOBAL", posInt, 200),
     filterAutoResponseSuppress: pick("FILTER_AUTO_RESPONSE_SUPPRESS", bool, true),
     filterFocusedOther: pick("FILTER_FOCUSED_OTHER", bool, true),
-    // No default model: D5 decides. An empty model makes the AI step fail closed (ai_unavailable).
+    // No default model: D5 decides. An empty model makes the AI step fail closed (config_missing).
     openaiModel: get("OPENAI_MODEL")?.trim() ?? "",
     openaiMaxOutputTokens: pick("OPENAI_MAX_OUTPUT_TOKENS", posInt, 800),
   };

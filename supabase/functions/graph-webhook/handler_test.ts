@@ -168,7 +168,8 @@ Deno.test("L1: a notification from another tenant is ignored like an unknown sub
     const res = await handle(post({ value: [n("m1", { tenantId: "OTHER" }), n("m2", { tenantId: undefined }), n("m3")] }), s.d);
     assertEquals(res.status, 202);
     assertEquals(s.f.queue.map((r) => r.messageId), ["m3"]);
-    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "unknown_subscription").length, 2);
+    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "tenant_mismatch").length, 2);
+    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "unknown_subscription").length, 0);
     s.release();
     // not configured: fail closed
     const t = setup({ AUTO_DRAFTS_ENABLED: "true", GRAPH_CLIENT_STATE: "CS" });
@@ -190,6 +191,41 @@ Deno.test("L2: each distinct subscription is looked up once per request", async 
     assertEquals(lookups, 2);
     assertEquals(s.f.queue.length, 3);
     s.release();
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("L-4: tenant ids compare case-insensitively; a different tenant logs tenant_mismatch", async () => {
+  const s = setup({ AUTO_DRAFTS_ENABLED: "true", GRAPH_CLIENT_STATE: "CS", ENTRA_TENANT_ID: "C4333A40-ABCD" });
+  const out = quiet();
+  try {
+    await handle(post({ value: [n("m1", { tenantId: "c4333a40-abcd" }), n("m2", { tenantId: "c4333a40-zzzz" })] }), s.d);
+    assertEquals(s.f.queue.map((r) => r.messageId), ["m1"]);
+    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "tenant_mismatch").length, 1);
+    s.release();
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("L-6: a failing lifecycle event does not skip the others or runProcess; failures log a reason only", async () => {
+  const s = setup();
+  const seen: string[] = [];
+  s.d.runLifecycle = (_userId, _subId, kind) => (seen.push(kind), kind === "subscriptionRemoved" ? Promise.reject(new Error("SECRET-ERR")) : Promise.resolve());
+  s.d.runProcess = () => (seen.push("process"), Promise.reject(new Error("SECRET-ERR")));
+  const out = quiet();
+  try {
+    const res = await handle(post({ value: [
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "reauthorizationRequired" },
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "subscriptionRemoved" },
+      { subscriptionId: "SUB1", clientState: "CS", tenantId: "T", lifecycleEvent: "missed" },
+    ] }), s.d);
+    assertEquals(res.status, 202);
+    await Promise.all(s.waits);
+    assertEquals(seen, ["reauthorizationRequired", "subscriptionRemoved", "missed", "process"]);
+    assertEquals(out.map((l) => JSON.parse(l).reason).filter((r) => r === "lifecycle_error" || r === "background_error"), ["lifecycle_error", "background_error"]);
+    assertFalse(out.some((l) => l.includes("SECRET-ERR")));
   } finally {
     loud();
   }

@@ -55,14 +55,15 @@ export async function handle(req: Request, d: WebhookDeps): Promise<Response> {
         continue;
       }
       const subId = typeof it.subscriptionId === "string" ? it.subscriptionId : "";
-      // Only our own tenant (fail closed when ENTRA_TENANT_ID is not configured).
+      // Only our own tenant (fail closed when ENTRA_TENANT_ID is not configured). Tenant GUIDs compare case-insensitively.
+      const ownTenant = !!tenant && typeof it.tenantId === "string" && it.tenantId.toLowerCase() === tenant.toLowerCase();
       let userId: string | null = null;
-      if (subId && tenant && it.tenantId === tenant) {
+      if (subId && ownTenant) {
         if (!users.has(subId)) users.set(subId, await d.db.userForSubscription(subId));
         userId = users.get(subId) ?? null;
       }
       if (!userId) {
-        log({ fn: FN, id, reason: "unknown_subscription" });
+        log({ fn: FN, id, reason: ownTenant ? "unknown_subscription" : "tenant_mismatch" });
         continue;
       }
       if (typeof it.lifecycleEvent === "string") {
@@ -76,8 +77,14 @@ export async function handle(req: Request, d: WebhookDeps): Promise<Response> {
     for (const [userId, set] of ids) n += await d.db.enqueue(userId, [...set]); // duplicates collapse on the unique key
     if (ids.size || lifecycle.length) {
       d.waitUntil((async () => {
+        for (const l of lifecycle) {
+          try {
+            await d.runLifecycle(l.userId, l.subId, l.kind);
+          } catch {
+            log({ fn: FN, id, reason: "lifecycle_error" }); // one failing event must not skip the others
+          }
+        }
         try {
-          for (const l of lifecycle) await d.runLifecycle(l.userId, l.subId, l.kind);
           await d.runProcess();
         } catch {
           log({ fn: FN, id, reason: "background_error" });

@@ -133,7 +133,7 @@ create function public.ad_catchup_done(p_user uuid, p_at timestamptz) returns vo
 $$;
 create function public.ad_user_status(p_user uuid, p_status text) returns void language sql set search_path = '' as $$
   update public.auto_draft_users set status = p_status, status_changed_at = now(), updated_at = now()
-  where id = p_user and status is distinct from p_status;
+  where id = p_user and status is distinct from p_status and (p_status <> 'active' or enabled);
 $$;
 
 -- Duplicate notifications collapse on the unique key.

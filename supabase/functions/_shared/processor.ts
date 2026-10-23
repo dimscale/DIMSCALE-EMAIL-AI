@@ -80,7 +80,8 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
   if (!isAllowedSender(from.data.from, user.contacts)) return await done("skipped", "sender_not_allowed");
 
   // AI config before the full read: without it nothing could be drafted anyway.
-  if (!d.get("OPENAI_API_KEY") || !d.settings.openaiModel) return await done("failed", "ai_unavailable");
+  // Not an ai_* reason: a deployment problem must not use up the daily caps (ad_counts_today counts ai_% only).
+  if (!d.get("OPENAI_API_KEY") || !d.settings.openaiModel) return await done("failed", "config_missing");
 
   const msg = await d.graph.readMessage(user.oid, row.messageId);
   if (!msg.ok) return await graphFail(msg, row.userId);

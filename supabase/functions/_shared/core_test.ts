@@ -209,6 +209,7 @@ Deno.test("generateDraft: exact request shape", async () => {
   assertEquals(body.model, "m1");
   assertFalse("tools" in body);
   assertEquals(body.instructions, INSTRUCTIONS);
+  assert(body.instructions.includes("Do not use the characters < or >."));
   assertEquals(body.text.format, {
     type: "json_schema", name: "draft_reply", strict: true,
     schema: { type: "object", properties: { reply: { type: "string" } }, required: ["reply"], additionalProperties: false },

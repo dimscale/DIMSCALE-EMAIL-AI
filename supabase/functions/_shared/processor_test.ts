@@ -405,13 +405,14 @@ Deno.test("M5: daily caps count drafted rows and rows that failed at the AI step
   assertEquals(await g.f.db.countsToday(g.user.id), { user: 0, global: 0 });
 });
 
-Deno.test("L4: missing AI config fails ai_unavailable after the sender check and before the full read", async () => {
+Deno.test("L4: missing AI config fails config_missing after the sender check and before the full read, and does not use the daily caps", async () => {
   for (const env of [{ OPENAI_API_KEY: "" }, { OPENAI_MODEL: "" }] as Record<string, string>[]) {
     const s = setup({}, undefined, env);
     await enqueue(s, "m1");
     await processClaimed(s.deps);
-    assertEquals([row(s).status, row(s).reason], ["failed", "ai_unavailable"]);
+    assertEquals([row(s).status, row(s).reason], ["failed", "config_missing"]);
     assertEquals(s.calls, ["readFrom:m1"]);
+    assertEquals(await s.f.db.countsToday(s.user.id), { user: 0, global: 0 });
   }
 });
 
@@ -426,4 +427,17 @@ Deno.test("L5: a truncated catch-up enqueues what it found but does not advance 
     loud();
   }
   assertEquals([s.f.queue.length, s.f.subs.get(u.id)!.lastCatchupAt], [1, null]);
+});
+
+Deno.test("L-2: a disabled user is never set active; an enabled user is", async () => {
+  const s = setup();
+  s.user.enabled = false;
+  s.user.status = "error";
+  await s.f.db.setUserStatus(s.user.id, "active");
+  assertEquals(s.user.status, "error");
+  await s.f.db.setUserStatus(s.user.id, "not_in_scope");
+  assertEquals(s.user.status, "not_in_scope");
+  s.user.enabled = true;
+  await s.f.db.setUserStatus(s.user.id, "active");
+  assertEquals(s.user.status, "active");
 });
