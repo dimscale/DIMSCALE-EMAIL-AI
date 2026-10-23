@@ -60,6 +60,7 @@
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
                       <SourceLocation resid="Taskpane.Url" />
+                      <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
                 </Group>
@@ -78,11 +79,11 @@
           <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
         </bt:Urls>
         <bt:ShortStrings>
-          <bt:String id="GroupLabel" DefaultValue="DIMSCALE Mail AI"/>
-          <bt:String id="TaskpaneButton.Label" DefaultValue="Open DIMSCALE Mail AI"/>
+          <bt:String id="GroupLabel" DefaultValue="DIMSCALE MAIL"/>
+          <bt:String id="TaskpaneButton.Label" DefaultValue="Abrir"/>
         </bt:ShortStrings>
         <bt:LongStrings>
-          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Shows the context of the open message."/>
+          <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail AI com o contexto da mensagem aberta."/>
         </bt:LongStrings>
       </Resources>
     </VersionOverrides>

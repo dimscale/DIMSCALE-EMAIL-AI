@@ -23,6 +23,6 @@ describe("taskpane entry (mocked Office.onReady)", () => {
     await act(async () => {
       ready?.();
     });
-    expect(await screen.findByText("Open a message to use DIMSCALE Mail AI")).toBeTruthy();
+    expect(await screen.findByText("Abra uma mensagem para usar o DIMSCALE Mail AI")).toBeTruthy();
   });
 });

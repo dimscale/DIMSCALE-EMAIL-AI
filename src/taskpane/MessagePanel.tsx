@@ -1,17 +1,67 @@
 import * as React from "react";
+import {
+  Accordion,
+  AccordionHeader,
+  AccordionItem,
+  AccordionPanel,
+  Button,
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
+  Skeleton,
+  SkeletonItem,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { MailRegular } from "@fluentui/react-icons";
 import { toMessageView, MessageView } from "./messageView";
 import { strings } from "./strings";
 
 /* global Office */
 
-type State = { kind: "loading" } | { kind: "none" } | { kind: "error" } | { kind: "ok"; view: MessageView };
+type State =
+  | { kind: "loading" }
+  | { kind: "none" }
+  | { kind: "error"; view: MessageView }
+  | { kind: "ok"; view: MessageView };
+
+const useStyles = makeStyles({
+  fields: { display: "flex", flexDirection: "column", gap: "4px", paddingTop: "8px", paddingBottom: "8px" },
+  label: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
+  value: { overflowWrap: "anywhere" },
+  preview: {
+    margin: 0,
+    fontFamily: "inherit",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    maxHeight: "160px",
+    overflowY: "auto",
+    padding: "8px",
+    borderRadius: tokens.borderRadiusLarge,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    ":focus-visible": { outline: `2px solid ${tokens.colorStrokeFocus2}`, outlineOffset: "1px" },
+  },
+  secondary: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, display: "block", paddingTop: "4px" },
+  empty: { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "24px 0", textAlign: "center" },
+  hidden: { position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" },
+});
 
 const MessagePanel: React.FC = () => {
+  const s = useStyles();
   const [state, setState] = React.useState<State>({ kind: "loading" });
   const [attempt, setAttempt] = React.useState(0);
 
+  // Re-read when the user selects another message (pinned pane). Event args are ignored: the item is read fresh.
   React.useEffect(() => {
-    const item = Office.context.mailbox?.item as Office.MessageRead | undefined; // undefined outside Outlook
+    const mailbox = Office.context?.mailbox;
+    if (!mailbox?.addHandlerAsync) return undefined;
+    const onChange = () => setAttempt((n) => n + 1);
+    mailbox.addHandlerAsync(Office.EventType.ItemChanged, onChange);
+    return () => mailbox.removeHandlerAsync?.(Office.EventType.ItemChanged, onChange);
+  }, []);
+
+  React.useEffect(() => {
+    const item = Office.context.mailbox?.item as Office.MessageRead | undefined | null; // undefined outside Outlook, null when none selected
     if (!item) {
       setState({ kind: "none" });
       return undefined;
@@ -24,46 +74,76 @@ const MessagePanel: React.FC = () => {
         if (result.status === Office.AsyncResultStatus.Succeeded) {
           setState({ kind: "ok", view: toMessageView(item, result.value) });
         } else {
-          setState({ kind: "error" }); // never log result.error: it may carry content
+          setState({ kind: "error", view: toMessageView(item, "") }); // never log result.error: it may carry content
         }
       });
     } catch {
-      setState({ kind: "error" }); // never log the exception: it may carry content
+      setState({ kind: "error", view: toMessageView(item, "") }); // never log the exception: it may carry content
     }
     return () => {
       active = false;
     };
   }, [attempt]);
 
-  if (state.kind === "loading") return <p>{strings.loading}</p>;
-  if (state.kind === "none") return <p>{strings.noItem}</p>;
-  if (state.kind === "error") {
+  if (state.kind === "loading") {
     return (
-      <div>
-        <p role="alert">{strings.error}</p>
-        <button onClick={() => setAttempt((n) => n + 1)}>{strings.retry}</button>
+      <Skeleton aria-busy="true" role="status">
+        <span className={s.hidden}>{strings.loading}</span>
+        <div className={s.fields} aria-hidden="true">
+          <SkeletonItem size={16} />
+          <SkeletonItem size={16} />
+          <SkeletonItem size={16} />
+        </div>
+      </Skeleton>
+    );
+  }
+  if (state.kind === "none") {
+    return (
+      <div className={s.empty}>
+        <MailRegular fontSize={32} aria-hidden="true" />
+        <p>{strings.noItem}</p>
       </div>
     );
   }
   const v = state.view;
+  const field = (label: string, value: string) => (
+    <div>
+      <div className={s.label}>{label}</div>
+      <div className={s.value} dir="auto">
+        {value}
+      </div>
+    </div>
+  );
   return (
-    <div style={{ padding: 12 }}>
-      <h2>{strings.title}</h2>
-      <p>
-        <strong>{strings.subject}:</strong> {v.subject}
-      </p>
-      <p>
-        <strong>{strings.from}:</strong> {v.senderName ? `${v.senderName} <${v.senderEmail}>` : v.senderEmail}
-      </p>
-      <p>
-        <strong>{strings.date}:</strong> {v.date}
-      </p>
-      <p>
-        <strong>{strings.body}:</strong>
-      </p>
-      <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{v.body.trim() ? v.body : strings.noBody}</pre>
-      {v.truncated && <p>{strings.truncated}</p>}
-      <p>{strings.bodyLength(v.bodyLength)}</p>
+    <div>
+      <div className={s.fields}>
+        {field(strings.subject, v.subject)}
+        {field(strings.from, v.senderName ? `${v.senderName} <${v.senderEmail}>` : v.senderEmail)}
+        {field(strings.date, v.date)}
+      </div>
+      {state.kind === "error" ? (
+        <MessageBar intent="error" role="alert">
+          <MessageBarBody>{strings.error}</MessageBarBody>
+          <MessageBarActions>
+            <Button onClick={() => setAttempt((n) => n + 1)}>{strings.retry}</Button>
+          </MessageBarActions>
+        </MessageBar>
+      ) : (
+        <Accordion collapsible>
+          <AccordionItem value="msg">
+            <AccordionHeader icon={<MailRegular />} expandIconPosition="end">
+              {strings.messageSection}
+            </AccordionHeader>
+            <AccordionPanel>
+              <pre className={s.preview} role="region" aria-label={strings.bodyPreview} tabIndex={0} dir="auto">
+                {v.body.trim() ? v.body : strings.noBody}
+              </pre>
+              {v.truncated && <span className={s.secondary}>{strings.truncated}</span>}
+              <span className={s.secondary}>{strings.bodyLength(v.bodyLength)}</span>
+            </AccordionPanel>
+          </AccordionItem>
+        </Accordion>
+      )}
     </div>
   );
 };

@@ -27,7 +27,7 @@ it("MSAL creation failure shows an error with Retry, and Retry recreates the app
   });
   render(<BackendStatus />);
   expect(await screen.findByRole("alert")).toBeTruthy();
-  expect(screen.queryByText(/Connecting/)).toBeNull();
-  fireEvent.click(screen.getByText("Retry"));
+  expect(screen.queryByText(/A ligar/)).toBeNull();
+  fireEvent.click(screen.getByText("Tentar novamente"));
   await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(2));
 });

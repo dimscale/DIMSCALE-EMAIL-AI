@@ -35,7 +35,7 @@ describe("toMessageView", () => {
   });
   it("defaults empty subject and handles empty body (AC-5)", () => {
     const v = toMessageView(item({ subject: "  " }), "");
-    expect(v.subject).toBe("(no subject)");
+    expect(v.subject).toBe("(sem assunto)");
     expect(v.body).toBe("");
   });
   it("handles a sender without display name", () => {

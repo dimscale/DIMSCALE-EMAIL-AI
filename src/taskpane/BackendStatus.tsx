@@ -3,6 +3,13 @@ import { getTokenSilent, isNaaSupported, signIn, TokenResult } from "./auth";
 import { callWhoami } from "./backend";
 import { isConfigured } from "./config";
 import { strings } from "./strings";
+import { Button, MessageBar, MessageBarActions, MessageBarBody, makeStyles, tokens } from "@fluentui/react-components";
+import { CheckmarkCircleFilled, ClockRegular, ErrorCircleRegular, WarningRegular } from "@fluentui/react-icons";
+
+const useStyles = makeStyles({
+  line: { display: "flex", alignItems: "center", gap: "6px", fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
+  icon: { display: "flex", fontSize: "16px", flex: "none" },
+});
 
 type State =
   | { kind: "working" }
@@ -48,30 +55,63 @@ const BackendStatus: React.FC = () => {
     await withToken(await signIn(), true);
   };
 
+  const s = useStyles();
+  const line = (icon: React.ReactNode, text: string) => (
+    <div className={s.line} role="status">
+      <span aria-hidden="true" className={s.icon}>
+        {icon}
+      </span>
+      <span>{text}</span>
+    </div>
+  );
   switch (state.kind) {
     case "working":
-      return <p>{strings.backendWorking}</p>;
+      return line(<ClockRegular />, strings.backendWorking);
     case "notConfigured":
-      return <p>{strings.notConfigured}</p>;
+      return (
+        <div>
+          <MessageBar intent="info">
+            <MessageBarBody>{strings.notConfigured}</MessageBarBody>
+          </MessageBar>
+          {line(<WarningRegular />, strings.shortNotConfigured)}
+        </div>
+      );
     case "unsupported":
-      return <p>{strings.unsupported}</p>;
+      return (
+        <div>
+          <MessageBar intent="info">
+            <MessageBarBody>{strings.unsupported}</MessageBarBody>
+          </MessageBar>
+          {line(<WarningRegular />, strings.shortUnsupported)}
+        </div>
+      );
     case "needSignIn":
       return (
         <div>
-          <p>{strings.needSignIn}</p>
-          <button onClick={onSignIn}>{strings.signIn}</button>
+          <MessageBar intent="info">
+            <MessageBarBody>{strings.needSignIn}</MessageBarBody>
+            <MessageBarActions>
+              <Button onClick={onSignIn}>{strings.signIn}</Button>
+            </MessageBarActions>
+          </MessageBar>
+          {line(<WarningRegular />, strings.shortNeedSignIn)}
         </div>
       );
     case "connected":
-      return <p>{state.name ? strings.connectedAs(state.name) : strings.connected}</p>;
+      return line(<CheckmarkCircleFilled />, state.name ? strings.connectedAs(state.name) : strings.connected);
     default:
       return (
         <div>
-          <p role="alert">
-            {state.message}
-            {state.detail ? ` (${state.detail})` : ""}
-          </p>
-          <button onClick={() => void run()}>{strings.retry}</button>
+          <MessageBar intent="error" role="alert">
+            <MessageBarBody>
+              {state.message}
+              {state.detail ? ` (${state.detail})` : ""}
+            </MessageBarBody>
+            <MessageBarActions>
+              <Button onClick={() => void run()}>{strings.retry}</Button>
+            </MessageBarActions>
+          </MessageBar>
+          {line(<ErrorCircleRegular />, strings.shortError)}
         </div>
       );
   }

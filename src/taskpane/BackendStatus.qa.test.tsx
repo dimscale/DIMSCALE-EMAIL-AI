@@ -83,9 +83,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   it("Retry after an unreachable backend calls MSAL and the backend again, then connects", async () => {
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(ok("Ada"));
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend unreachable")).toBeTruthy();
-    fireEvent.click(screen.getByText("Retry"));
-    expect(await screen.findByText("Backend connected as Ada")).toBeTruthy();
+    expect(await screen.findByText("Backend inacessível")).toBeTruthy();
+    fireEvent.click(screen.getByText("Tentar novamente"));
+    expect(await screen.findByText("Ligado como Ada")).toBeTruthy();
     expect(h.silent).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[1][1].headers).toEqual({ Authorization: "Bearer tok" });
@@ -95,9 +95,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     h.silent.mockResolvedValueOnce({ accessToken: "old" }).mockResolvedValueOnce({ accessToken: "new" });
     fetchMock.mockResolvedValueOnce(status(401)).mockResolvedValueOnce(ok(null));
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend rejected the sign-in (401)")).toBeTruthy();
-    fireEvent.click(screen.getByText("Retry"));
-    expect(await screen.findByText("Backend connected")).toBeTruthy();
+    expect(await screen.findByText("O backend rejeitou o início de sessão (401)")).toBeTruthy();
+    fireEvent.click(screen.getByText("Tentar novamente"));
+    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer old" });
     expect(fetchMock.mock.calls[1][1].headers).toEqual({ Authorization: "Bearer new" });
   });
@@ -106,10 +106,10 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     h.silent.mockRejectedValue(new h.InteractionRequiredAuthError());
     h.popup.mockRejectedValue(Object.assign(new Error("closed"), { errorCode: "user_cancelled" }));
     render(<BackendStatus />);
-    fireEvent.click(await screen.findByText("Sign in"));
-    expect(await screen.findByText("Sign-in failed (user_cancelled)")).toBeTruthy();
-    fireEvent.click(screen.getByText("Retry"));
-    expect(await screen.findByText("Sign in to connect to the DIMSCALE backend")).toBeTruthy();
+    fireEvent.click(await screen.findByText("Iniciar sessão"));
+    expect(await screen.findByText("Falha ao iniciar sessão (user_cancelled)")).toBeTruthy();
+    fireEvent.click(screen.getByText("Tentar novamente"));
+    expect(await screen.findByText("Inicie sessão para ligar ao backend DIMSCALE")).toBeTruthy();
     expect(h.silent).toHaveBeenCalledTimes(2);
     expect(h.popup).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -120,8 +120,8 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     h.popup.mockResolvedValue({ accessToken: "tok2" });
     fetchMock.mockResolvedValue(ok(null));
     render(<BackendStatus />);
-    fireEvent.click(await screen.findByText("Sign in"));
-    expect(await screen.findByText("Backend connected")).toBeTruthy();
+    fireEvent.click(await screen.findByText("Iniciar sessão"));
+    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
     expect(h.popup).toHaveBeenCalledWith({ scopes: [`api://${C}/access_as_user`, "profile"] });
   });
 
@@ -132,17 +132,17 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
       h.silent.mockResolvedValue({ accessToken: TOKEN });
       fetchMock.mockResolvedValueOnce(ok(NAME));
       const first = render(<BackendStatus />);
-      expect(await screen.findByText(`Backend connected as ${NAME}`)).toBeTruthy();
+      expect(await screen.findByText(`Ligado como ${NAME}`)).toBeTruthy();
       first.unmount();
       // 2: 401 for the same token
       fetchMock.mockResolvedValueOnce(status(401));
       const second = render(<BackendStatus />);
-      expect(await screen.findByText("Backend rejected the sign-in (401)")).toBeTruthy();
+      expect(await screen.findByText("O backend rejeitou o início de sessão (401)")).toBeTruthy();
       second.unmount();
       // 3: network failure whose message carries the token, and an MSAL error whose message carries it too
       fetchMock.mockRejectedValueOnce(new TypeError(`fetch ${TOKEN}`));
       const third = render(<BackendStatus />);
-      expect(await screen.findByText("Backend unreachable")).toBeTruthy();
+      expect(await screen.findByText("Backend inacessível")).toBeTruthy();
       third.unmount();
       h.silent.mockRejectedValueOnce(Object.assign(new Error(`leak ${TOKEN}`), { errorCode: "x_code" }));
       render(<BackendStatus />);
@@ -168,7 +168,7 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
         <BackendStatus />
       </>
     );
-    expect(await screen.findByText("Backend connected")).toBeTruthy();
+    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(URL_);
@@ -190,8 +190,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
         <BackendStatus />
       </>
     );
-    expect(await screen.findByText("Backend unreachable")).toBeTruthy();
+    expect(await screen.findByText("Backend inacessível")).toBeTruthy();
     expect(screen.getByText("Quarterly plan")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Mensagem" }));
     expect(screen.getByText("SECRET BODY TEXT")).toBeTruthy();
   });
 
@@ -203,7 +204,7 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
         <BackendStatus />
       </>
     );
-    expect(await screen.findByText(/doesn't support sign-in/)).toBeTruthy();
+    expect(await screen.findByText(/não suporta o início de sessão/)).toBeTruthy();
     expect(screen.getByText("Quarterly plan")).toBeTruthy();
     expect(h.create).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -212,31 +213,31 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   it("a 200 with a non-JSON body is unreachable, never connected", async () => {
     fetchMock.mockResolvedValue({ status: 200, json: async () => { throw new SyntaxError("Unexpected token <"); } });
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend unreachable")).toBeTruthy();
-    expect(screen.queryByText(/Backend connected/)).toBeNull();
+    expect(await screen.findByText("Backend inacessível")).toBeTruthy();
+    expect(screen.queryByText(/Ligado ao backend/)).toBeNull();
   });
 
   it("a 200 with ok:false is unreachable, never connected", async () => {
     fetchMock.mockResolvedValue({ status: 200, json: async () => ({ ok: false, name: "Ada" }) });
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend unreachable (200)")).toBeTruthy();
-    expect(screen.queryByText(/Backend connected/)).toBeNull();
+    expect(await screen.findByText("Backend inacessível (200)")).toBeTruthy();
+    expect(screen.queryByText(/Ligado ao backend/)).toBeNull();
   });
 
-  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])("name %j is not rendered: shows plain 'Backend connected'", async (name) => {
+  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])("name %j is not rendered: shows plain 'Ligado ao backend'", async (name) => {
     fetchMock.mockResolvedValue(ok(name));
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend connected")).toBeTruthy();
+    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
   });
 
   it("an MSAL error without errorCode shows unknown_error, not a blank line", async () => {
     h.silent.mockRejectedValue(new Error("x"));
     render(<BackendStatus />);
-    expect(await screen.findByText("Could not get a sign-in token (unknown_error)")).toBeTruthy();
-    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(await screen.findByText("Não foi possível obter o token de início de sessão (unknown_error)")).toBeTruthy();
+    expect(screen.getByText("Tentar novamente")).toBeTruthy();
   });
 
   it("Behavior: the working line uses the spec's ellipsis (U+2026)", () => {
-    expect(strings.backendWorking).toBe("Connecting to DIMSCALE backend…");
+    expect(strings.backendWorking).toBe("A ligar ao backend DIMSCALE…");
   });
 });

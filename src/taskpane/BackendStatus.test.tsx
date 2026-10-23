@@ -60,7 +60,7 @@ describe("BackendStatus", () => {
   it("AC-2/3/6: creates NAA app with single-tenant authority, exact scopes, bearer-only GET", async () => {
     reply(200, { ok: true, name: "Ada" });
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend connected as Ada")).toBeTruthy();
+    expect(await screen.findByText("Ligado como Ada")).toBeTruthy();
     expect(Office.context.requirements.isSetSupported).toHaveBeenCalledWith("NestedAppAuth", "1.1");
     expect(h.create).toHaveBeenCalledWith({
       auth: { clientId: C, authority: `https://login.microsoftonline.com/${T}` },
@@ -78,13 +78,13 @@ describe("BackendStatus", () => {
     setNaa(false);
     h.configured.v = false;
     render(<BackendStatus />);
-    expect(await screen.findByText(/doesn't support sign-in/)).toBeTruthy();
+    expect(await screen.findByText(/não suporta o início de sessão/)).toBeTruthy();
   });
 
   it("AC-1: unsupported client shows the line, no MSAL, no fetch", async () => {
     setNaa(false);
     render(<BackendStatus />);
-    expect(await screen.findByText(/doesn't support sign-in/)).toBeTruthy();
+    expect(await screen.findByText(/não suporta o início de sessão/)).toBeTruthy();
     expect(h.create).not.toHaveBeenCalled();
     expect(h.silent).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("BackendStatus", () => {
   it("placeholder config: not-configured line, no MSAL, no fetch", async () => {
     h.configured.v = false;
     render(<BackendStatus />);
-    expect(await screen.findByText(/not configured yet/)).toBeTruthy();
+    expect(await screen.findByText(/ainda não está configurado/)).toBeTruthy();
     expect(h.silent).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -103,10 +103,10 @@ describe("BackendStatus", () => {
     h.popup.mockResolvedValue({ accessToken: "tok2" });
     reply(200, { ok: true, name: null });
     render(<BackendStatus />);
-    const btn = await screen.findByText("Sign in");
+    const btn = await screen.findByText("Iniciar sessão");
     expect(h.popup).not.toHaveBeenCalled();
     fireEvent.click(btn);
-    expect(await screen.findByText("Backend connected")).toBeTruthy();
+    expect(await screen.findByText("Ligado ao backend")).toBeTruthy();
     expect(h.popup).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: "Bearer tok2" });
   });
@@ -115,42 +115,42 @@ describe("BackendStatus", () => {
     h.silent.mockRejectedValue(Object.assign(new Error("x"), { errorCode: "network_error" }));
     render(<BackendStatus />);
     expect(await screen.findByText(/network_error/)).toBeTruthy();
-    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByText("Tentar novamente")).toBeTruthy();
     expect(h.popup).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("AC-5: popup failure shows Sign-in failed with code, Retry, no backend call", async () => {
+  it("AC-5: popup failure shows Falha ao iniciar sessão with code, Retry, no backend call", async () => {
     h.silent.mockRejectedValue(new h.InteractionRequiredAuthError());
     h.popup.mockRejectedValue(Object.assign(new Error("x"), { errorCode: "popup_window_error" }));
     render(<BackendStatus />);
-    fireEvent.click(await screen.findByText("Sign in"));
-    expect(await screen.findByText("Sign-in failed (popup_window_error)")).toBeTruthy();
-    expect(screen.getByText("Retry")).toBeTruthy();
+    fireEvent.click(await screen.findByText("Iniciar sessão"));
+    expect(await screen.findByText("Falha ao iniciar sessão (popup_window_error)")).toBeTruthy();
+    expect(screen.getByText("Tentar novamente")).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("AC-7: 401 maps to rejected", async () => {
     reply(401, { ok: false });
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend rejected the sign-in (401)")).toBeTruthy();
-    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(await screen.findByText("O backend rejeitou o início de sessão (401)")).toBeTruthy();
+    expect(screen.getByText("Tentar novamente")).toBeTruthy();
   });
 
   it("AC-7: 500 and network error map to unreachable", async () => {
     reply(500);
     const { unmount } = render(<BackendStatus />);
-    expect(await screen.findByText("Backend unreachable (500)")).toBeTruthy();
+    expect(await screen.findByText("Backend inacessível (500)")).toBeTruthy();
     unmount();
     fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
     render(<BackendStatus />);
-    expect(await screen.findByText("Backend unreachable")).toBeTruthy();
+    expect(await screen.findByText("Backend inacessível")).toBeTruthy();
   });
 
   it("AC-7: name is rendered as text, not HTML", async () => {
     reply(200, { ok: true, name: "<img src=x onerror=alert(1)>" });
     const { container } = render(<BackendStatus />);
-    expect(await screen.findByText(/Backend connected as <img/)).toBeTruthy();
+    expect(await screen.findByText(/Ligado como <img/)).toBeTruthy();
     expect(container.querySelector("img")).toBeNull();
   });
 
@@ -169,6 +169,6 @@ describe("BackendStatus", () => {
     } finally {
       vi.useRealTimers();
     }
-    expect(await screen.findByText("Backend unreachable")).toBeTruthy();
+    expect(await screen.findByText("Backend inacessível")).toBeTruthy();
   });
 });
