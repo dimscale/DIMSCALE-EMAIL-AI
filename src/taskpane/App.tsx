@@ -3,6 +3,7 @@ import { Card, FluentProvider, Tab, TabList, makeStyles, tokens } from "@fluentu
 import { ShieldCheckmarkRegular, SparkleRegular } from "@fluentui/react-icons";
 import BackendStatus from "./BackendStatus";
 import MessagePanel from "./MessagePanel";
+import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
 import { useOfficeTheme } from "./theme";
 import { Wordmark } from "./Wordmark";
@@ -73,7 +74,7 @@ const App: React.FC = () => {
           </div>
         </div>
         <div role="tabpanel" id="panel-reply" aria-labelledby="tab-reply" className={s.panel} hidden={view !== "reply"}>
-          <ComingSoon text={strings.comingSoonReply} />
+          <ResponderPanel />
         </div>
       </main>
       <footer className={s.footer}>

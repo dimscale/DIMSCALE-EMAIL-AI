@@ -10,7 +10,7 @@ import App from "./App";
 afterEach(cleanup);
 
 describe("App layout (F-012)", () => {
-  it("has one h1, tabs Analisar/Responder, the assurance line and the coming-soon cards", () => {
+  it("has one h1, tabs Analisar/Responder, the assurance line and the coming-soon cards", async () => {
     (globalThis as any).Office = { CoercionType: { Text: "text" }, context: { mailbox: { item: undefined } } };
     render(<App />);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
@@ -19,7 +19,7 @@ describe("App layout (F-012)", () => {
     expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
     expect(screen.getByText("IA (resumo e resposta sugerida) em breve.")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
-    expect(screen.getByText("Respostas automáticas para contactos escolhidos: em breve.")).toBeTruthy();
+    expect(await screen.findByText("Respostas automáticas")).toBeTruthy();
     expect(screen.getByRole("tabpanel", { name: "Responder" })).toBeTruthy();
     expect(screen.queryByRole("tabpanel", { name: "Analisar" })).toBeNull(); // hidden panel is out of the a11y tree
   });

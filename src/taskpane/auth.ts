@@ -11,7 +11,7 @@ export const isNaaSupported = (): boolean =>
 
 const msal = () => import(/* webpackMode: "eager" */ "@azure/msal-browser");
 let app: Promise<IPublicClientApplication> | undefined;
-const getApp = () => {
+export const getApp = () => {
   // No cacheLocation override: MSAL default (spec open question 3).
   // Lazy import (eager webpack mode: same bundle) keeps MSAL out of unit tests that never reach auth.
   if (!app) {
