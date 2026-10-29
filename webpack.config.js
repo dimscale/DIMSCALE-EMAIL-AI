@@ -94,7 +94,7 @@ module.exports = async (env, options) => {
       // Second ribbon button page (same bundle; the pane reads location.pathname), F-012/AC-48
       new HtmlWebpackPlugin({
         filename: "resumo.html",
-        template: "./src/taskpane/resumo.html",
+        template: "./src/taskpane/taskpane.html",
         chunks: ["polyfill", "taskpane", "react"],
       }),
       ]),
@@ -105,7 +105,7 @@ module.exports = async (env, options) => {
             to: "assets/[name][ext][query]",
           },
           {
-            from: "manifest*.xml",
+            from: "manifest.xml",
             to: "[name]" + "[ext]",
             transform(content) {
               if (dev) {

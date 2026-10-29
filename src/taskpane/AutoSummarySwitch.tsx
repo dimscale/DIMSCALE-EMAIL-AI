@@ -10,6 +10,7 @@ import {
   Switch,
   makeStyles,
   tokens,
+  useRestoreFocusTarget,
 } from "@fluentui/react-components";
 import type { AutoSummary } from "./autoSummary";
 import { strings } from "./strings";
@@ -29,9 +30,11 @@ const useStyles = makeStyles({
 const AutoSummarySwitch: React.FC<{ auto: AutoSummary }> = ({ auto }) => {
   const s = useStyles();
   const [open, setOpen] = React.useState(false);
+  const restoreFocus = useRestoreFocusTarget(); // focus returns to the switch when the dialog closes
   return (
     <div className={s.root}>
       <Switch
+        {...restoreFocus}
         label={strings.autoSummaryLabel}
         checked={auto.on}
         onChange={(_, d) => (d.checked ? setOpen(true) : void auto.change(false))}

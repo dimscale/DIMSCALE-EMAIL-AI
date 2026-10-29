@@ -92,6 +92,7 @@ const App: React.FC<{ summaryEntry?: boolean }> = ({ summaryEntry = false }) => 
       </header>
       <main className={s.main}>
         <TabList
+          size="small"
           selectedValue={view}
           onTabSelect={(_, d) => setView(d.value as View)}
           aria-label={strings.tabsLabel}

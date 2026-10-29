@@ -406,3 +406,43 @@ describe("errors and pause (F-003/AC-44)", () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+describe("one request in flight across item changes (review M2)", () => {
+  it("a manual request on A is aborted on item change; auto on B is the only active request; no stale result", async () => {
+    setup(makeItem("A"), true);
+    const calls = hangingFetch();
+    render(<App />);
+    // Turn auto off for A via the stored flag? Keep it on: A's auto attempt is consumed by the manual click below.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Resumir" }));
+    });
+    expect(calls).toHaveLength(1);
+    await change(makeItem("B"));
+    expect(calls[0].signal.aborted).toBe(true);
+    await advance(800);
+    expect(calls).toHaveLength(2);
+    expect(calls.filter((c) => !c.signal.aborted)).toHaveLength(1);
+    calls[0].resolve(summaryOk()); // late result of A
+    await advance(10);
+    expect(screen.queryByText("dois")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it("a manual click on B works after the switch (auto off)", async () => {
+    setup(makeItem("A"), false);
+    const calls = hangingFetch();
+    render(<App />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Resumir" }));
+    });
+    await change(makeItem("B"));
+    expect(calls[0].signal.aborted).toBe(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Resumir" }));
+    });
+    expect(calls).toHaveLength(2);
+    expect(calls[1].signal.aborted).toBe(false);
+    calls[1].resolve(summaryOk());
+    await advance(10);
+    expect(screen.getByText("dois")).toBeTruthy();
+  });
+});

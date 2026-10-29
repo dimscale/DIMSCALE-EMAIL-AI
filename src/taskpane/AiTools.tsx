@@ -112,7 +112,8 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const [openFailed, setOpenFailed] = React.useState(false);
   const busy = React.useRef(false);
   const mounted = React.useRef(true);
-  const autoCtl = React.useRef<AbortController | null>(null);
+  const runCtl = React.useRef<AbortController | null>(null); // any run (manual or auto)
+  const autoCtl = React.useRef<AbortController | null>(null); // auto run only
   const id = view.itemId || `k${itemKey}`;
   const empty = view.aiText.trim() === "";
 
@@ -121,7 +122,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     mounted.current = true;
     return () => {
       mounted.current = false;
-      autoCtl.current?.abort(); // item changed: abort the in-flight auto request
+      runCtl.current?.abort(); // item changed: abort the in-flight request, manual or auto
     };
   }, []);
 
@@ -129,8 +130,9 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     if (busy.current || empty) return;
     busy.current = true;
     if (action === "summarize") auto.attempted.add(id);
-    const ctl = isAuto ? new AbortController() : null;
-    autoCtl.current = ctl;
+    const ctl = new AbortController();
+    runCtl.current = ctl;
+    autoCtl.current = isAuto ? ctl : null;
     setPending(action);
     setError(null);
     setCopy(null);
@@ -154,7 +156,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
           : action === "reply"
             ? { action, ...base, language: options.language, tone: options.tone }
             : translatePayload(view, options.target);
-      const res = await analyze(token.token, payload, undefined, ctl?.signal);
+      const res = await analyze(token.token, payload, undefined, ctl.signal);
       if (!mounted.current || res.kind === "aborted") return;
       if (res.kind === "summary") setSummary(res.summary);
       else if (res.kind === "reply") setReply(res.reply);
@@ -169,6 +171,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       }
     } finally {
       busy.current = false;
+      if (runCtl.current === ctl) runCtl.current = null;
       if (autoCtl.current === ctl) autoCtl.current = null;
       if (mounted.current) setPending(null);
     }

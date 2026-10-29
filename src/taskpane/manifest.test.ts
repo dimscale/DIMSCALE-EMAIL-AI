@@ -115,5 +115,6 @@ describe("production build (F-012/AC-48)", () => {
     const prod = readFileSync(join(out, "manifest.xml"), "utf8");
     expect(prod).toContain("/resumo.html");
     expect(prod).not.toContain("localhost:3000");
+    expect(readdirSync(out)).not.toContain("manifest.customtab-test.xml"); // AC-49: test manifest is not published
   }, 240000);
 });
