@@ -3,6 +3,7 @@
 - **Status:** In progress (2026-10-29). Spec approved; backend and pane built and reviewed; deploy and live tests pending.
 - **Status:** Draft (2026-10-29). Nothing past step 0 starts until the user sets the spec to `Approved`.
 - **Blocked by:** the user's approval of the spec; the user's answers to Q-U1 (model) and Q-U4 (real mail before D5). D5 (DPO) blocks use on real mail, not the build or the test-email live checks. No tenant-admin dependency.
+- **Amendment 2026-10-29 (Kutools-style pane):** steps 19 to 36 below implement spec AC-35 to AC-51 together with the F-012 plan steps 17 to 24. Nothing in steps 20 to 36 starts until the user confirms the amended specs (the architect proposals Q-U10 to Q-U15 and F-012 Q-K1 to Q-K6); the orchestrator records the answers here.
 - **Concurrency note:** other agents edit `src/` and tests at the same time. Each coder step re-reads the files it touches right before editing and keeps its diff to the files listed.
 
 ## Configuration values
@@ -40,6 +41,51 @@
 | 17 | **Live tests, test emails only until D5:** AC-27 (thread summary, time to result), AC-28 (reply form, Sent Items empty, original unchanged, signature/quote noted), AC-29 (new Outlook, Mac and its UI), AC-30 (clipboard), AC-31 (logs, cap 1, kill switch, restore), AC-32 (injection email). Record real `usage` tokens from the OpenAI dashboard for the cost table. | — | AC-27 to AC-32 | user + orchestrator |
 | 18 | Close: spec status, `status.md` (F-003 Done; F-004 merged; F-005 partly delivered), evidence complete, cost table updated with measured usage. | docs | — | orchestrator |
 
+### Amendment 2026-10-29: Kutools-style pane (auto mode, translate, reply options)
+Lanes that can run in parallel because their files don't overlap: **A** function (`supabase/functions/analyze-message/`), **B** pane client (`analyzeClient.ts`), **C** manifest, icons and build (F-012 plan step 18). Lane **D** (pane UI) is sequential because every step touches `AiTools.tsx`/`App.tsx`/`strings.ts`: F-012 step 17 → step 27 → step 28 → F-012 step 19.
+
+| # | Step | Files | ACs | Agent | Lane / after |
+|---|---|---|---|---|---|
+| 19 | Docs: amend F-003 and F-012 specs and plans, `security.md`, `status.md`. | docs only | — | requirements-architect | done 2026-10-29 |
+| 20 | Function, payload and reply options: `parsePayload` per action (spec table: base keys, optional `language`/`tone` for `reply`, required `targetLanguage` and empty `fromName`/`fromDomain` for `translate`); new `analyze-message/reply.ts` with the option-sentence constants and `generateReply(input, opts, cfg, fetchFn)`: `match`+`none` → `generateDraft` unchanged; otherwise `requestResponses` with `INSTRUCTIONS + " " + sentences`, F-013 `SCHEMA`, `parseOutput`; then the existing no-links check. Tests: AC-35 (every 422 case, no DB/OpenAI calls), AC-36 (snapshot equality for defaults, exact instructions for every option, `input` unchanged, injection in `tone` → 422). | `analyze-message/handler.ts`, `reply.ts`, `reply_test.ts`, `handler_test.ts` | AC-35, AC-36 | coder (sonnet) | A |
+| 21 | Translate module: `analyze-message/translate.ts` with `TRANSLATE_INSTRUCTIONS(target)`, `TRANSLATE_SCHEMA`, `parseTranslation(res, input)` (spec validation; reuses `singleOutputText` and the no-URL/no-address check used by `summary.ts`), `generateTranslation(input, target, cfg, fetchFn)` with `maxOutputTokens: 4000`. Tests: exact request body (AC-37), one fixture per AC-38 failure, valid case. New files only, so it runs in parallel with step 20. | `translate.ts`, `translate_test.ts` | AC-37, AC-38 | coder (sonnet) | A, parallel with 20 |
+| 22 | Wire `translate` into `handler.ts` (dispatch, response shape `translation`), cap slot taken before every action, marker-string log test extended to `translate` and reply options. | `handler.ts`, `handler_test.ts` | AC-38 (response), AC-39 | coder (haiku) | A, after 20 and 21 |
+| 23 | Backend checks: `deno test`, `deno lint`, `deno check` on all of `supabase/functions` (F-013 regressions show); grep `analyze-message` for `console.` outside `log`, `graph.microsoft.com`, `Mail.Send`. Record output. | — | AC-14, AC-15, AC-39 | qa-tester (haiku) | A |
+| 24 | **Independent review of steps 20 to 22** (strict payload, prompt construction from enums only, no free text in instructions, translate minimisation, output validation, F-013 non-regression, logging). Report only. | — | AC-35 to AC-39 | code-reviewer (**opus**) | A |
+| 25 | Fix Critical/High from step 24 (or escalate), rerun step 23. | as 20–22 | — | coder (sonnet), qa-tester | A |
+| 26 | Pane client: `analyzeClient.ts` types for `language`/`tone`/`targetLanguage`, translate result mapping, optional `AbortSignal` with an "aborted" result; `messageView.ts` gets a `translatePayload` helper (empty `fromName`/`fromDomain`). Unit tests. | `analyzeClient.ts`, `analyzeClient.test.ts`, `messageView.ts`, `messageView.ai.test.ts` | AC-41 (payload), AC-46 | coder (haiku) | B, parallel with A and C |
+| 27 | Pane cards: inside the F-012 `ToolCard` shell (F-012 step 17 first): Resposta `Select`s "Idioma"/"Tom" sent with every reply; Traduzir card (`Select` "Traduzir para", "Traduzir", result with "Assunto:" line and body, Copiar = subject + blank line + body); strings below; remove the "DIMSCALE AI Assistant" heading and the "Melhorar texto e tom" card (if Q-K3 confirmed). Update the existing AiTools/App tests (assertions replaced, not weakened). | `AiTools.tsx` (or split per card), `strings.ts`, tests | AC-40, AC-41, AC-17 (amended) | coder (sonnet) | D, after F-012 step 17 and step 26 |
+| 28 | Auto mode: `src/taskpane/prefs.ts` (`readAutoSummary()` true only for `=== true`, `saveAutoSummary(v)` wrapping `roamingSettings.set` + `saveAsync` in a promise, never throws); `AUTO_SUMMARY_AVAILABLE` in `config.ts` (value per Q-U13); in the Resumo card the `Switch`, the confirmation `Dialog`, the "ligado" line, the save-failed notice; the scheduler (800 ms debounce, one request per item per session, `AbortController` for the in-flight auto request, pause on 429/401/503 disabled/not configured, no retry). Keep the scheduler in a small hook or pure module so it is tested with fake timers. Tests: AC-42, AC-43 (a) to (i), AC-44, AC-45. | `prefs.ts`, `config.ts`, `AiTools.tsx`, `strings.ts`, new `autoSummary.ts`, tests | AC-42 to AC-45 | coder (sonnet) | D, after 27 |
+| 29 | Pane checks: `npm run typecheck`, `lint`, `test`, `build`, `build:dev`, `validate`; vitest count not lower than before step 26; grep `src/` for `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie`, `location.search`, `location.hash`, `dangerouslySetInnerHTML`, `innerHTML`, `console.`, `displayReplyAllForm`, `Mail.Send`. Record output. | — | AC-25 (amended), AC-26 (amended), AC-42 | qa-tester (haiku) | D, after 28 and F-012 step 19 |
+| 30 | **Independent review of steps 26 to 28 and F-012 step 19** (auto-mode consent path: no request without "Ligar"; abort and late-result discard; pause logic; entry-page start; data sent per action; rendering). Report only. | — | AC-40 to AC-46 | code-reviewer (**opus**) | D |
+| 31 | Fix Critical/High from step 30, rerun step 29. | as 26–28 | — | coder, qa-tester | D |
+| 32 | **Deploy the function first** (user's CLI): `supabase functions deploy analyze-message --use-api`. Smoke: the old pane's `reply` without options still works (test email); `OPTIONS`/401 as step 15. No new secret, no migration. | — | AC-35 (live smoke) | user + orchestrator | after 25 |
+| 33 | **Deploy the pane:** merge to `main`; F-011 publishes `taskpane.html` and `resumo.html`. The installed manifest (1.0.1.0) keeps working (F-012 edge case). | — | — | orchestrator | after 31 and 32 |
+| 34 | **Live, test emails only (D5):** AC-47 (options, translate), AC-48 (auto mode on a test mailbox, with the flag switched on in a dev build if Q-U13 keeps production off), AC-49 (roaming), AC-50 (reload, with F-012 AC-52), AC-51 (translate injection). | — | AC-47 to AC-51 | user + orchestrator | after 33, with F-012 step 23 |
+| 35 | If AC-50 shows the stale "on" after a reload: spec amendment for the `sessionStorage` "off" guard, user approval, coder, review, then recheck. Otherwise skip. | — | AC-50 | requirements-architect, coder | conditional |
+| 36 | Close the amendment: spec status lines, `status.md`, evidence complete; the admin upload itself is F-012 step 24. | docs | — | orchestrator | last |
+
+### Strings to add for the 2026-10-29 amendment (PT-PT, for the user's review)
+| Key (suggested) | Text |
+|---|---|
+| `replyLanguageLabel` | Idioma |
+| `replyLanguageMatch` / `replyLanguagePt` / `replyLanguageEn` | Idioma do e-mail / Português / Inglês |
+| `replyToneLabel` | Tom |
+| `replyToneNone` / `Concise` / `Detailed` / `Formal` / `Friendly` | Normal / Conciso / Detalhado / Formal / Amigável |
+| `translateTargetLabel` | Traduzir para |
+| `translatePt` / `translateEn` | Português / Inglês |
+| `aiTranslate` / `aiTranslating` | Traduzir / A traduzir… |
+| `aiTranslationTitle` | Tradução |
+| `aiTranslatedSubject` | Assunto: {x} |
+| `autoSummaryLabel` | Resumo automático |
+| `autoSummaryDialogTitle` | Ligar o resumo automático? |
+| `autoSummaryDialogBody` | Com o resumo automático, sempre que abrir um e-mail com este painel no separador Resumo, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para gerar o resumo, sem clicar em Resumir. Cada resumo conta para o seu limite diário de 50 pedidos de IA. Pode desligar a qualquer momento. |
+| `autoSummaryConfirm` / `autoSummaryCancel` | Ligar / Cancelar |
+| `autoSummaryOnNote` | Resumo automático ligado: cada e-mail que abrir com o painel neste separador é enviado à OpenAI. |
+| `autoSummarySaveFailed` | Não foi possível guardar a preferência. Aplica-se apenas até fechar o painel. |
+| `autoPausedCap` | Atingiu o limite diário de pedidos de IA. O resumo automático fica em pausa até amanhã. |
+| `autoPausedSuffix` | O resumo automático fica em pausa até reabrir o painel. |
+
 ### Strings to add to `strings.ts` (PT-PT, for the user's review, Q-U9)
 | Key (suggested) | Text |
 |---|---|
@@ -67,6 +113,7 @@
 ## Stop and rollback
 - Immediate stop: `supabase secrets set ANALYZE_DISABLED=true` (no redeploy; the pane shows "A IA está temporariamente desligada.").
 - Cheaper model: `supabase secrets set OPENAI_MODEL=gpt-6-luna`.
+- Stop auto mode only (2026-10-29): set `AUTO_SUMMARY_AVAILABLE = false` in `config.ts` and merge (Pages deploy, no admin); users' saved preference is then ignored. The kill switch above stops everything at once.
 - Full removal: `supabase functions delete analyze-message`; revert the pane commit (Pages redeploys). The `analyze_usage` rows are purged by `an_take` itself, so they stay after the last call; drop the table in a new migration (tiny, pseudonymised).
 - Nothing in any mailbox needs cleaning: the feature never writes mail.
 

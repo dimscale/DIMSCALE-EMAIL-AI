@@ -45,6 +45,7 @@ In the pane's **Responder** tab the user ticks the **contacts** the system answe
 ## Contact allow-list (v1 trigger, added 2026-10-23)
 
 ### Pane: Responder tab (PT-PT, inside the F-012 shell)
+_Note 2026-10-29: the tab is renamed **"Automático"** in the F-012 Kutools-style amendment (F-012 AC-47); its content and behaviour below are unchanged. "Responder tab" in this spec means that tab._
 ```
 +--------------------------------------+
 | Respostas automáticas  [ Ligado  o]  |  Switch (per user)
