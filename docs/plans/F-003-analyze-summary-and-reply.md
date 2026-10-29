@@ -72,3 +72,23 @@
 
 ## Evidence
 _Empty. Each step records the commands it ran, the real output, dates and live observations here._
+
+### 2026-10-29: backend deploy (step 15) and smoke tests
+- **Checks before deploy (orchestrator, real runs):** Deno suites `analyze-message` 72, `whoami` 24, `graph-webhook` 68, `auto-draft-cron` 61, `auto-reply-settings` 64, all passed; `deno lint` clean on `analyze-message`; root typecheck and lint clean, vitest 251 passed (maxWorkers 4), build passes.
+- **Review:** the backend security review (Opus) found no Critical or High. The two Medium items were fixed: `security.md` updated, and AC-32 resolved by the decision that outputs contain no link or address at all.
+- **Deploy (user's CLI):**
+  - `supabase db push`: only `20261029120000_f003_analyze_usage.sql` was pending (dry run first) and was applied;
+  - `supabase secrets set OPENAI_MODEL=gpt-6-luna`;
+  - `supabase functions deploy analyze-message --use-api`.
+- **Smoke tests with `curl`:**
+
+| Request | Result |
+|---|---|
+| OPTIONS from `https://dimscale.github.io` | 204, `Access-Control-Allow-Origin: https://dimscale.github.io`, methods `POST, OPTIONS` |
+| OPTIONS from `https://evil.example` | 204 with no `Access-Control-Allow-Origin` |
+| POST with no token | 401 `unauthorized` |
+| POST with a garbage token | 401 `unauthorized` |
+| GET | 405 `method_not_allowed` |
+
+- **Not done yet:** local Postgres checks (AC-5/AC-6 two parallel `an_take` calls), the live tests in Outlook (AC-27 to AC-32), merge to `main` so the pane reaches the published site.
+
