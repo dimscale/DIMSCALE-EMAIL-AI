@@ -7,6 +7,8 @@ const files = [
   "App.tsx",
   "MessagePanel.tsx",
   "AiTools.tsx",
+  "ToolCard.tsx",
+  "AutoSummarySwitch.tsx",
   "ResponderPanel.tsx",
   "BackendStatus.tsx",
 ];

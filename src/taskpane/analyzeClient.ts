@@ -1,15 +1,19 @@
-/* global fetch, AbortController, setTimeout, clearTimeout */
+/* global fetch, AbortController, AbortSignal, setTimeout, clearTimeout */
 import { ANALYZE_URL } from "./config";
 
-export type AnalyzeAction = "summarize" | "reply";
+export type AnalyzeAction = "summarize" | "reply" | "translate";
+// Options are enums only: no free text ever reaches the function's instructions (F-003).
+export type ReplyLanguage = "match" | "pt" | "en";
+export type ReplyTone = "none" | "concise" | "detailed" | "formal" | "friendly";
+export type TargetLanguage = "pt" | "en";
 
-export type AnalyzePayload = {
-  action: AnalyzeAction;
-  subject: string;
-  fromName: string;
-  fromDomain: string;
-  body: string;
-};
+type Base = { subject: string; fromName: string; fromDomain: string; body: string };
+export type AnalyzePayload =
+  | (Base & { action: "summarize" })
+  | (Base & { action: "reply"; language: ReplyLanguage; tone: ReplyTone })
+  | (Base & { action: "translate"; targetLanguage: TargetLanguage });
+
+export type Translation = { subject: string; body: string };
 
 export type Summary = {
   points: string[];
@@ -33,6 +37,8 @@ export type AnalyzeErrorCode =
 export type AnalyzeResult =
   | { kind: "summary"; summary: Summary }
   | { kind: "reply"; reply: string }
+  | { kind: "translation"; translation: Translation }
+  | { kind: "aborted" } // the caller aborted (item changed, auto mode off): the UI ignores it
   | { kind: "error"; code: AnalyzeErrorCode };
 
 export const RETRYABLE: AnalyzeErrorCode[] = ["unavailable", "invalid", "other"];
@@ -42,9 +48,17 @@ const str = (v: unknown) => (typeof v === "string" ? v : null);
 export async function analyze(
   token: string,
   payload: AnalyzePayload,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  signal?: AbortSignal
 ): Promise<AnalyzeResult> {
   const ctrl = new AbortController();
+  let aborted = false;
+  const onAbort = () => {
+    aborted = true;
+    ctrl.abort();
+  };
+  if (signal?.aborted) return { kind: "aborted" };
+  signal?.addEventListener("abort", onAbort);
   const timer = setTimeout(() => ctrl.abort(), 40000);
   try {
     const res = await fetchFn(ANALYZE_URL, {
@@ -70,6 +84,14 @@ export async function analyze(
     }
     if (body?.ok === true && body.action === "reply" && str(body.reply) !== null)
       return { kind: "reply", reply: body.reply };
+    const tr = body?.translation;
+    if (
+      body?.ok === true &&
+      body.action === "translate" &&
+      str(tr?.subject) !== null &&
+      str(tr?.body) !== null
+    )
+      return { kind: "translation", translation: { subject: tr.subject, body: tr.body } };
     const s = body?.summary;
     if (
       body?.ok === true &&
@@ -90,8 +112,10 @@ export async function analyze(
       };
     return { kind: "error", code: "other" };
   } catch {
+    if (aborted) return { kind: "aborted" };
     return { kind: "error", code: "unavailable" }; // network error or timeout
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     clearTimeout(timer);
   }
 }

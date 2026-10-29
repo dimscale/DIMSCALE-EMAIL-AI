@@ -54,12 +54,10 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("F-013 Responder tab is lazy (QA, mocked)", () => {
-  it("no Graph or settings call happens while the Analisar tab is shown", async () => {
+  it("no Graph or settings call happens while the Resumo tab is shown", async () => {
     render(<App />);
     await flush();
-    expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe(
-      "true"
-    );
+    expect(screen.getByRole("tab", { name: "Resumo" }).getAttribute("aria-selected")).toBe("true");
     expect(getTokenSilent).not.toHaveBeenCalled();
     expect(getGraphTokenSilent).not.toHaveBeenCalled();
     expect(fetchSettings).not.toHaveBeenCalled();
@@ -69,14 +67,14 @@ describe("F-013 Responder tab is lazy (QA, mocked)", () => {
   it("opening the Responder tab triggers the load once, and switching tabs back and forth does not reload", async () => {
     render(<App />);
     await flush();
-    fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
     expect(await screen.findByText("Contactos a responder (1)")).toBeTruthy();
     expect(getGraphTokenSilent).toHaveBeenCalledTimes(1);
     expect(fetchSettings).toHaveBeenCalledTimes(1);
     expect(fetchRecentSenders).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Analisar" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Resumo" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
     await flush();
     expect(fetchSettings).toHaveBeenCalledTimes(1);
     expect(getGraphTokenSilent).toHaveBeenCalledTimes(1);

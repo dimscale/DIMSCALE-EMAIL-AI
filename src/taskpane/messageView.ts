@@ -1,5 +1,6 @@
 /* global Office */
 
+import { AnalyzePayload, TargetLanguage } from "./analyzeClient";
 import { strings } from "./strings";
 
 export const BODY_LIMIT = 2000;
@@ -19,6 +20,7 @@ export interface MessageView {
   aiFromName: string;
   fromDomain: string;
   aiText: string;
+  itemId: string; // in-memory dedupe key only (auto mode); never sent
 }
 
 // cut to n UTF-16 units without leaving a lone high surrogate (e.g. an emoji cut in half)
@@ -71,5 +73,19 @@ export function toMessageView(item: Office.MessageRead, bodyText: string): Messa
     aiFromName: cut(item.from?.displayName ?? "", 100),
     fromDomain: fromDomain(item.from?.emailAddress),
     aiText: cut(text.trim(), AI_TEXT_LIMIT),
+    itemId: typeof item.itemId === "string" ? item.itemId : "",
   };
 }
+
+/* Translate sends no sender data at all (F-003/AC-41). */
+export const translatePayload = (
+  v: MessageView,
+  targetLanguage: TargetLanguage
+): AnalyzePayload => ({
+  action: "translate",
+  subject: v.aiSubject,
+  fromName: "",
+  fromDomain: "",
+  body: v.aiText,
+  targetLanguage,
+});

@@ -60,6 +60,7 @@ const click = async (name: string) => {
     fireEvent.click(screen.getByRole("button", { name }));
   });
 };
+const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
 const btn = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
 
 beforeEach(() => {
@@ -73,18 +74,22 @@ afterEach(() => {
 });
 
 describe("AiTools layout and no auto-run (F-003/AC-16, AC-17, AC-19)", () => {
-  it("shows buttons, notice, Melhorar card and assurance; the old cards are gone; no request before a click", async () => {
+  it("shows the Resumo card, notice and assurance; the old cards are gone; no request before a click", () => {
     setup(makeItem("corpo"));
     render(<App />);
     expect(btn("Resumir").disabled).toBe(false);
-    expect(btn("Sugerir resposta").disabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Sugerir resposta" })).toBeNull(); // other tab
     expect(screen.getByText(/são enviados à OpenAI/)).toBeTruthy();
-    expect(screen.getByText("Melhorar texto e tom")).toBeTruthy();
-    expect(screen.getByText("Em breve")).toBeTruthy();
+    expect(screen.queryByText("Melhorar texto e tom")).toBeNull();
+    expect(screen.queryByText("DIMSCALE AI Assistant")).toBeNull();
     expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
     expect(screen.queryByText("Resposta rápida")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Analisar" }));
+    tab("Resposta");
+    expect(btn("Sugerir resposta").disabled).toBe(false);
+    tab("Traduzir");
+    expect(btn("Traduzir").disabled).toBe(false);
+    tab("Automático");
+    tab("Resumo");
     act(() => handler?.());
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -92,8 +97,13 @@ describe("AiTools layout and no auto-run (F-003/AC-16, AC-17, AC-19)", () => {
     setup(makeItem("  "));
     const { unmount } = render(<App />);
     expect(btn("Resumir").disabled).toBe(true);
+    tab("Resposta");
     expect(btn("Sugerir resposta").disabled).toBe(true);
-    expect(screen.getByText("Esta mensagem não tem texto para analisar.")).toBeTruthy();
+    tab("Traduzir");
+    expect(btn("Traduzir").disabled).toBe(true);
+    expect(
+      screen.getAllByText("Esta mensagem não tem texto para analisar.").length
+    ).toBeGreaterThan(0);
     unmount();
     setup(null);
     render(<App />);
@@ -112,6 +122,7 @@ describe("AiTools layout and no auto-run (F-003/AC-16, AC-17, AC-19)", () => {
       "Inicie sessão (em baixo) para usar a IA."
     );
     (getTokenSilent as any).mockResolvedValue({ kind: "error", code: "x" });
+    tab("Resposta");
     await click("Sugerir resposta");
     expect(screen.getByRole("alert").textContent).toContain("Inicie sessão");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -131,7 +142,9 @@ describe("AiTools request (F-003/AC-17, AC-18)", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(btn("A resumir…").disabled).toBe(true);
-    expect(btn("Sugerir resposta").disabled).toBe(true);
+    tab("Resposta");
+    expect(btn("Sugerir resposta").disabled).toBe(true); // one request at a time per pane
+    tab("Resumo");
     const [, init] = fetchMock.mock.calls[0];
     expect(init.headers).toEqual({
       Authorization: "Bearer TOK",
@@ -160,10 +173,13 @@ describe("AiTools request (F-003/AC-17, AC-18)", () => {
     setup(makeItem("corpo", { subject: "" }));
     ok({ ok: true, action: "reply", reply: "r" });
     render(<App />);
+    tab("Resposta");
     await click("Sugerir resposta");
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
       action: "reply",
       subject: "",
+      language: "match",
+      tone: "none",
     });
   });
 });
@@ -211,6 +227,7 @@ describe("AiTools results (F-003/AC-20, AC-23, AC-24)", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const { container } = render(<App />);
+    tab("Resposta");
     await click("Sugerir resposta");
     expect(container.querySelector("b")).toBeNull();
     expect(screen.getByText(/Olá <b>x<\/b>/).getAttribute("dir")).toBe("auto");
@@ -229,6 +246,7 @@ describe("AiTools results (F-003/AC-20, AC-23, AC-24)", () => {
     setup(item, false);
     ok({ ok: true, action: "reply", reply: "r" });
     render(<App />);
+    tab("Resposta");
     await click("Sugerir resposta");
     await click("Abrir resposta para revisão");
     expect(item.displayReplyForm).toHaveBeenCalledWith("r");
@@ -244,6 +262,7 @@ describe("AiTools results (F-003/AC-20, AC-23, AC-24)", () => {
     });
     setup(item2, true);
     render(<App />);
+    tab("Resposta");
     await click("Sugerir resposta");
     await click("Abrir resposta para revisão");
     expect(await screen.findByText("Não foi possível abrir a resposta. Use Copiar.")).toBeTruthy();
@@ -296,6 +315,7 @@ describe("AiTools errors (F-003/AC-21)", () => {
     setup(makeItem("corpo"));
     fetchMock.mockResolvedValue(json(status, body));
     render(<App />);
+    tab("Resposta");
     await click("Sugerir resposta");
     const alert = screen.getByRole("alert");
     expect(alert.textContent).toContain(text);

@@ -36,7 +36,9 @@ vi.mock("./config", () => ({
 import BackendStatus from "./BackendStatus";
 
 const setNaa = (supported: boolean) => {
-  (globalThis as any).Office = { context: { requirements: { isSetSupported: vi.fn(() => supported) } } };
+  (globalThis as any).Office = {
+    context: { requirements: { isSetSupported: vi.fn(() => supported) } },
+  };
 };
 const fetchMock = vi.fn();
 const reply = (status: number, body: unknown = {}) =>
@@ -159,7 +161,9 @@ describe("BackendStatus", () => {
     try {
       fetchMock.mockImplementation(
         (_u: string, init: RequestInit) =>
-          new Promise((_r, rej) => init.signal!.addEventListener("abort", () => rej(new Error("aborted"))))
+          new Promise((_r, rej) =>
+            init.signal!.addEventListener("abort", () => rej(new Error("aborted")))
+          )
       );
       render(<BackendStatus />);
       await vi.advanceTimersByTimeAsync(9000);

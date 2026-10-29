@@ -194,9 +194,13 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
       await waitFor(() => expect(screen.queryByText("A obter remetentes recentes…")).toBeNull());
       expect(screen.getByLabelText("ana@cliente.pt")).toBeTruthy();
       expect(
-        screen.getByText("Não foi possível obter os remetentes recentes. Pode adicionar endereços manualmente.")
+        screen.getByText(
+          "Não foi possível obter os remetentes recentes. Pode adicionar endereços manualmente."
+        )
       ).toBeTruthy();
-      expect(screen.queryByText("Nenhum remetente recente encontrado nos últimos 30 dias.")).toBeNull();
+      expect(
+        screen.queryByText("Nenhum remetente recente encontrado nos últimos 30 dias.")
+      ).toBeNull();
 
       fireEvent.change(screen.getByRole("textbox", { name: "Adicionar endereço" }), {
         target: { value: "novo@contacto.pt" },
@@ -207,7 +211,11 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
   );
 
   it.each([
-    ["422 from the server", { kind: "error", status: 422 }, "Os dados não foram aceites. Verifique os endereços."],
+    [
+      "422 from the server",
+      { kind: "error", status: 422 },
+      "Os dados não foram aceites. Verifique os endereços.",
+    ],
     ["500 from the server", { kind: "error", status: 500 }, "Erro de ligação"],
     ["network failure", { kind: "error" }, "Erro de ligação"],
     ["401 (rejected)", { kind: "rejected" }, "Erro de ligação"],

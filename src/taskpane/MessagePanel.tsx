@@ -23,7 +23,7 @@ type State =
   | { kind: "loading" }
   | { kind: "none" }
   | { kind: "error"; view: MessageView }
-  | { kind: "ok"; view: MessageView };
+  | { kind: "ok"; view: MessageView; key: number }; // key: the read that produced the view
 
 const useStyles = makeStyles({
   fields: {
@@ -110,7 +110,7 @@ const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode 
       item.body.getAsync(Office.CoercionType.Text, (result: Office.AsyncResult<string>) => {
         if (!active) return;
         if (result.status === Office.AsyncResultStatus.Succeeded) {
-          setState({ kind: "ok", view: toMessageView(item, result.value) });
+          setState({ kind: "ok", view: toMessageView(item, result.value), key: attempt });
         } else {
           setState({ kind: "error", view: toMessageView(item, "") }); // never log result.error: it may carry content
         }
@@ -123,7 +123,9 @@ const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode 
     };
   }, [attempt]);
 
-  const below = renderBelow?.(state.kind === "ok" ? { view: state.view, itemKey: attempt } : null);
+  const below = renderBelow?.(
+    state.kind === "ok" ? { view: state.view, itemKey: state.key } : null
+  );
   if (state.kind === "loading") {
     return (
       <>

@@ -72,7 +72,11 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     expect(screen.getByText("Estado: Ativo")).toBeTruthy();
     expect(screen.getByLabelText("Ana Silva ana@cliente.pt")).toBeTruthy();
     expect(screen.getByLabelText("Rui Costa rui@empresa.com")).toBeTruthy();
-    expect(screen.getByText("Só é criado um rascunho. Nada é enviado. O texto destes e-mails é processado por um serviço de IA externo.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Só é criado um rascunho. Nada é enviado. O texto destes e-mails é processado por um serviço de IA externo."
+      )
+    ).toBeTruthy();
   });
 
   it("prevents turning on switch with 0 contacts", async () => {

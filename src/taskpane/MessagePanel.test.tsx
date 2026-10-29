@@ -198,7 +198,7 @@ describe("MessagePanel", () => {
     expect(screen.getByText(injection)).toBeTruthy();
     expect(base.body.getAsync).toHaveBeenCalledTimes(1);
     expect(Object.keys(base.body)).toEqual(["getAsync"]);
-    const allowed = ["subject", "from", "dateTimeCreated", "body"];
+    const allowed = ["subject", "from", "dateTimeCreated", "body", "itemId"]; // itemId: in-memory auto-mode dedupe key (F-003), never sent
     expect(accessed.filter((k) => !allowed.includes(k))).toEqual([]);
   });
 
@@ -230,8 +230,19 @@ describe("MessagePanel", () => {
 
 describe("sender rendering (F-012/AC-12)", () => {
   const sender = async (displayName: string, emailAddress: string) => {
-    const item = { subject: "S", from: { displayName, emailAddress }, dateTimeCreated: new Date(2026, 0, 2), body: { getAsync: (_t: string, cb: (r: unknown) => void) => cb({ status: "succeeded", value: "b" }) } };
-    (globalThis as any).Office = { CoercionType: { Text: "text" }, AsyncResultStatus: { Succeeded: "succeeded" }, context: { mailbox: { item } } };
+    const item = {
+      subject: "S",
+      from: { displayName, emailAddress },
+      dateTimeCreated: new Date(2026, 0, 2),
+      body: {
+        getAsync: (_t: string, cb: (r: unknown) => void) => cb({ status: "succeeded", value: "b" }),
+      },
+    };
+    (globalThis as any).Office = {
+      CoercionType: { Text: "text" },
+      AsyncResultStatus: { Succeeded: "succeeded" },
+      context: { mailbox: { item } },
+    };
     const { container, unmount } = render(<MessagePanel />);
     const text = (await screen.findByText("De")).parentElement?.textContent;
     void container;

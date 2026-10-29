@@ -13,3 +13,6 @@ export const isConfigured = () =>
   !TENANT_ID.startsWith("00000000") &&
   !CLIENT_ID.startsWith("00000000") &&
   !FUNCTION_URL.includes("PROJECT-REF");
+
+// F-003 auto mode: the switch stays hidden in production until the DPO answers D5 (Q-U13).
+export const AUTO_SUMMARY_AVAILABLE = false;

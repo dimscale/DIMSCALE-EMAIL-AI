@@ -1,23 +1,16 @@
 import * as React from "react";
-import {
-  Badge,
-  Card,
-  FluentProvider,
-  Tab,
-  TabList,
-  makeStyles,
-  tokens,
-} from "@fluentui/react-components";
+import { FluentProvider, Tab, TabList, makeStyles, tokens } from "@fluentui/react-components";
 import { ShieldCheckmarkRegular } from "@fluentui/react-icons";
 import BackendStatus from "./BackendStatus";
-import AiTools from "./AiTools";
+import AiTools, { DEFAULT_OPTIONS, ToolOptions, ToolTab } from "./AiTools";
+import { useAutoSummary } from "./autoSummary";
 import MessagePanel from "./MessagePanel";
 import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
 import { useOfficeTheme } from "./theme";
 import { Wordmark } from "./Wordmark";
 
-type View = "analyze" | "reply";
+type View = ToolTab | "auto";
 
 const useStyles = makeStyles({
   root: {
@@ -67,49 +60,27 @@ const useStyles = makeStyles({
   row: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", minWidth: 0 },
   icon: { display: "flex", fontSize: "20px", flex: "none" },
   secondary: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
-  assistantIntro: {
-    margin: "4px 0 0",
+  disclaimer: {
+    margin: "0 0 8px",
     color: tokens.colorNeutralForeground3,
     fontSize: tokens.fontSizeBase200,
   },
-  tools: { display: "flex", flexDirection: "column", gap: "8px" },
-  toolCard: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-    padding: "12px",
+  footer: {
+    padding: "8px 12px 12px",
     minWidth: 0,
-    maxWidth: "100%",
     boxSizing: "border-box",
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
   },
-  toolTitle: { margin: 0, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold },
-  toolDescription: {
-    margin: 0,
-    color: tokens.colorNeutralForeground3,
-    fontSize: tokens.fontSizeBase200,
-    lineHeight: "18px",
-  },
-  footer: { padding: "8px 12px 12px", minWidth: 0, boxSizing: "border-box", borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
-const AiToolCard = ({ title, description }: { title: string; description: string }) => {
+// summaryEntry: the pane was opened from the "Resumo" ribbon button (resumo.html): one summary, as if clicked.
+const App: React.FC<{ summaryEntry?: boolean }> = ({ summaryEntry = false }) => {
   const s = useStyles();
-  return (
-    <Card className={s.toolCard}>
-      <div className={s.row}>
-        <p className={s.toolTitle}>{title}</p>
-        <Badge appearance="outline">{strings.aiComingSoon}</Badge>
-      </div>
-      <p className={s.toolDescription}>{description}</p>
-    </Card>
-  );
-};
-
-const App: React.FC = () => {
-  const s = useStyles();
+  const auto = useAutoSummary();
+  const [options, setOptions] = React.useState<ToolOptions>(DEFAULT_OPTIONS);
   const { kind, theme } = useOfficeTheme();
   const [noticeHost, setNoticeHost] = React.useState<HTMLElement | null>(null);
-  const [view, setView] = React.useState<View>("analyze");
+  const [view, setView] = React.useState<View>("summary");
   const logo = kind === "dark" ? "#ffffff" : kind === "light" ? "#000000" : "currentColor";
   return (
     <FluentProvider theme={theme} className={s.root}>
@@ -125,39 +96,44 @@ const App: React.FC = () => {
           onTabSelect={(_, d) => setView(d.value as View)}
           aria-label={strings.tabsLabel}
         >
-          <Tab value="analyze" id="tab-analyze" aria-controls="panel-analyze">
-            {strings.tabAnalyze}
+          <Tab value="summary" id="tab-summary" aria-controls="panel-tools">
+            {strings.tabSummary}
           </Tab>
-          <Tab value="reply" id="tab-reply" aria-controls="panel-reply">
+          <Tab value="reply" id="tab-reply" aria-controls="panel-tools">
             {strings.tabReply}
+          </Tab>
+          <Tab value="translate" id="tab-translate" aria-controls="panel-tools">
+            {strings.tabTranslate}
+          </Tab>
+          <Tab value="auto" id="tab-auto" aria-controls="panel-auto">
+            {strings.tabAuto}
           </Tab>
         </TabList>
         <div ref={setNoticeHost} />
-        {/* Both panels stay mounted so the message state and ItemChanged survive tab switches. */}
+        {/* Message context, the three cards and the Automático panel stay mounted so state survives tab switches. */}
         <div
           role="tabpanel"
-          id="panel-analyze"
-          aria-labelledby="tab-analyze"
+          id="panel-tools"
+          aria-labelledby={`tab-${view === "auto" ? "summary" : view}`}
           className={s.panel}
-          hidden={view !== "analyze"}
-          style={view !== "analyze" ? { display: "none" } : undefined}
+          hidden={view === "auto"}
+          style={view === "auto" ? { display: "none" } : undefined}
         >
           <MessagePanel
-            renderBelow={(ctx) => (
-              <section aria-labelledby="ai-tools-heading">
-                <h2 id="ai-tools-heading" className={s.toolTitle}>
-                  {strings.aiAssistantTitle}
-                </h2>
-                <p className={s.assistantIntro}>{strings.aiAssistantIntro}</p>
-                <div className={s.tools}>
-                  {ctx && <AiTools key={ctx.itemKey} view={ctx.view} />}
-                  <AiToolCard
-                    title={strings.aiImproveTitle}
-                    description={strings.aiImproveDescription}
-                  />
-                </div>
-              </section>
-            )}
+            renderBelow={(ctx) =>
+              ctx && (
+                <AiTools
+                  key={ctx.itemKey}
+                  view={ctx.view}
+                  itemKey={ctx.itemKey}
+                  tab={view}
+                  options={options}
+                  onOptions={setOptions}
+                  auto={auto}
+                  entryRun={summaryEntry && ctx.itemKey === 0}
+                />
+              )
+            }
           />
           <div className={s.row}>
             <span className={s.icon} aria-hidden="true">
@@ -168,16 +144,17 @@ const App: React.FC = () => {
         </div>
         <div
           role="tabpanel"
-          id="panel-reply"
-          aria-labelledby="tab-reply"
+          id="panel-auto"
+          aria-labelledby="tab-auto"
           className={s.panel}
-          hidden={view !== "reply"}
-          style={view !== "reply" ? { display: "none" } : undefined}
+          hidden={view !== "auto"}
+          style={view !== "auto" ? { display: "none" } : undefined}
         >
-          <ResponderPanel active={view === "reply"} />
+          <ResponderPanel active={view === "auto"} />
         </div>
       </main>
       <footer className={s.footer}>
+        <p className={s.disclaimer}>{strings.aiFooter}</p>
         <BackendStatus noticeHost={noticeHost} />
       </footer>
     </FluentProvider>

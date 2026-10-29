@@ -15,6 +15,7 @@ async function getHttpsOptions() {
 
 module.exports = async (env, options) => {
   const dev = options.mode === "development";
+  const prototype = dev && env.prototype === "true";
   if (!dev && urlProd.includes("contoso.com")) {
     throw new Error("Production build blocked: set urlProd in webpack.config.js to the real hosting URL (it is still contoso.com).");
   }
@@ -29,7 +30,11 @@ module.exports = async (env, options) => {
   }
   const config = {
     devtool: dev ? "source-map" : false, // no source maps in the published artifact (F-011)
-    entry: {
+    entry: prototype ? {
+      prototype: {
+        import: "./src/taskpane/prototype/index.tsx",
+      },
+    } : {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
       react: ["react", "react-dom"],
       taskpane: {
@@ -74,11 +79,25 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      ...(prototype ? [
+        new HtmlWebpackPlugin({
+          filename: "prototype.html",
+          template: "./src/taskpane/prototype/prototype.html",
+          chunks: ["prototype"],
+        }),
+      ] : [
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",
         chunks: ["polyfill", "taskpane", "react"],
       }),
+      // Second ribbon button page (same bundle; the pane reads location.pathname), F-012/AC-48
+      new HtmlWebpackPlugin({
+        filename: "resumo.html",
+        template: "./src/taskpane/resumo.html",
+        chunks: ["polyfill", "taskpane", "react"],
+      }),
+      ]),
       new CopyWebpackPlugin({
         patterns: [
           {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+  <!-- Master of the "Resumo" ribbon icons (resumo-16/32/80.png): monoline page with text lines and a small AI sparkle. No text, transparent background. -->
+  <path d="M52 40V14a4 4 0 0 0-4-4H16a4 4 0 0 0-4 4v52a4 4 0 0 0 4 4h20" fill="none" stroke="#3B3B3B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 26h20M22 40h20" fill="none" stroke="#3B3B3B" stroke-width="5" stroke-linecap="round"/>
+  <path d="M58 40C58.8 49 62 52.2 71 53C62 53.8 58.8 57 58 66C57.2 57 54 53.8 45 53C54 52.2 57.2 49 58 40Z" fill="#1F9D4C"/>
+</svg>

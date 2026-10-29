@@ -30,7 +30,8 @@ function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 const hex = (v: unknown) => {
-  if (typeof v !== "string" || !/^#[0-9a-f]{6}$/i.test(v)) throw new Error(`not a hex token: ${String(v)}`);
+  if (typeof v !== "string" || !/^#[0-9a-f]{6}$/i.test(v))
+    throw new Error(`not a hex token: ${String(v)}`);
   return v;
 };
 
@@ -83,10 +84,17 @@ describe("contrast of the stock Fluent pairs the pane renders (F-012/AC-5, AC-6)
     ["teamsHighContrastTheme", teamsHighContrastTheme as unknown as Theme],
   ];
   for (const [name, t] of stock) {
-    for (const fg of ["colorNeutralForeground1", "colorNeutralForeground2", "colorNeutralForeground3"]) {
+    for (const fg of [
+      "colorNeutralForeground1",
+      "colorNeutralForeground2",
+      "colorNeutralForeground3",
+    ]) {
       it(`${name}: ${fg} on colorNeutralBackground1 >= 4.5:1`, () => {
         const r = contrast(hex(t[fg]), hex(t.colorNeutralBackground1));
-        expect(r, `${name} ${fg} ${String(t[fg])} on ${String(t.colorNeutralBackground1)} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+        expect(
+          r,
+          `${name} ${fg} ${String(t[fg])} on ${String(t.colorNeutralBackground1)} = ${r.toFixed(2)}:1`
+        ).toBeGreaterThanOrEqual(4.5);
       });
     }
   }
@@ -100,10 +108,22 @@ describe("contrast of the stock Fluent pairs the pane renders (F-012/AC-5, AC-6)
   });
   // MessageBar intents and footer status rendered with these tokens (react-message-bar styles, Fluent 9.74.10).
   it.each([
-    ["MessageBar error text (fg1 on dangerBg1)", "colorNeutralForeground1", "colorStatusDangerBackground1"],
-    ["MessageBar error icon (dangerFg1 on dangerBg1)", "colorStatusDangerForeground1", "colorStatusDangerBackground1"],
+    [
+      "MessageBar error text (fg1 on dangerBg1)",
+      "colorNeutralForeground1",
+      "colorStatusDangerBackground1",
+    ],
+    [
+      "MessageBar error icon (dangerFg1 on dangerBg1)",
+      "colorStatusDangerForeground1",
+      "colorStatusDangerBackground1",
+    ],
     ["MessageBar info (fg3 on neutralBg3)", "colorNeutralForeground3", "colorNeutralBackground3"],
-    ["footer/status text and icons (fg3 on bg1)", "colorNeutralForeground3", "colorNeutralBackground1"],
+    [
+      "footer/status text and icons (fg3 on bg1)",
+      "colorNeutralForeground3",
+      "colorNeutralBackground1",
+    ],
   ])("semantic pair %s in light and dark", (_label, fgKey, bgKey) => {
     for (const t of [webLightTheme, webDarkTheme] as unknown as Theme[]) {
       expect(contrast(hex(t[fgKey]), hex(t[bgKey]))).toBeGreaterThanOrEqual(4.5);
@@ -115,15 +135,24 @@ describe("Office colour guard (F-012/AC-6, spec Theme 1)", () => {
   it.each([
     ["light", { bodyBackgroundColor: "#FFFFFF", bodyForegroundColor: "#FFFFFF" }, webLightTheme],
     ["dark", { bodyBackgroundColor: "#141414", bodyForegroundColor: "#141414" }, webDarkTheme],
-  ])("%s: an Office pair below 4.5:1 is NOT applied; the Fluent neutral is kept (spec AC-6)", (_k, office, base) => {
-    // Pair is fully illegible; the spec requires the guard to fall back to Fluent neutrals.
-    const r = resolveTheme({ office });
-    const low = (v: unknown) => String(v).toLowerCase();
-    expect(low(r.theme.colorNeutralBackground1)).toBe(low((base as unknown as Theme).colorNeutralBackground1));
-    expect(low(r.theme.colorNeutralForeground1)).toBe(low((base as unknown as Theme).colorNeutralForeground1));
-  });
+  ])(
+    "%s: an Office pair below 4.5:1 is NOT applied; the Fluent neutral is kept (spec AC-6)",
+    (_k, office, base) => {
+      // Pair is fully illegible; the spec requires the guard to fall back to Fluent neutrals.
+      const r = resolveTheme({ office });
+      const low = (v: unknown) => String(v).toLowerCase();
+      expect(low(r.theme.colorNeutralBackground1)).toBe(
+        low((base as unknown as Theme).colorNeutralBackground1)
+      );
+      expect(low(r.theme.colorNeutralForeground1)).toBe(
+        low((base as unknown as Theme).colorNeutralForeground1)
+      );
+    }
+  );
   it("an Office pair above 4.5:1 is applied (both background and foreground)", () => {
-    const r = resolveTheme({ office: { bodyBackgroundColor: "#F3F2F1", bodyForegroundColor: "#201F1E" } });
+    const r = resolveTheme({
+      office: { bodyBackgroundColor: "#F3F2F1", bodyForegroundColor: "#201F1E" },
+    });
     expect(r.theme.colorNeutralBackground1).toBe("#F3F2F1");
     expect(r.theme.colorNeutralForeground1).toBe("#201F1E");
   });
@@ -138,11 +167,15 @@ describe("theme resolution edges (F-012/AC-7)", () => {
     expect(resolveTheme({ office: { bodyBackgroundColor: "#767676" } }).kind).toBe("light");
   });
   it("invalid foreground hex falls back to the Fluent foreground; background still applied", () => {
-    const r = resolveTheme({ office: { bodyBackgroundColor: "#FFFFFF", bodyForegroundColor: "blue" } });
+    const r = resolveTheme({
+      office: { bodyBackgroundColor: "#FFFFFF", bodyForegroundColor: "blue" },
+    });
     expect(r.theme.colorNeutralForeground1).toBe(webLightTheme.colorNeutralForeground1);
   });
   it("3-digit hex is invalid and falls back to prefers-color-scheme", () => {
-    expect(resolveTheme({ office: { bodyBackgroundColor: "#fff" }, prefersDark: true }).kind).toBe("dark");
+    expect(resolveTheme({ office: { bodyBackgroundColor: "#fff" }, prefersDark: true }).kind).toBe(
+      "dark"
+    );
   });
   it("forced colours return the Fluent high-contrast theme object and ignore Office colours", () => {
     const r = resolveTheme({ forcedColors: true, office: { bodyBackgroundColor: "#141414" } });
@@ -155,7 +188,11 @@ describe("theme resolution edges (F-012/AC-7)", () => {
     const mq = stubMatchMedia({});
     (window as any).matchMedia = (q: string) => ({
       get matches() {
-        return q === "(prefers-color-scheme: dark)" ? dark.on : q === "(forced-colors: active)" ? dark.forced : false;
+        return q === "(prefers-color-scheme: dark)"
+          ? dark.on
+          : q === "(forced-colors: active)"
+            ? dark.forced
+            : false;
       },
       addEventListener: (_: string, fn: () => void) => mq.listeners.push({ q, fn }),
       removeEventListener: (_: string, fn: () => void) => mq.removed.push({ q, fn }),
@@ -168,18 +205,24 @@ describe("theme resolution edges (F-012/AC-7)", () => {
     const { unmount } = render(React.createElement(P));
     expect(probe.kind).toBe("light");
     dark.on = true;
-    act(() => mq.listeners.filter((l) => l.q === "(prefers-color-scheme: dark)").forEach((l) => l.fn()));
+    act(() =>
+      mq.listeners.filter((l) => l.q === "(prefers-color-scheme: dark)").forEach((l) => l.fn())
+    );
     expect(probe.kind).toBe("dark");
     dark.forced = true;
     act(() => mq.listeners.filter((l) => l.q === "(forced-colors: active)").forEach((l) => l.fn()));
     expect(probe.kind).toBe("highContrast");
     unmount();
-    expect(mq.removed.map((r) => r.q).sort()).toEqual(["(forced-colors: active)", "(prefers-color-scheme: dark)"]);
+    expect(mq.removed.map((r) => r.q).sort()).toEqual([
+      "(forced-colors: active)",
+      "(prefers-color-scheme: dark)",
+    ]);
   });
 });
 
 // ---------- AC-11 / AC-20 / AC-23: App layout and wordmark ----------
-const logoFills = () => Array.from(document.querySelectorAll('svg[role="img"] path')).map((p) => p.getAttribute("fill"));
+const logoFills = () =>
+  Array.from(document.querySelectorAll('svg[role="img"] path')).map((p) => p.getAttribute("fill"));
 describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
   it("wordmark colour is #ffffff on dark, #000000 on light, currentColor under forced colours", () => {
     setOffice();
@@ -199,16 +242,18 @@ describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
     setOffice();
     render(<App />);
     expect(screen.getByRole("heading", { level: 1, name: "DIMSCALE Mail" })).toBeTruthy();
-    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
     expect(screen.getByRole("tablist", { name: strings.tabsLabel })).toBeTruthy();
   });
   it("each tab controls a rendered tabpanel that is labelled by it (ARIA wiring; arrow keys are live-only, see report)", () => {
     setOffice();
     render(<App />);
-    const analyze = screen.getByRole("tab", { name: "Analisar" });
-    expect(analyze.getAttribute("aria-controls")).toBe("panel-analyze");
-    expect(document.getElementById("panel-analyze")?.getAttribute("aria-labelledby")).toBe("tab-analyze");
-    expect(screen.getByRole("tabpanel", { name: "Analisar" })).toBeTruthy();
+    const summary = screen.getByRole("tab", { name: "Resumo" });
+    expect(summary.getAttribute("aria-controls")).toBe("panel-tools");
+    expect(document.getElementById("panel-tools")?.getAttribute("aria-labelledby")).toBe(
+      "tab-summary"
+    );
+    expect(screen.getByRole("tabpanel", { name: "Resumo" })).toBeTruthy();
   });
   it("header is one row of at most 40 px (F-012/AC-11)", () => {
     setOffice();
@@ -219,7 +264,11 @@ describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
       for (const sheet of Array.from(document.styleSheets)) {
         for (const rule of Array.from((sheet as CSSStyleSheet).cssRules)) {
           const r = rule as CSSStyleRule;
-          if (r.style?.height && header.classList.contains(r.selectorText?.replace(/^\./, "") ?? "")) h = r.style.height;
+          if (
+            r.style?.height &&
+            header.classList.contains(r.selectorText?.replace(/^\./, "") ?? "")
+          )
+            h = r.style.height;
         }
       }
     }
@@ -230,20 +279,26 @@ describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
 // ---------- AC-12: message context edges ----------
 describe("message context edges (F-012/AC-12)", () => {
   it("shows the address alone when the sender has no name (never '<>' or 'undefined')", () => {
-    setOffice({ mailbox: { item: makeItem(ok("b"), { from: { displayName: "", emailAddress: "a@b.pt" } }) } });
+    setOffice({
+      mailbox: { item: makeItem(ok("b"), { from: { displayName: "", emailAddress: "a@b.pt" } }) },
+    });
     const { container } = render(<MessagePanel />);
     openBody();
     expect(container.textContent).toContain("a@b.pt");
     expect(container.textContent).not.toContain("<a@b.pt>");
   });
   it("never shows 'Name <>' when the name is present but the address is empty", () => {
-    setOffice({ mailbox: { item: makeItem(ok("b"), { from: { displayName: "Ann", emailAddress: "" } }) } });
+    setOffice({
+      mailbox: { item: makeItem(ok("b"), { from: { displayName: "Ann", emailAddress: "" } }) },
+    });
     const { container } = render(<MessagePanel />);
     openBody();
     expect(container.textContent).not.toContain("<>");
   });
   it("shows an em dash in the De row when both name and address are empty (spec edge case)", () => {
-    setOffice({ mailbox: { item: makeItem(ok("b"), { from: { displayName: "", emailAddress: "" } }) } });
+    setOffice({
+      mailbox: { item: makeItem(ok("b"), { from: { displayName: "", emailAddress: "" } }) },
+    });
     render(<MessagePanel />);
     openBody();
     const label = screen.getByText("De");
@@ -277,13 +332,21 @@ describe("message context edges (F-012/AC-12)", () => {
     expect(container.querySelector("pre")?.textContent).toBe("linha 1\n\n  linha 2");
   });
   it("renders HTML in the sender name as text (no element created)", () => {
-    setOffice({ mailbox: { item: makeItem(ok("x"), { from: { displayName: '<img src=x onerror="alert(1)">', emailAddress: "e@x.pt" } }) } });
+    setOffice({
+      mailbox: {
+        item: makeItem(ok("x"), {
+          from: { displayName: '<img src=x onerror="alert(1)">', emailAddress: "e@x.pt" },
+        }),
+      },
+    });
     const { container } = render(<MessagePanel />);
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText(/<img src=x/)).toBeTruthy();
   });
   it("renders an anchor-like subject as text (no href created from email content)", () => {
-    setOffice({ mailbox: { item: makeItem(ok("x"), { subject: '<a href="javascript:alert(1)">click</a>' }) } });
+    setOffice({
+      mailbox: { item: makeItem(ok("x"), { subject: '<a href="javascript:alert(1)">click</a>' }) },
+    });
     const { container } = render(<MessagePanel />);
     expect(container.querySelector("a")).toBeNull();
   });
@@ -302,7 +365,10 @@ describe("message context edges (F-012/AC-12)", () => {
 describe("ItemChanged behaviour (F-012/AC-35)", () => {
   it("discards a body read started for the previous item when it resolves late", () => {
     let lateFirst: Cb | undefined;
-    const first = makeItem(vi.fn((_t: string, cb: Cb) => (lateFirst = cb)), { subject: "First" });
+    const first = makeItem(
+      vi.fn((_t: string, cb: Cb) => (lateFirst = cb)),
+      { subject: "First" }
+    );
     const second = makeItem(ok("second body"), { subject: "Second" });
     const handlers: Record<string, () => void> = {};
     setOffice({
@@ -324,7 +390,9 @@ describe("ItemChanged behaviour (F-012/AC-35)", () => {
   });
   it("registers the ItemChanged handler exactly once", () => {
     const addHandlerAsync = vi.fn();
-    setOffice({ mailbox: { item: makeItem(ok("b")), addHandlerAsync, removeHandlerAsync: vi.fn() } });
+    setOffice({
+      mailbox: { item: makeItem(ok("b")), addHandlerAsync, removeHandlerAsync: vi.fn() },
+    });
     render(<MessagePanel />);
     const itemCalls = addHandlerAsync.mock.calls.filter((c) => c[0] === "itemChanged");
     expect(itemCalls).toHaveLength(1);
@@ -338,7 +406,7 @@ describe("ItemChanged behaviour (F-012/AC-35)", () => {
     };
     setOffice({ mailbox });
     render(<App />);
-    const tab = screen.getByRole("tab", { name: "Analisar" });
+    const tab = screen.getByRole("tab", { name: "Resumo" });
     tab.focus();
     mailbox.item = makeItem(ok("c"), { subject: "Other" });
     act(() => handlers.itemChanged?.());
@@ -350,10 +418,10 @@ describe("ItemChanged behaviour (F-012/AC-35)", () => {
 // ---------- AC-23 / AC-10: PT-PT literals ----------
 describe("PT-PT literals (F-012/AC-23, approved strings in the spec)", () => {
   it("uses the approved wording of the F-012 Strings section", () => {
-    expect(strings.aiAssistantTitle).toBe("DIMSCALE AI Assistant");
-    expect(strings.aiComingSoon).toBe("Em breve");
     expect(strings.assurance).toBe("Sem envio automático. O envio é sempre feito por si.");
-    expect(strings.comingSoonReply).toBe("Respostas automáticas para contactos escolhidos: em breve.");
+    expect(strings.comingSoonReply).toBe(
+      "Respostas automáticas para contactos escolhidos: em breve."
+    );
     expect(strings.connected).toBe("Ligado");
   });
 });
@@ -362,10 +430,21 @@ describe("PT-PT literals (F-012/AC-23, approved strings in the spec)", () => {
 describe("source and page guards (F-012/AC-2, AC-3, AC-4, AC-20, AC-22, AC-27)", () => {
   const dir = join(process.cwd(), "src/taskpane");
   const src = (f: string) => readFileSync(join(dir, f), "utf8");
-  const prod = ["App.tsx", "MessagePanel.tsx", "BackendStatus.tsx", "theme.ts", "Wordmark.tsx", "strings.ts", "messageView.ts", "index.tsx"];
+  const prod = [
+    "App.tsx",
+    "MessagePanel.tsx",
+    "BackendStatus.tsx",
+    "theme.ts",
+    "Wordmark.tsx",
+    "strings.ts",
+    "messageView.ts",
+    "index.tsx",
+  ];
   it("no href, animation, keyframes, transition or webfont in the pane source", () => {
     for (const f of prod) {
-      expect(src(f), f).not.toMatch(/\bhref\s*=|@keyframes|animation\s*:|transition\s*:|@font-face|fonts\.g/);
+      expect(src(f), f).not.toMatch(
+        /\bhref\s*=|@keyframes|animation\s*:|transition\s*:|@font-face|fonts\.g/
+      );
     }
   });
   it("taskpane.html declares lang pt-PT and loads no external stylesheet or font", () => {
@@ -382,32 +461,38 @@ describe("manifest ribbon entry (F-012/AC-32, AC-34, AC-26)", () => {
   const all = (tag: string) => Array.from(xml.getElementsByTagName(tag));
   const strs = (tag: string) => all(tag);
   const resolve = (resid: string) => {
-    const hit = [...strs("bt:String"), ...strs("bt:Url")].find((e) => e.getAttribute("id") === resid);
+    const hit = [...strs("bt:String"), ...strs("bt:Url")].find(
+      (e) => e.getAttribute("id") === resid
+    );
     return hit?.getAttribute("DefaultValue") ?? null;
   };
-  it("one TabDefault OfficeTab, one Group, one Button, no CustomTab (AC-32)", () => {
+  it("one TabDefault OfficeTab, one Group, two Buttons (IA, Resumo), no CustomTab (AC-32, AC-48)", () => {
     expect(all("OfficeTab")).toHaveLength(1);
     expect(all("OfficeTab")[0].getAttribute("id")).toBe("TabDefault");
     expect(all("Group")).toHaveLength(1);
-    expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(1);
+    expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(2);
     expect(all("CustomTab")).toHaveLength(0);
   });
   it("group label resolves to 'DIMSCALE MAIL' (AC-32)", () => {
     const groupLabel = all("Group")[0].getElementsByTagName("Label")[0].getAttribute("resid");
     expect(resolve(groupLabel ?? "")).toBe("DIMSCALE MAIL");
   });
-  it("button label and Supertip title resolve to 'DIMSCALE MAIL' (AC-32, spec: 'Button labelled DIMSCALE MAIL')", () => {
-    const btn = all("Control").find((c) => c.getAttribute("xsi:type") === "Button") as Element;
-    const label = btn.getElementsByTagName("Label")[0].getAttribute("resid") ?? "";
-    const title = btn.getElementsByTagName("Title")[0].getAttribute("resid") ?? "";
-    expect(resolve(label), "button label").toBe("DIMSCALE MAIL");
-    expect(resolve(title), "supertip title").toBe("DIMSCALE MAIL");
+  it("button labels are IA and Resumo; Supertip titles are 'DIMSCALE MAIL: IA' and 'Resumo com IA' (AC-32, AC-48)", () => {
+    const btns = all("Control").filter((c) => c.getAttribute("xsi:type") === "Button");
+    const pick = (b: Element, tag: string) =>
+      resolve(b.getElementsByTagName(tag)[0].getAttribute("resid") ?? "");
+    expect(btns.map((b) => pick(b, "Label"))).toEqual(["IA", "Resumo"]);
+    expect(btns.map((b) => pick(b, "Title"))).toEqual(["DIMSCALE MAIL: IA", "Resumo com IA"]);
   });
-  it("SupportsPinning is inside the ShowTaskpane action of the v1.1 block (AC-34)", () => {
+  it("SupportsPinning is inside each ShowTaskpane action of the v1.1 block (AC-34, AC-48)", () => {
     const pin = all("SupportsPinning");
-    expect(pin).toHaveLength(1);
-    expect(pin[0].parentElement?.getAttribute("xsi:type")).toBe("ShowTaskpane");
-    expect(pin[0].closest("VersionOverrides")?.getAttribute("xsi:type")).toBe("VersionOverridesV1_1");
+    expect(pin).toHaveLength(2);
+    for (const p of pin) {
+      expect(p.parentElement?.getAttribute("xsi:type")).toBe("ShowTaskpane");
+      expect(p.closest("VersionOverrides")?.getAttribute("xsi:type")).toBe(
+        "VersionOverridesV1_1"
+      );
+    }
   });
   it("only ReadItem is requested (AC-26)", () => {
     expect(all("Permissions").map((p) => p.textContent)).toEqual(["ReadItem"]);

@@ -10,7 +10,7 @@ import App from "./App";
 afterEach(cleanup);
 
 describe("App layout (F-012)", () => {
-  it("has one h1, tabs Analisar/Responder, the assurance line and AI tool cards", async () => {
+  it("has one h1, the four tabs, the assurance line, the footer note and no old heading or card", async () => {
     (globalThis as any).Office = {
       CoercionType: { Text: "text" },
       context: { mailbox: { item: undefined } },
@@ -18,18 +18,21 @@ describe("App layout (F-012)", () => {
     render(<App />);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("img", { name: "DIMSCALE" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe(
-      "true"
+    const names = ["Resumo", "Resposta", "Traduzir", "Automático"];
+    expect(screen.getAllByRole("tab")).toEqual(
+      names.map((n) => screen.getByRole("tab", { name: n }))
     );
+    expect(screen.getByRole("tab", { name: "Resumo" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 2, name: "DIMSCALE AI Assistant" })).toBeTruthy();
-    expect(screen.queryByText("Resumo do email")).toBeNull(); // superseded by F-003 (no message: no AI section)
-    expect(screen.queryByText("Resposta rápida")).toBeNull();
-    expect(screen.getByText("Melhorar texto e tom")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
+    expect(screen.getByText("O conteúdo gerado por IA pode estar incorreto")).toBeTruthy();
+    expect(screen.queryByText("DIMSCALE AI Assistant")).toBeNull();
+    expect(screen.queryByText("Melhorar texto e tom")).toBeNull();
+    for (const old of ["Analisar", "Responder", "Escrever"])
+      expect(screen.queryByRole("tab", { name: old })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
     expect(await screen.findByText("Respostas automáticas")).toBeTruthy();
-    expect(screen.getByRole("tabpanel", { name: "Responder" })).toBeTruthy();
-    expect(screen.queryByRole("tabpanel", { name: "Analisar" })).toBeNull(); // hidden panel is out of the a11y tree
+    expect(screen.getByRole("tabpanel", { name: "Automático" })).toBeTruthy();
+    expect(screen.queryByRole("tabpanel", { name: "Resumo" })).toBeNull(); // hidden panel is out of the a11y tree
   });
 });
 
@@ -48,7 +51,7 @@ describe("backend notice placement (F-012)", () => {
   it("renders the BackendStatus notice in the host above the tab content and hides the footer line from AT", async () => {
     vi.resetModules();
     vi.doUnmock("./BackendStatus");
-    vi.doMock("./config", () => ({ isConfigured: () => false }));
+    vi.doMock("./config", () => ({ isConfigured: () => false, AUTO_SUMMARY_AVAILABLE: false }));
     vi.doMock("./auth", () => ({
       isNaaSupported: () => true,
       getTokenSilent: vi.fn(),

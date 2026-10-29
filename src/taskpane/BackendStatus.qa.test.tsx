@@ -60,7 +60,10 @@ const makeItem = () => ({
   subject: "Quarterly plan",
   from: { displayName: "Ann", emailAddress: "ann@example.com" },
   dateTimeCreated: new Date(2026, 0, 2, 3, 4),
-  body: { getAsync: (_t: string, cb: (r: { status: string; value?: string }) => void) => cb({ status: "succeeded", value: "SECRET BODY TEXT" }) },
+  body: {
+    getAsync: (_t: string, cb: (r: { status: string; value?: string }) => void) =>
+      cb({ status: "succeeded", value: "SECRET BODY TEXT" }),
+  },
 });
 
 beforeEach(() => {
@@ -81,7 +84,9 @@ afterEach(() => {
 
 describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   it("Retry after an unreachable backend calls MSAL and the backend again, then connects", async () => {
-    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValueOnce(ok("Ada"));
+    fetchMock
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(ok("Ada"));
     render(<BackendStatus />);
     expect(await screen.findByText("Backend inacessível")).toBeTruthy();
     fireEvent.click(screen.getByText("Tentar novamente"));
@@ -92,7 +97,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   });
 
   it("Retry after a 401 asks MSAL for a token again and sends the fresh one", async () => {
-    h.silent.mockResolvedValueOnce({ accessToken: "old" }).mockResolvedValueOnce({ accessToken: "new" });
+    h.silent
+      .mockResolvedValueOnce({ accessToken: "old" })
+      .mockResolvedValueOnce({ accessToken: "new" });
     fetchMock.mockResolvedValueOnce(status(401)).mockResolvedValueOnce(ok(null));
     render(<BackendStatus />);
     expect(await screen.findByText("O backend rejeitou o início de sessão (401)")).toBeTruthy();
@@ -126,7 +133,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   });
 
   it("nothing from the token, the name or the MSAL message reaches any console method", async () => {
-    const spies = ["log", "info", "warn", "error", "debug"].map((m) => vi.spyOn(console, m as "log").mockImplementation(() => {}));
+    const spies = ["log", "info", "warn", "error", "debug"].map((m) =>
+      vi.spyOn(console, m as "log").mockImplementation(() => {})
+    );
     try {
       // 1: success with a name and a token
       h.silent.mockResolvedValue({ accessToken: TOKEN });
@@ -144,7 +153,9 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
       const third = render(<BackendStatus />);
       expect(await screen.findByText("Backend inacessível")).toBeTruthy();
       third.unmount();
-      h.silent.mockRejectedValueOnce(Object.assign(new Error(`leak ${TOKEN}`), { errorCode: "x_code" }));
+      h.silent.mockRejectedValueOnce(
+        Object.assign(new Error(`leak ${TOKEN}`), { errorCode: "x_code" })
+      );
       render(<BackendStatus />);
       expect(await screen.findByText(/x_code/)).toBeTruthy();
       const calls = spies.flatMap((s) => s.mock.calls);
@@ -176,7 +187,15 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     expect(init.method).toBe("GET");
     expect(Object.keys(init.headers)).toEqual(["Authorization"]);
     const sent = JSON.stringify([url, init.headers]);
-    for (const leak of ["Quarterly plan", "ann@example.com", "Ann", "SECRET BODY TEXT", "AAMk-ITEM-ID-123", "subject", "itemId"]) {
+    for (const leak of [
+      "Quarterly plan",
+      "ann@example.com",
+      "Ann",
+      "SECRET BODY TEXT",
+      "AAMk-ITEM-ID-123",
+      "subject",
+      "itemId",
+    ]) {
       expect(sent).not.toContain(leak);
     }
   });
@@ -211,7 +230,12 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
   });
 
   it("a 200 with a non-JSON body is unreachable, never connected", async () => {
-    fetchMock.mockResolvedValue({ status: 200, json: async () => { throw new SyntaxError("Unexpected token <"); } });
+    fetchMock.mockResolvedValue({
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
     render(<BackendStatus />);
     expect(await screen.findByText("Backend inacessível")).toBeTruthy();
     expect(screen.queryByText(/Ligado/)).toBeNull();
@@ -224,16 +248,21 @@ describe("BackendStatus QA (mocked MSAL, fetch and Office)", () => {
     expect(screen.queryByText(/Ligado/)).toBeNull();
   });
 
-  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])("name %j is not rendered: shows plain 'Ligado'", async (name) => {
-    fetchMock.mockResolvedValue(ok(name));
-    render(<BackendStatus />);
-    expect(await screen.findByText("Ligado")).toBeTruthy();
-  });
+  it.each([["" as unknown], [null], [42], [{ first: "Ada" }]])(
+    "name %j is not rendered: shows plain 'Ligado'",
+    async (name) => {
+      fetchMock.mockResolvedValue(ok(name));
+      render(<BackendStatus />);
+      expect(await screen.findByText("Ligado")).toBeTruthy();
+    }
+  );
 
   it("an MSAL error without errorCode shows unknown_error, not a blank line", async () => {
     h.silent.mockRejectedValue(new Error("x"));
     render(<BackendStatus />);
-    expect(await screen.findByText("Não foi possível obter o token de início de sessão (unknown_error)")).toBeTruthy();
+    expect(
+      await screen.findByText("Não foi possível obter o token de início de sessão (unknown_error)")
+    ).toBeTruthy();
     expect(screen.getByText("Tentar novamente")).toBeTruthy();
   });
 
