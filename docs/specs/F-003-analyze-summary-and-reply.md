@@ -401,3 +401,10 @@ Ceiling with the default caps: 1,500 calls/day globally → at most ~$12.4/day o
 - **V2.** Does the reply form keep the quoted original and add the user's signature (AC-28)?
 - **V3.** Clipboard per client (AC-30).
 - **V4.** Real token usage and latency with `low` effort on the chosen model (AC-27).
+
+## Amendment 2026-10-29 (b): automatic translation direction
+User decision: "Traduzir" works on the incoming email. If the email is in English it is translated into Portuguese, and if it is in Portuguese it is translated into English, with no choice needed. Only English and Portuguese for now.
+- `translate` payload: `targetLanguage` is `auto` (default) | `pt` | `en`, validated by allow-list (anything else is 422). `auto` maps to a fixed instruction sentence: detect the language; Portuguese → English; English → European Portuguese (pt-PT); any other language → European Portuguese (pt-PT).
+- Pane, tab "Traduzir": the `Select` "Traduzir para" defaults to "Automático (PT ↔ EN)", with "Português" and "English" as manual overrides.
+- Everything else in the translate rules is unchanged (plain text, `{subject, body}`, limits, no links or addresses, no sender data, cap slot before the call).
+- Live check (extends AC-47): an English email gives Portuguese, a Portuguese email gives English, and an email in another language gives Portuguese.

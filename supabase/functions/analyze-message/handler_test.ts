@@ -365,7 +365,7 @@ Deno.test("AC-35: payload per action, every invalid case is 422 with no DB and n
     const bads: unknown[] = [
       { ...good, tone: "formal" }, { ...good, language: "pt" }, { ...good, targetLanguage: "en" },
       { ...replyPayload, targetLanguage: "en" }, { ...replyPayload, extra: 1 }, { ...trPayload, tone: "formal" }, { ...trPayload, language: "pt" }, { ...trPayload, extra: 1 },
-      noTarget, { ...trPayload, targetLanguage: "fr" }, { ...trPayload, targetLanguage: "PT" }, { ...trPayload, targetLanguage: "" }, { ...trPayload, targetLanguage: 1 },
+      noTarget, { ...trPayload, targetLanguage: "fr" }, { ...trPayload, targetLanguage: "AUTO" }, { ...trPayload, targetLanguage: "PT" }, { ...trPayload, targetLanguage: "" }, { ...trPayload, targetLanguage: 1 },
       { ...trPayload, targetLanguage: "constructor" }, { ...trPayload, targetLanguage: "__proto__" },
       { ...trPayload, fromName: "Ana" }, { ...trPayload, fromDomain: "exemplo.pt" }, { ...trPayload, body: "x".repeat(4001) }, { ...trPayload, body: " " },
       { ...replyPayload, language: "fr" }, { ...replyPayload, language: "PT" }, { ...replyPayload, language: "" }, { ...replyPayload, language: 1 }, { ...replyPayload, language: null },
@@ -471,6 +471,21 @@ Deno.test("AC-39: log line for translate and reply options has only fixed fields
     for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort(), ["fn", "id", "method", "ms", "reason", "status"]);
     const all = lines.join("\n");
     for (const v of ["MARK_SUBJ", "MARK_NAME", "mark-dom.example", "MARK_BODY", "MARKTOKEN", "MARK_OPENAI_ERR", "MARK_AI_OUT", "MARK_TONE", OID, "sk-test-KEY"]) assertFalse(all.includes(v), v);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("translate auto: 200 path, auto/pt/en accepted", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    for (const targetLanguage of ["auto", "pt", "en"]) {
+      const s = setup({}, () => new Response(JSON.stringify(wrap(JSON.stringify(tr)))));
+      const res = await s.call(t, { ...trPayload, targetLanguage });
+      assertEquals(res.status, 200);
+      assertEquals(s.requests.length, 1);
+    }
   } finally {
     loud();
   }
