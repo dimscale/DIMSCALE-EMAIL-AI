@@ -466,27 +466,27 @@ describe("manifest ribbon entry (F-012/AC-32, AC-34, AC-26)", () => {
     );
     return hit?.getAttribute("DefaultValue") ?? null;
   };
-  it("one TabDefault OfficeTab, one Group, two Buttons (IA, Resumo), no CustomTab (AC-32, AC-48)", () => {
+  it("one TabDefault OfficeTab, one Group, one Button (DIMSCALE Mail), no CustomTab (AC-32, AC-48)", () => {
     expect(all("OfficeTab")).toHaveLength(1);
     expect(all("OfficeTab")[0].getAttribute("id")).toBe("TabDefault");
     expect(all("Group")).toHaveLength(1);
-    expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(2);
+    expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(1);
     expect(all("CustomTab")).toHaveLength(0);
   });
   it("group label resolves to 'DIMSCALE MAIL' (AC-32)", () => {
     const groupLabel = all("Group")[0].getElementsByTagName("Label")[0].getAttribute("resid");
     expect(resolve(groupLabel ?? "")).toBe("DIMSCALE MAIL");
   });
-  it("button labels are IA and Resumo; Supertip titles are 'DIMSCALE MAIL: IA' and 'Resumo com IA' (AC-32, AC-48)", () => {
+  it("the button label and Supertip title are 'DIMSCALE Mail' (AC-32, AC-48)", () => {
     const btns = all("Control").filter((c) => c.getAttribute("xsi:type") === "Button");
     const pick = (b: Element, tag: string) =>
       resolve(b.getElementsByTagName(tag)[0].getAttribute("resid") ?? "");
-    expect(btns.map((b) => pick(b, "Label"))).toEqual(["IA", "Resumo"]);
-    expect(btns.map((b) => pick(b, "Title"))).toEqual(["DIMSCALE MAIL: IA", "Resumo com IA"]);
+    expect(btns.map((b) => pick(b, "Label"))).toEqual(["DIMSCALE Mail"]);
+    expect(btns.map((b) => pick(b, "Title"))).toEqual(["DIMSCALE Mail"]);
   });
   it("SupportsPinning is inside each ShowTaskpane action of the v1.1 block (AC-34, AC-48)", () => {
     const pin = all("SupportsPinning");
-    expect(pin).toHaveLength(2);
+    expect(pin).toHaveLength(1);
     for (const p of pin) {
       expect(p.parentElement?.getAttribute("xsi:type")).toBe("ShowTaskpane");
       expect(p.closest("VersionOverrides")?.getAttribute("xsi:type")).toBe(

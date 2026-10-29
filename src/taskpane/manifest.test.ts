@@ -45,25 +45,20 @@ describe.each(["manifest.xml", "manifest.customtab-test.xml"])(
       ...m.matchAll(/<Control xsi:type="Button" id="([^"]+)">([\s\S]*?)<\/Control>/g),
     ];
 
-    it("has exactly the IA and Resumo buttons, both pinnable ShowTaskpane", () => {
-      expect(buttons.map((b) => b[1])).toEqual(["msgReadOpenPaneButton", "msgReadSummaryButton"]);
-      for (const b of buttons) {
-        expect(b[2]).toContain('<Action xsi:type="ShowTaskpane">');
-        expect(b[2]).toContain("<SupportsPinning>true</SupportsPinning>");
-      }
-      expect(m).toContain('id="IaButton.Label" DefaultValue="IA"');
-      expect(m).toContain('id="ResumoButton.Label" DefaultValue="Resumo"');
+    it("has exactly one button, DIMSCALE Mail, a pinnable ShowTaskpane", () => {
+      expect(buttons.map((b) => b[1])).toEqual(["msgReadOpenPaneButton"]);
+      expect(buttons[0][2]).toContain('<Action xsi:type="ShowTaskpane">');
+      expect(buttons[0][2]).toContain("<SupportsPinning>true</SupportsPinning>");
+      expect(m).toContain('id="IaButton.Label" DefaultValue="DIMSCALE Mail"');
+      expect(m).not.toContain("ResumoButton");
     });
 
-    it("points at taskpane.html and resumo.html", () => {
+    it("points at taskpane.html only", () => {
       expect(buttons[0][2]).toContain('<SourceLocation resid="Taskpane.Url" />');
-      expect(buttons[1][2]).toContain('<SourceLocation resid="TaskpaneResumo.Url" />');
       expect(m).toContain(
         '<bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />'
       );
-      expect(m).toContain(
-        '<bt:Url id="TaskpaneResumo.Url" DefaultValue="https://localhost:3000/resumo.html" />'
-      );
+      expect(m).not.toContain("resumo.html");
     });
 
     it("every resid is defined, resource ids are at most 32 chars, only ReadItem", () => {
@@ -78,10 +73,10 @@ describe.each(["manifest.xml", "manifest.customtab-test.xml"])(
       expect(m).not.toContain("<AppDomains");
     });
 
-    it("uses the Resumo icons for the Resumo button", () => {
+    it("uses the green D icons", () => {
       for (const n of [16, 32, 80]) {
         expect(m).toContain(
-          `id="Icon.Resumo.${n}x${n}" DefaultValue="https://localhost:3000/assets/resumo-${n}.png"`
+          `id="Icon.Ia.${n}x${n}" DefaultValue="https://localhost:3000/assets/icon-${n}.png"`
         );
       }
     });
@@ -113,7 +108,8 @@ describe("production build (F-012/AC-48)", () => {
     expect(a.every((x) => /\.[0-9a-f]{20}\.js$/.test(x))).toBe(true);
     expect(assets("resumo.html")).toEqual(a);
     const prod = readFileSync(join(out, "manifest.xml"), "utf8");
-    expect(prod).toContain("/resumo.html");
+    expect(prod).toContain("/taskpane.html");
+    expect(prod).not.toContain("resumo.html"); // the Resumo button was removed (user, 2026-10-29); the page stays built but is not linked
     expect(prod).not.toContain("localhost:3000");
     expect(readdirSync(out)).not.toContain("manifest.customtab-test.xml"); // AC-49: test manifest is not published
   }, 240000);

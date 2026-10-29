@@ -63,22 +63,6 @@
                       <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
-                  <Control xsi:type="Button" id="msgReadSummaryButton">
-                    <Label resid="ResumoButton.Label" />
-                    <Supertip>
-                      <Title resid="ResumoButton.Title" />
-                      <Description resid="ResumoButton.Tooltip" />
-                    </Supertip>
-                    <Icon>
-                      <bt:Image size="16" resid="Icon.Resumo.16x16" />
-                      <bt:Image size="32" resid="Icon.Resumo.32x32" />
-                      <bt:Image size="80" resid="Icon.Resumo.80x80" />
-                    </Icon>
-                    <Action xsi:type="ShowTaskpane">
-                      <SourceLocation resid="TaskpaneResumo.Url" />
-                      <SupportsPinning>true</SupportsPinning>
-                    </Action>
-                  </Control>
                 </Group>
                 <Label resid="CustomTabLabel" />
               </CustomTab>
@@ -91,25 +75,18 @@
           <bt:Image id="Icon.Ia.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png"/>
           <bt:Image id="Icon.Ia.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png"/>
           <bt:Image id="Icon.Ia.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
-          <bt:Image id="Icon.Resumo.16x16" DefaultValue="https://localhost:3000/assets/resumo-16.png"/>
-          <bt:Image id="Icon.Resumo.32x32" DefaultValue="https://localhost:3000/assets/resumo-32.png"/>
-          <bt:Image id="Icon.Resumo.80x80" DefaultValue="https://localhost:3000/assets/resumo-80.png"/>
         </bt:Images>
         <bt:Urls>
           <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
-          <bt:Url id="TaskpaneResumo.Url" DefaultValue="https://localhost:3000/resumo.html" />
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="CustomTabLabel" DefaultValue="DIMSCALE MAIL"/>
           <bt:String id="GroupLabel" DefaultValue="DIMSCALE MAIL"/>
-          <bt:String id="IaButton.Label" DefaultValue="IA"/>
-          <bt:String id="IaButton.Title" DefaultValue="DIMSCALE MAIL: IA"/>
-          <bt:String id="ResumoButton.Label" DefaultValue="Resumo"/>
-          <bt:String id="ResumoButton.Title" DefaultValue="Resumo com IA"/>
+          <bt:String id="IaButton.Label" DefaultValue="DIMSCALE Mail"/>
+          <bt:String id="IaButton.Title" DefaultValue="DIMSCALE Mail"/>
         </bt:ShortStrings>
         <bt:LongStrings>
           <bt:String id="IaButton.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail AI: resumo, resposta, tradução e respostas automáticas."/>
-          <bt:String id="ResumoButton.Tooltip" DefaultValue="Abre o painel no separador Resumo e resume o e-mail aberto. O texto do e-mail é enviado à OpenAI."/>
         </bt:LongStrings>
       </Resources>
     </VersionOverrides>
