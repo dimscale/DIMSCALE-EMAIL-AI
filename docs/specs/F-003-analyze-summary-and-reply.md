@@ -326,7 +326,7 @@ New flow: **pane → `analyze-message` → OpenAI**, only on the user's click, c
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | GDPR: third-party content (including quoted threads) reaches OpenAI. | User click only, visible notice, minimal fields, domain not address, `store: false`, D5/DPO before real use. |
-| R2 | Cost runaway (scripted calls with a valid token, repeated clicks). | Per-user and global daily caps taken before the call, kill switch, `max_output_tokens` 2,000, low reasoning effort, one request at a time in the pane. |
+| R2 | Cost runaway (scripted calls with a valid token, repeated clicks). | Per-user and global daily caps taken before the call, kill switch, `max_output_tokens` 2,000 (4,000 for translate), low reasoning effort, one request at a time in the pane. |
 | R3 | Prompt injection makes a misleading summary or a harmful reply text that the user sends unread. | Advisory notice, review in the reply form, no links/markup, the user sends. Residual risk for the user to accept. |
 | R4 | `ai.ts` refactor changes F-013 behaviour. | AC-14 (F-013 tests unchanged, request snapshot). |
 | R5 | Clipboard blocked in some Outlook webviews. | Fallback text, selectable result, "Abrir resposta" as main path (AC-30). |

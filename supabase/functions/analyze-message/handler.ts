@@ -1,17 +1,19 @@
 import type { JWTVerifyGetKey } from "jose";
-import { type AiConfig, type AiFail, type DraftInput, generateDraft } from "../_shared/ai.ts";
+import { type AiConfig, type AiFail, type DraftInput } from "../_shared/ai.ts";
 import type { Db } from "../_shared/db.ts";
 import type { Config } from "../_shared/entra.ts";
 import { log } from "../_shared/log.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { validateStateful } from "../_shared/stateful.ts";
+import { generateReply, LANGUAGES, type ReplyOpts, TONE_OPTIONS } from "./replyOptions.ts";
 import { generateSummary, hasLink } from "./summary.ts";
+import { generateTranslation, type Target, TARGETS } from "./translate.ts";
 
 const FN = "analyze-message";
 const MAX_RAW = 16 * 1024;
 const MAX_CAP = 1_000_000;
 // shortcut: effort and token cap are constants, not env (spec decision 9); make them env only if the user asks.
-const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000;
+const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000, TRANSLATE_MAX_OUTPUT_TOKENS = 4000;
 const NO_LINKS: AiFail = { ok: false, reason: "ai_output_invalid", retryable: false };
 
 /** Body as text, or null when over `max` bytes: Content-Length is checked first, then a byte counter stops an unlabelled stream. */
@@ -32,19 +34,33 @@ async function readCapped(req: Request, max: number): Promise<string | null> {
   return text + dec.decode();
 }
 
-type Payload = DraftInput & { action: "summarize" | "reply" };
+type Payload = DraftInput & ({ action: "summarize" } | { action: "reply"; opts: ReplyOpts } | { action: "translate"; target: Target });
 
-/** Strict payload validation (AC-3). Returns null when invalid. Lengths are UTF-16 units, like the pane. */
+/** Strict payload validation per action (AC-3, AC-35). Returns null when invalid. Lengths are UTF-16 units, like the pane. */
 export function parsePayload(raw: unknown): Payload | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const b = raw as Record<string, unknown>;
-  if (Object.keys(b).sort().join(",") !== "action,body,fromDomain,fromName,subject") return null;
-  const { action, body, fromDomain, fromName, subject } = b;
-  if (action !== "summarize" && action !== "reply") return null;
+  const { action, body, fromDomain, fromName, subject, language, tone, targetLanguage } = b;
+  const extra = action === "reply" ? ["language", "tone"] : action === "translate" ? ["targetLanguage"] : [];
+  const keys = Object.keys(b);
+  const base = ["action", "body", "fromDomain", "fromName", "subject"];
+  if (!base.every((k) => keys.includes(k)) || keys.some((k) => !base.includes(k) && !extra.includes(k))) return null;
+  if (action === "translate" && !keys.includes("targetLanguage")) return null;
   if (typeof body !== "string" || typeof fromDomain !== "string" || typeof fromName !== "string" || typeof subject !== "string") return null;
   if (subject.length > 200 || fromName.length > 100 || fromDomain.length > 253 || !/^[^\s@<>]*$/.test(fromDomain)) return null;
   if (body.length > 4000 || body.trim() === "") return null;
-  return { action, body, fromDomain, fromName, subject };
+  const input = { body, fromDomain, fromName, subject };
+  if (action === "summarize") return { action, ...input };
+  if (action === "reply") {
+    const l = keys.includes("language") ? language : "match", t = keys.includes("tone") ? tone : "none";
+    if (!(LANGUAGES as readonly unknown[]).includes(l) || !(TONE_OPTIONS as readonly unknown[]).includes(t)) return null;
+    return { action, ...input, opts: { language: l as ReplyOpts["language"], tone: t as ReplyOpts["tone"] } };
+  }
+  if (action === "translate") {
+    if (typeof targetLanguage !== "string" || !Object.hasOwn(TARGETS, targetLanguage) || fromName !== "" || fromDomain !== "") return null;
+    return { action, ...input, target: targetLanguage as Target };
+  }
+  return null;
 }
 
 const posInt = (raw: string | undefined, dflt: number) => (raw !== undefined && /^\d+$/.test(raw.trim()) && Number(raw) > 0 && Number(raw) <= MAX_CAP ? Number(raw) : dflt);
@@ -117,12 +133,19 @@ export async function handle(
       return json({ ok: false, error: "cap_reached" }, 429);
     }
     const ai: AiConfig = { apiKey, model, maxOutputTokens: MAX_OUTPUT_TOKENS, reasoningEffort: EFFORT };
-    const { action, ...input } = payload;
-    if (action === "summarize") {
+    const action = payload.action;
+    if (payload.action === "summarize") {
+      const { action: _a, ...input } = payload;
       const r = await generateSummary(input, ai, fetchFn);
       return r.ok ? json({ ok: true, action, summary: r.summary }, 200) : aiFail(r);
     }
-    const r = await generateDraft(input, ai, fetchFn);
+    if (payload.action === "translate") {
+      const { action: _a, target, ...input } = payload;
+      const r = await generateTranslation(input, target, { ...ai, maxOutputTokens: TRANSLATE_MAX_OUTPUT_TOKENS }, fetchFn);
+      return r.ok ? json({ ok: true, action, translation: r.translation }, 200) : aiFail(r);
+    }
+    const { action: _a, opts, ...input } = payload;
+    const r = await generateReply(input, opts, ai, fetchFn);
     if (r.ok && hasLink(r.reply)) return aiFail(NO_LINKS);
     return r.ok ? json({ ok: true, action, reply: r.reply }, 200) : aiFail(r);
   })();
