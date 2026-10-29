@@ -34,9 +34,11 @@ const useStyles = makeStyles({
     paddingBottom: "8px",
   },
   label: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
-  value: { overflowWrap: "anywhere" },
+  value: { overflowWrap: "anywhere", minWidth: 0 },
   preview: {
     margin: 0,
+    boxSizing: "border-box",
+    maxWidth: "100%",
     fontFamily: "inherit",
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
@@ -51,6 +53,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     fontSize: tokens.fontSizeBase200,
     display: "block",
+    overflowWrap: "anywhere",
     paddingTop: "4px",
   },
   empty: {

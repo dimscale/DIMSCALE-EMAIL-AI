@@ -22,6 +22,11 @@ type View = "analyze" | "reply";
 const useStyles = makeStyles({
   root: {
     minHeight: "100vh",
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    overflowX: "hidden", // safety net only: nothing inside should exceed the pane
+    overflowWrap: "anywhere",
     display: "flex",
     flexDirection: "column",
     fontSize: tokens.fontSizeBase300,
@@ -41,16 +46,25 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase400,
     fontWeight: tokens.fontWeightSemibold,
   },
-  main: { flex: 1, padding: "0 12px", maxWidth: "640px" },
+  main: {
+    flex: 1,
+    minWidth: 0,
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "0 12px",
+    maxWidth: "640px",
+  },
   panel: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
+    minWidth: 0,
     paddingTop: "8px",
     paddingBottom: "12px",
+    "& > *": { minWidth: 0, maxWidth: "100%" },
     "&[hidden]": { display: "none" },
   },
-  row: { display: "flex", alignItems: "center", gap: "8px" },
+  row: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", minWidth: 0 },
   icon: { display: "flex", fontSize: "20px", flex: "none" },
   secondary: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
   assistantIntro: {
@@ -59,7 +73,15 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
   },
   tools: { display: "flex", flexDirection: "column", gap: "8px" },
-  toolCard: { display: "flex", flexDirection: "column", gap: "6px", padding: "12px" },
+  toolCard: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    padding: "12px",
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
+  },
   toolTitle: { margin: 0, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold },
   toolDescription: {
     margin: 0,
@@ -67,7 +89,7 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     lineHeight: "18px",
   },
-  footer: { padding: "8px 12px 12px", borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
+  footer: { padding: "8px 12px 12px", minWidth: 0, boxSizing: "border-box", borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
 const AiToolCard = ({ title, description }: { title: string; description: string }) => {

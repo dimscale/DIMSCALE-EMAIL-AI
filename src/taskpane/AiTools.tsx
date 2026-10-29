@@ -19,15 +19,24 @@ import { strings } from "./strings";
 /* global Office, navigator */
 
 const useStyles = makeStyles({
-  root: { display: "flex", flexDirection: "column", gap: "8px" },
+  root: { display: "flex", flexDirection: "column", gap: "8px", minWidth: 0, maxWidth: "100%" },
   row: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" },
   note: {
     margin: 0,
+    overflowWrap: "anywhere",
     color: tokens.colorNeutralForeground3,
     fontSize: tokens.fontSizeBase200,
     lineHeight: "18px",
   },
-  card: { display: "flex", flexDirection: "column", gap: "6px", padding: "12px" },
+  card: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    padding: "12px",
+    minWidth: 0,
+    maxWidth: "100%",
+    boxSizing: "border-box",
+  },
   title: { margin: 0, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold },
   list: { margin: 0, paddingLeft: "20px", overflowWrap: "anywhere" },
   text: { margin: 0, overflowWrap: "anywhere" },

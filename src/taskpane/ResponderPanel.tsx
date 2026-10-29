@@ -33,15 +33,23 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: "12px",
+    minWidth: 0,
+    maxWidth: "100%",
     paddingTop: "8px",
     paddingBottom: "12px",
   },
   row: {
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: "4px 8px",
+    minWidth: 0,
   },
+  // Switch and its status stacked, so neither is cut at 320 px.
+  switchRow: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2px", minWidth: 0 },
   statusText: {
+    overflowWrap: "anywhere",
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
@@ -54,13 +62,13 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: "6px",
-    maxHeight: "260px",
-    overflowY: "auto",
-    paddingRight: "4px",
+    minWidth: 0,
   },
   contactItem: {
     display: "flex",
     alignItems: "flex-start",
+    minWidth: 0,
+    "& > *": { minWidth: 0, maxWidth: "100%" },
   },
   contactText: {
     overflowWrap: "anywhere",
@@ -68,14 +76,19 @@ const useStyles = makeStyles({
   },
   manualForm: {
     display: "flex",
+    flexWrap: "wrap",
     gap: "8px",
     alignItems: "center",
+    minWidth: 0,
   },
   manualInput: {
-    flex: 1,
+    flex: "1 1 160px",
+    minWidth: 0,
+    maxWidth: "100%",
   },
   buttonRow: {
     display: "flex",
+    flexWrap: "wrap",
     gap: "8px",
     alignItems: "center",
     marginTop: "4px",
@@ -95,17 +108,23 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
     lineHeight: "16px",
+    minWidth: 0,
+    overflowWrap: "anywhere",
   },
   confirmBox: {
     padding: "8px",
     backgroundColor: tokens.colorNeutralBackground3,
     borderRadius: tokens.borderRadiusMedium,
+    minWidth: 0,
+    boxSizing: "border-box",
+    overflowWrap: "anywhere",
     display: "flex",
     flexDirection: "column",
     gap: "8px",
   },
   confirmButtons: {
     display: "flex",
+    flexWrap: "wrap",
     gap: "8px",
   },
 });
@@ -428,7 +447,7 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
 
   return (
     <div className={s.container}>
-      <div className={s.row}>
+      <div className={s.switchRow}>
         <Switch
           checked={enabled}
           disabled={loadSettingsError}

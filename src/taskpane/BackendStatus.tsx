@@ -8,7 +8,7 @@ import { Button, MessageBar, MessageBarActions, MessageBarBody, makeStyles, toke
 import { CheckmarkCircleFilled, ClockRegular, ErrorCircleRegular, WarningRegular } from "@fluentui/react-icons";
 
 const useStyles = makeStyles({
-  line: { display: "flex", alignItems: "center", gap: "6px", fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
+  line: { display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflowWrap: "anywhere", fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
   icon: { display: "flex", fontSize: "16px", flex: "none" },
 });
 
