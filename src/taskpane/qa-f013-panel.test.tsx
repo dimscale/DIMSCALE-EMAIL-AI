@@ -193,6 +193,10 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
       expect(await screen.findByText("Contactos a responder (1)")).toBeTruthy();
       await waitFor(() => expect(screen.queryByText("A obter remetentes recentes…")).toBeNull());
       expect(screen.getByLabelText("ana@cliente.pt")).toBeTruthy();
+      expect(
+        screen.getByText("Não foi possível obter os remetentes recentes. Pode adicionar endereços manualmente.")
+      ).toBeTruthy();
+      expect(screen.queryByText("Nenhum remetente recente encontrado nos últimos 30 dias.")).toBeNull();
 
       fireEvent.change(screen.getByRole("textbox", { name: "Adicionar endereço" }), {
         target: { value: "novo@contacto.pt" },
@@ -203,13 +207,13 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
   );
 
   it.each([
-    ["422 from the server", { kind: "error", status: 422 }],
-    ["500 from the server", { kind: "error", status: 500 }],
-    ["network failure", { kind: "error" }],
-    ["401 (rejected)", { kind: "rejected" }],
+    ["422 from the server", { kind: "error", status: 422 }, "Os dados não foram aceites. Verifique os endereços."],
+    ["500 from the server", { kind: "error", status: 500 }, "Erro de ligação"],
+    ["network failure", { kind: "error" }, "Erro de ligação"],
+    ["401 (rejected)", { kind: "rejected" }, "Erro de ligação"],
   ])(
-    "save failure (%s) shows an error, keeps the local selection and never shows success",
-    async (_label, result) => {
+    "save failure (%s) shows the matching error, keeps the local selection and never shows success",
+    async (_label, result, expectedText) => {
       (saveSettings as any).mockResolvedValueOnce(result);
       render(<ResponderPanel />);
       await screen.findByText("Contactos a responder (1)");
@@ -217,7 +221,7 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
       fireEvent.click(screen.getByRole("checkbox", { name: "Rui Costa rui@empresa.com" }));
       fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
-      expect(await screen.findByText("Erro de ligação")).toBeTruthy();
+      expect(await screen.findByText(expectedText)).toBeTruthy();
       expect(screen.queryByText("Definições guardadas.")).toBeNull();
       expect(screen.getByText("Contactos a responder (2)")).toBeTruthy();
       expect(screen.getByText("Estado: Ativo")).toBeTruthy();
@@ -370,6 +374,7 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apagar tudo" }));
     fireEvent.click(screen.getByRole("button", { name: "Sim, apagar" }));
     expect(await screen.findByText("Contactos apagados.")).toBeTruthy();
+    expect(screen.queryByText("Definições guardadas.")).toBeNull();
     expect(deleteSettings).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Estado: Desligado")).toBeTruthy();
     expect(screen.getByText("Contactos a responder (0)")).toBeTruthy();
@@ -417,7 +422,7 @@ describe("F-013/AC-34, AC-35 Responder panel (QA, mocked)", () => {
     await screen.findByText("Contactos a responder (1)");
     fireEvent.click(screen.getByRole("checkbox", { name: "Rui Costa rui@empresa.com" }));
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
-    await screen.findByText("Erro de ligação");
+    await screen.findByText("Os dados não foram aceites. Verifique os endereços.");
 
     expect(setItem).not.toHaveBeenCalled();
     const flat = JSON.stringify(logs);

@@ -61,6 +61,9 @@ export const strings = {
   saveButton: "Guardar",
   saving: "A guardar…",
   saveSuccess: "Definições guardadas.",
+  saveInvalid: "Os dados não foram aceites. Verifique os endereços.",
+  ownAddressMissing:
+    "Não foi possível identificar o seu endereço de email neste cliente do Outlook.",
   contactsDeleted: "Contactos apagados.",
   deleteAllButton: "Apagar tudo",
   deleteAllConfirm: "Tem a certeza que deseja apagar todos os contactos?",
@@ -79,5 +82,7 @@ export const strings = {
   loadingSenders: "A obter remetentes recentes…",
   loadingSettings: "A carregar definições…",
   noRecentSenders: "Nenhum remetente recente encontrado nos últimos 30 dias.",
+  sendersLoadFailed:
+    "Não foi possível obter os remetentes recentes. Pode adicionar endereços manualmente.",
   loadSettingsError: "Não foi possível carregar as definições.",
 };

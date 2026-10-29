@@ -133,6 +133,7 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
   const [saving, setSaving] = React.useState<boolean>(false);
   const [confirmDelete, setConfirmDelete] = React.useState<boolean>(false);
   const [loadSettingsError, setLoadSettingsError] = React.useState<boolean>(false);
+  const [sendersLoadFailed, setSendersLoadFailed] = React.useState<boolean>(false);
 
   const [notice, setNotice] = React.useState<{ intent: "info" | "success" | "error"; text: string } | null>(null);
 
@@ -175,11 +176,12 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
         if (graphRes?.kind === "token") {
           setGraphConsentNeeded(false);
           setLoadingSenders(true);
+          setSendersLoadFailed(false);
           try {
             const list = await fetchRecentSenders(graphRes.token, getOwnAddress());
             setCandidates(list);
           } catch {
-            // Graph call failed gracefully
+            setSendersLoadFailed(true);
           } finally {
             setLoadingSenders(false);
           }
@@ -222,11 +224,12 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
       setGraphConsentNeeded(false);
       setGraphDenied(false);
       setLoadingSenders(true);
+      setSendersLoadFailed(false);
       try {
         const list = await fetchRecentSenders(res.token, getOwnAddress());
         setCandidates(list);
       } catch {
-        // graceful fallback
+        setSendersLoadFailed(true);
       } finally {
         setLoadingSenders(false);
       }
@@ -293,6 +296,11 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
   const handleSave = async () => {
     if (loadSettingsError || saving) return;
     setNotice(null);
+    const ownAddress = getOwnAddress();
+    if (!ownAddress) {
+      setNotice({ intent: "error", text: strings.ownAddressMissing });
+      return;
+    }
     if (enabled && selectedContacts.length === 0) {
       setNotice({ intent: "error", text: strings.needAtLeastOneContact });
       return;
@@ -308,7 +316,7 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
 
     const payload = {
       enabled,
-      ownAddress: getOwnAddress(),
+      ownAddress,
       contacts: selectedContacts,
     };
 
@@ -321,7 +329,8 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
       setSelectedContacts(res.data.contacts);
       setNotice({ intent: "success", text: strings.saveSuccess });
     } else {
-      setNotice({ intent: "error", text: strings.shortError });
+      const invalid = res.kind === "error" && res.status === 422;
+      setNotice({ intent: "error", text: invalid ? strings.saveInvalid : strings.shortError });
     }
   };
 
@@ -475,7 +484,9 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
         </h2>
         {atCap && <span className={s.statusText}>{strings.contactsCapReached}</span>}
         {candidates.length === 0 && !loadingSenders && !graphConsentNeeded && !graphDenied && (
-          <span className={s.statusText}>{strings.noRecentSenders}</span>
+          <span className={s.statusText}>
+            {sendersLoadFailed ? strings.sendersLoadFailed : strings.noRecentSenders}
+          </span>
         )}
       </div>
 

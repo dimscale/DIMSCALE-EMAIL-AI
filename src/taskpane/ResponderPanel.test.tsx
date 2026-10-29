@@ -221,4 +221,37 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     await screen.findByText("Contactos a responder (1)");
     expect(screen.getByText("<script>alert('xss')</script> <injection@test.pt>")).toBeTruthy();
   });
+
+  it("shows the 'nenhum remetente' text only when the listing succeeded with zero results", async () => {
+    (fetchSettings as any).mockResolvedValueOnce({
+      kind: "ok",
+      data: { enabled: false, status: "off", contacts: [] },
+    });
+    (fetchRecentSenders as any).mockResolvedValueOnce([]);
+
+    render(<ResponderPanel />);
+    expect(
+      await screen.findByText("Nenhum remetente recente encontrado nos últimos 30 dias.")
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Não foi possível obter os remetentes recentes. Pode adicionar endereços manualmente."
+      )
+    ).toBeNull();
+  });
+
+  it("does not send a PUT and shows an error when the own address is unavailable", async () => {
+    render(<ResponderPanel />);
+    await screen.findByText("Contactos a responder (1)");
+
+    (globalThis as any).Office = { context: { mailbox: { userProfile: {} } } };
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(
+      await screen.findByText(
+        "Não foi possível identificar o seu endereço de email neste cliente do Outlook."
+      )
+    ).toBeTruthy();
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
 });
