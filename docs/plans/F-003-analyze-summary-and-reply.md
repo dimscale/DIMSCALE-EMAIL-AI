@@ -139,3 +139,11 @@ _Empty. Each step records the commands it ran, the real output, dates and live o
 
 - **Not done yet:** local Postgres checks (AC-5/AC-6 two parallel `an_take` calls), the live tests in Outlook (AC-27 to AC-32), merge to `main` so the pane reaches the published site.
 
+
+
+### 2026-10-29 (b): function redeploy for the Kutools-style pane (translate, auto direction, reply options)
+- **Checks before deploy:** Deno suites `analyze-message` 83, `whoami` 24, `graph-webhook` 68, `auto-draft-cron` 61, `auto-reply-settings` 64, all passed; root typecheck and lint clean; vitest 36 files, 445 passed and 2 todo; build and both manifests valid.
+- **Reviews:** function review (Opus) APPROVE WITH COMMENTS, no Critical, High or Medium, and the default reply request byte-identical to the previous version; pane review (Opus) APPROVE WITH COMMENTS, no Critical or High, with 3 Medium fixed (small tabs, abort every in-flight request on item change) or moved to the live checks (restore of the Resumo pane).
+- **Deploy (user's CLI):** `supabase functions deploy analyze-message --use-api` (version 3). No migration and no new secret were needed.
+- **Smoke tests with `curl`:** OPTIONS from `https://dimscale.github.io` and `https://localhost:3000` return 204 with the origin; OPTIONS from `https://evil.example` returns 204 with no `Access-Control-Allow-Origin`; POST with no token or a garbage token returns 401; GET returns 405.
+- **Not done yet:** merge to `main` (the published pane is still the previous version), and all the live checks in Outlook (AC-27 to AC-32, AC-47 to AC-51, F-012 AC-44, AC-52 to AC-54).
