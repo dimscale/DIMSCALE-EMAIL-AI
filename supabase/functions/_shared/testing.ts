@@ -10,7 +10,8 @@ export function fakeDb(nowMs: () => number = Date.now) {
   const subs = new Map<string, { subId: string; expiresAt: string; lastRenewedAt: string; lastCatchupAt: string | null }>();
   const queue: Row[] = [];
   const calls: string[] = [];
-  let failEnqueue = false;
+  let failEnqueue = false, failAnalyze = false;
+  const usage = new Map<string, number>(); // user_key -> count today
   const view = (u?: { enabled: boolean; status: Status; contacts: string[] }): SettingsView => u ? { enabled: u.enabled, status: u.status, contacts: [...u.contacts].sort() } : { enabled: false, status: "off", contacts: [] };
   const byOid = (oid: string) => [...users.values()].find((u) => u.oid === oid);
 
@@ -99,9 +100,18 @@ export function fakeDb(nowMs: () => number = Date.now) {
       return Promise.resolve({ user: d.filter((r) => r.userId === userId).length, global: d.length });
     },
     retention: () => (calls.push("retention"), Promise.resolve()),
+    analyzeTake: (userKey, cap, global) => { // mirrors an_take (the real one is atomic under an advisory lock)
+      calls.push("analyzeTake");
+      if (failAnalyze) return Promise.reject(new Error("db_error"));
+      const mine = usage.get(userKey) ?? 0, total = [...usage.values()].reduce((a, b) => a + b, 0);
+      if (mine >= cap || total >= global) return Promise.resolve(false);
+      usage.set(userKey, mine + 1);
+      return Promise.resolve(true);
+    },
   };
   return {
-    db, users, subs, queue, calls,
+    db, users, subs, queue, calls, usage,
+    failAnalyze: (v: boolean) => { failAnalyze = v; },
     failEnqueue: (v: boolean) => { failEnqueue = v; },
     addUser(oid: string, contacts: string[], sha = "", enabled = true, status: Status = "active") {
       const u = { id: `u${++seq}`, oid, sha, enabled, status, contacts };

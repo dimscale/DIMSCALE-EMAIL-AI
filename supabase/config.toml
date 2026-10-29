@@ -430,3 +430,7 @@ verify_jwt = false
 
 [functions.auto-reply-settings]
 verify_jwt = false
+
+# F-003: analyze-message validates the Entra token itself (Entra tokens are not Supabase JWTs).
+[functions.analyze-message]
+verify_jwt = false

@@ -33,6 +33,8 @@ export interface Db {
   retry(rowId: string, reason: string, nextAttemptAtIso: string): Promise<void>;
   countsToday(userId: string): Promise<{ user: number; global: number }>;
   retention(): Promise<void>;
+  /** F-003: takes one analyze slot atomically (an_take); false when a cap is reached. */
+  analyzeTake(userKey: string, cap: number, global: number): Promise<boolean>;
 }
 
 export function makeDb(url: string, key: string, fetchFn: typeof fetch = fetch): Db {
@@ -66,6 +68,7 @@ export function makeDb(url: string, key: string, fetchFn: typeof fetch = fetch):
     retry: (id, reason, next) => rpc("ad_retry", { p_id: id, p_reason: reason, p_next: next }),
     countsToday: (userId) => rpc("ad_counts_today", { p_user: userId }),
     retention: () => rpc("ad_retention", {}),
+    analyzeTake: async (userKey, cap, global) => (await rpc<unknown>("an_take", { p_user: userKey, p_cap: cap, p_global: global })) === true,
   };
 }
 

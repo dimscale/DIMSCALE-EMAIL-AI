@@ -21,7 +21,7 @@ export const SCHEMA = {
 } as const;
 
 export type DraftInput = { subject: string; fromName: string; fromDomain: string; body: string };
-export type AiConfig = { apiKey: string; model: string; maxOutputTokens: number };
+export type AiConfig = { apiKey: string; model: string; maxOutputTokens: number; reasoningEffort?: string };
 export type AiResult =
   | { ok: true; reply: string }
   | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean };
@@ -55,26 +55,32 @@ export function introducesNewLinks(reply: string, input: string): boolean {
 }
 
 type Out = { type?: unknown; text?: unknown };
-/** Strict output validation: complete, no refusal, JSON matching the schema, 1..3,000 chars, no new links. */
-export function parseOutput(res: unknown, input: string): AiResult {
-  const bad: AiResult = { ok: false, reason: "ai_output_invalid", retryable: false };
-  if (typeof res !== "object" || res === null) return bad;
+/** The one `output_text` of a completed response without refusal, or null. */
+export function singleOutputText(res: unknown): string | null {
+  if (typeof res !== "object" || res === null) return null;
   const r = res as { status?: unknown; output?: unknown };
-  if (r.status !== "completed" || !Array.isArray(r.output)) return bad;
+  if (r.status !== "completed" || !Array.isArray(r.output)) return null;
   const texts: string[] = [];
   for (const item of r.output) {
     if (typeof item !== "object" || item === null || (item as { type?: unknown }).type !== "message") continue;
     const content = (item as { content?: unknown }).content;
-    if (!Array.isArray(content)) return bad;
+    if (!Array.isArray(content)) return null;
     for (const c of content as Out[]) {
-      if (c?.type === "refusal") return bad;
+      if (c?.type === "refusal") return null;
       if (c?.type === "output_text" && typeof c.text === "string") texts.push(c.text);
     }
   }
-  if (texts.length !== 1) return bad;
+  return texts.length === 1 ? texts[0] : null;
+}
+
+/** Strict output validation: complete, no refusal, JSON matching the schema, 1..3,000 chars, no new links. */
+export function parseOutput(res: unknown, input: string): AiResult {
+  const bad: AiResult = { ok: false, reason: "ai_output_invalid", retryable: false };
+  const text = singleOutputText(res);
+  if (text === null) return bad;
   let parsed: unknown;
   try {
-    parsed = JSON.parse(texts[0]);
+    parsed = JSON.parse(text);
   } catch {
     return bad;
   }
@@ -89,10 +95,14 @@ export function parseOutput(res: unknown, input: string): AiResult {
   return { ok: true, reply };
 }
 
-export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<AiResult> {
-  const unavailable = (retryable: boolean): AiResult => ({ ok: false, reason: "ai_unavailable", retryable });
+export type AiFail = Extract<AiResult, { ok: false }>;
+
+/** One Responses API call (no retry). Returns the parsed JSON response or a failure. `reasoning` is sent only when cfg.reasoningEffort is set. */
+export async function requestResponses(
+  text: string, cfg: AiConfig, instructions: string, name: string, schema: unknown, fetchFn: typeof fetch = fetch,
+): Promise<{ ok: true; json: unknown } | AiFail> {
+  const unavailable = (retryable: boolean): AiFail => ({ ok: false, reason: "ai_unavailable", retryable });
   if (!cfg.apiKey || !cfg.model) return unavailable(false);
-  const text = buildInput(input);
   let res: Response;
   try {
     res = await fetchFn("https://api.openai.com/v1/responses", {
@@ -100,11 +110,12 @@ export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: t
       headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: cfg.model,
-        instructions: INSTRUCTIONS,
+        instructions,
         input: text,
         store: false,
         max_output_tokens: cfg.maxOutputTokens,
-        text: { format: { type: "json_schema", name: "draft_reply", strict: true, schema: SCHEMA } },
+        ...(cfg.reasoningEffort ? { reasoning: { effort: cfg.reasoningEffort } } : {}),
+        text: { format: { type: "json_schema", name, strict: true, schema } },
       }),
       signal: AbortSignal.timeout(30_000),
     });
@@ -113,11 +124,15 @@ export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: t
   }
   if (res.status === 429 || res.status >= 500) return unavailable(true);
   if (!res.ok) return unavailable(false);
-  let json: unknown;
   try {
-    json = await res.json();
+    return { ok: true, json: await res.json() };
   } catch {
     return { ok: false, reason: "ai_output_invalid", retryable: false };
   }
-  return parseOutput(json, text);
+}
+
+export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<AiResult> {
+  const text = buildInput(input);
+  const r = await requestResponses(text, cfg, INSTRUCTIONS, "draft_reply", SCHEMA, fetchFn);
+  return r.ok ? parseOutput(r.json, text) : r;
 }

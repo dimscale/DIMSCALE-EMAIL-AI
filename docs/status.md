@@ -1,8 +1,9 @@
 # Project Status
 
-_Last updated: 2026-10-23 (user answers, docs for F-013 applied)_
+_Last updated: 2026-10-29 (F-003 approved and built, docs updated)_
 
 ## Current state
+- **F-003 (merges F-003, F-004 and most of F-005; Approved 2026-10-29):** backend (`analyze-message`, migration `analyze_usage`/`an_take`) and pane built, independent review done. **Pending: security-review fixes verified, deploy (`supabase db push`, `OPENAI_MODEL`, function deploy), pane deploy, live tests (AC-27 to AC-32).** Decisions: model `gpt-6-luna`, caps 50 per user and 1,500 global per UTC day, reply mirrors the email's language, **test emails only until D5 (DPO)**. Outputs contain no link or email address at all. Data flow in [security](architecture/security.md#third-party-processing-openai).
 - F-001, F-002 and F-011 are Done. The add-in is live at `https://dimscale.github.io/DIMSCALE-EMAIL-AI/`, deployed by GitHub Actions from `main`, and tested in classic Outlook from the production manifest (sideloaded by the user).
 - The repo `dimscale/DIMSCALE-EMAIL-AI` is public (ADR-0004). The Supabase `whoami` function is deployed in eu-west-1.
 - **F-012 Approved (2026-10-23), in progress:** direction D "Outlook nativo" (Fluent stock themes + Office theme colours), 320 px compact, tabs Analisar | Responder, "DIMSCALE MAIL" group on the default ribbon tab (no `CustomTab`), pinnable pane with `ItemChanged`. Spec amended 2026-10-23 to match.
@@ -35,9 +36,9 @@ Pending with the tenant admin (all in the checklist above):
 | F-013 | Automatic reply drafts for **selected contacts** (Responder tab allow-list, delegated `Mail.ReadBasic` for candidates, `auto-reply-settings` function, Graph change notifications, app-only RBAC-scoped, never sends) | Backend + Mailbox + pane | ADR-0005, F-012 (tab shell), D5, D15, admin checklist | Spec amended 2026-10-23; next after F-012 |
 | F-015 | Manual batch reply drafts (tick up to 10 messages) | Mailbox + Backend | F-013 (draft engine, shared auth), F-012 | Spec draft; after F-013 |
 | F-016 | Per-user style profile from ticked sent replies | Mailbox + Backend | F-015 | Spec draft; after F-015 |
-| F-003 | Summarize the open message | Active item + AI | F-001, F-002 | Not started |
-| F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003, F-013 engine | Not started |
-| F-005 | Open a prefilled reply form (`displayReplyFormAsync`; the user sends) | Active item | F-004 | Not started |
+| F-003 | Summarize the open message (plus F-004 and the reply-form part of F-005, F-012 "Resumo da conversa") | Active item + AI | F-001, F-002 | Approved 2026-10-29; built, reviewed; deploy and live tests pending |
+| F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003, F-013 engine | Merged into F-003 |
+| F-005 | Open a prefilled reply form (`displayReplyFormAsync`; the user sends) | Active item | F-004 | Delivered by F-003 (reply-to-sender only) |
 | F-006 | Refine the suggestion | Active item + AI | F-004 | Not started |
 | F-007 | Classification with reasons and an uncertainty notice | Active item + AI | F-003 | Not started |
 | F-008 | ~~Graph list of messages~~ | — | — | Superseded by F-015 (list) and F-013 (sender list) |
@@ -51,7 +52,7 @@ Pending with the tenant admin (all in the checklist above):
 | D2 | ~~Outlook clients~~: **classic Windows, new Outlook and Mac** (2026-10-23). Live checks in F-012 AC-33/36/41/42 and F-013 AC-41/42; web is not a target | User | — |
 | D3 | ~~Backend vendor~~: Supabase (ADR-0003) | User | — |
 | D4 | ~~Entra app registration~~ (done; client ID `d157a20c-…`) | Tenant admin | — |
-| D5 | The OpenAI account, model, and GDPR acceptance of sending mail from chosen contacts to OpenAI | User / DPO | F-013, F-003 |
+| D5 | The OpenAI account, model, and GDPR acceptance of sending mail to OpenAI (F-013 chosen contacts; F-003 the open message on click, incl. quoted history, and the pseudonymised-`oid` usage counter). **Model chosen 2026-10-29: `gpt-6-luna`; DPO answer pending** (F-003 uses test emails only until then) | User / DPO | F-013, F-003 real-mail use |
 | D6 | ~~UI language~~: PT-PT (2026-10-22) | User | — |
 | D7 | ~~Production hosting~~: GitHub Pages (ADR-0004) | User | — |
 | D8 | Keep the IE11 polyfills? Depends on D2 | User | Bundle cleanup |
@@ -66,7 +67,7 @@ Pending with the tenant admin (all in the checklist above):
 | D17 | F-013 Q-C2 answered (50 contacts). Still open: Q-C1 (candidate source), Q-C3 (filters 6/12 for listed contacts), Q-C4 (forged senders) | User | F-013 implementation |
 
 ## Blockers
-F-012: none. F-013 implementation: D5, D14, D15 (and the user's approval of the amended spec/ADR recorded by the orchestrator).
+F-012: none. F-003 deploy and live tests: none (no tenant admin needed); use on real mail: D5. F-013 implementation: D5, D14, D15 (and the user's approval of the amended spec/ADR recorded by the orchestrator).
 
 ## Working agreements
 - Tell the user before starting any UI or visual design work (requested 2026-10-22).
