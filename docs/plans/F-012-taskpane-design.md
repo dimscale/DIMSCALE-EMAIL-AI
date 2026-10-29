@@ -73,3 +73,11 @@ Parallel lanes as in the F-003 plan: **C** (manifest, icons, build) touches only
 
 ## Evidence
 _Empty until implementation. Record here, with real output: step 0 baselines, the prototype decision, step 12 command results, the contrast test output, the review verdict, and the live results of step 15._
+
+### Extra live checks for the Resumo button (pane review M3, 2026-10-29)
+Count only the log lines of the `analyze-message` function (Supabase dashboard → Functions → Logs), with test emails only.
+- (a) Open the pane from the **Resumo** button, pin it, then select 3 other emails. Expected: no request for the other emails (auto mode is off in production).
+- (b) With the pane pinned from **Resumo**, restart Outlook. Expected: no request until the user clicks. If either (a) or (b) sends a request, apply the AC-53 fallback: the Resumo button only selects the tab and never starts a summary.
+
+### Note on files (pane review L5)
+The IA button keeps the green D icons (`assets/icon-16.png`, `icon-32.png`, `icon-80.png`), and the Resumo button uses `assets/resumo-16.png`, `resumo-32.png`, `resumo-80.png` with the master `assets/icon-resumo-master.svg`. AC-51 follows these file names.

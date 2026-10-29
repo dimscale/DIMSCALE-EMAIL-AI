@@ -408,3 +408,8 @@ User decision: "Traduzir" works on the incoming email. If the email is in Englis
 - Pane, tab "Traduzir": the `Select` "Traduzir para" defaults to "Automático (PT ↔ EN)", with "Português" and "English" as manual overrides.
 - Everything else in the translate rules is unchanged (plain text, `{subject, body}`, limits, no links or addresses, no sender data, cap slot before the call).
 - Live check (extends AC-47): an English email gives Portuguese, a Portuguese email gives English, and an email in another language gives Portuguese.
+
+## Amendment 2026-10-29 (c): option labels and pane review decisions
+- **Labels (user, via the orchestrator):** Idioma `Igual ao email` (match, default) | `Português` | `English`; Tom `Nenhum` (default) | `Conciso` | `Detalhado` | `Formal` | `Amigável`; Traduzir para `Automático (PT ↔ EN)` (default) | `Português` | `English`. These replace the earlier wording "Idioma do e-mail", "Normal" and "Inglês" wherever the spec uses it (ACs 40 and 41 included).
+- **One request in flight (pane review, M2):** every AI request, manual or automatic, is cancelled when the user moves to another email, so at most one request is active at any time (extends AC-44).
+- **Tab row (pane review, M1):** the four tabs use `TabList size="small"`.
