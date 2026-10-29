@@ -78,3 +78,11 @@ Moved to one consolidated PT-PT checklist for MMSI: [docs/admin/2026-10-23-mmsi-
 
 ## Evidence
 _Empty. Each step records the commands it ran, the real output, the dates and the live observations here._
+
+
+### 2026-10-29: prerequisites prepared by the orchestrator (nothing sent to the tenant admin yet)
+- **Certificate:** self-signed RSA 2048 `CN=DIMSCALE Mail AI Drafts`, valid until 2028-10-28, created on the user's PC outside the repo and OneDrive, in the folder `.dimscale-mailai-certs` of the user's home directory (it holds `drafts.crt` public, `drafts.key.pem` private and `cron-secret.txt`). Only `drafts.crt` goes to the admin. Renew before October 2028. The user should keep a backup of the private key.
+- **Supabase secrets set (names only):** `GRAPH_CERT_PRIVATE_KEY`, `GRAPH_CERT_X5T_S256`, `GRAPH_CLIENT_STATE`, `CRON_SHARED_SECRET`, `GRAPH_WEBHOOK_URL`. **Still missing:** `GRAPH_APP_CLIENT_ID` (from the admin). `AUTO_DRAFTS_ENABLED` is not `true`.
+- **Vault (pg):** `auto_draft_cron_secret` and `project_url` created.
+- **Remote state check (read-only SQL):** the 16 `ad_*` functions exist with `search_path=""`, and the review-fix markers are present in `ad_claim`, `ad_counts_today`, `ad_user_status` and `ad_retention`. The 3 cron jobs exist and read the URL and the secret from Vault. EXECUTE is held only by `postgres` and `service_role`. The 5 tables have RLS on and no access for `anon` or `authenticated`. So the in-place migration edits were already in the applied version, and no follow-up migration is needed.
+- **Decision:** the request to the tenant admin (MMSI) is sent only when the add-in is ready (user decision).
