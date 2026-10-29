@@ -2,7 +2,7 @@
 import { ANALYZE_URL } from "./config";
 
 export type AnalyzeAction = "summarize" | "reply" | "translate";
-// Options are enums only: no free text ever reaches the function's instructions (F-003).
+// Options are enums only. The optional instruction/draft refinement fields travel in the input, never in the function's instructions (F-003).
 export type ReplyLanguage = "match" | "pt" | "en";
 export type ReplyTone = "none" | "concise" | "detailed" | "formal" | "friendly";
 // "auto": Portuguese -> English, English -> Portuguese (F-003 amendment 2026-10-29 (b)).
@@ -11,7 +11,14 @@ export type TargetLanguage = "auto" | "pt" | "en";
 type Base = { subject: string; fromName: string; fromDomain: string; body: string };
 export type AnalyzePayload =
   | (Base & { action: "summarize" })
-  | (Base & { action: "reply"; language: ReplyLanguage; tone: ReplyTone })
+  | (Base & {
+      action: "reply";
+      language: ReplyLanguage;
+      tone: ReplyTone;
+      // Refinement (F-003 amendment (d)): both or none; instruction 1..300 trimmed, draft 1..2000.
+      instruction?: string;
+      draft?: string;
+    })
   | (Base & { action: "translate"; targetLanguage: TargetLanguage });
 
 export type Translation = { subject: string; body: string };

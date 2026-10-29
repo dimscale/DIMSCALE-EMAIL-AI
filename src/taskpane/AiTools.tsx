@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Field,
+  Input,
   MessageBar,
   MessageBarActions,
   MessageBarBody,
@@ -50,6 +51,7 @@ const useStyles = makeStyles({
   },
   list: { margin: 0, paddingLeft: "20px", overflowWrap: "anywhere" },
   text: { margin: 0, overflowWrap: "anywhere" },
+  refine: { display: "flex", flexWrap: "wrap", gap: "4px", alignItems: "flex-end", minWidth: 0 },
   pre: { margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "text" },
 });
 
@@ -68,6 +70,12 @@ const PAUSE_CODES: AnalyzeErrorCode[] = ["cap", "unauthorized", "disabled", "not
 
 type Err = { action: AnalyzeAction; text: string; retry?: boolean };
 type CopyState = { which: AnalyzeAction; ok: boolean } | null;
+
+const MAX_INSTRUCTION = 300;
+const MAX_DRAFT = 2000;
+const MAX_HISTORY = 5;
+// Blank after trim and after removing format chars (zero-width space, BOM...) counts as empty.
+const isBlank = (v: string) => v.replace(/\p{Cf}/gu, "").trim() === "";
 
 const LANGUAGES: [ReplyLanguage, string][] = [
   ["match", strings.replyLanguageMatch],
@@ -110,6 +118,10 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const [error, setError] = React.useState<Err | null>(null);
   const [copy, setCopy] = React.useState<CopyState>(null);
   const [openFailed, setOpenFailed] = React.useState(false);
+  const [instruction, setInstruction] = React.useState("");
+  const [history, setHistory] = React.useState<string[]>([]); // previous suggestions, memory only
+  const [revised, setRevised] = React.useState(false); // announces a successful revision
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const busy = React.useRef(false);
   const mounted = React.useRef(true);
   const runCtl = React.useRef<AbortController | null>(null); // any run (manual or auto)
@@ -126,8 +138,13 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     };
   }, []);
 
-  const run = async (action: AnalyzeAction, isAuto = false) => {
+  const run = async (action: AnalyzeAction, isAuto = false, refine?: string) => {
     if (busy.current || empty) return;
+    if (
+      refine !== undefined &&
+      (reply === null || reply.length > MAX_DRAFT || isBlank(refine) || refine.length > MAX_INSTRUCTION)
+    )
+      return;
     busy.current = true;
     if (action === "summarize") auto.attempted.add(id);
     const ctl = new AbortController();
@@ -137,6 +154,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     setError(null);
     setCopy(null);
     setOpenFailed(false);
+    setRevised(false);
     try {
       const token = await getTokenSilent();
       if (!mounted.current) return;
@@ -154,26 +172,43 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
         action === "summarize"
           ? { action, ...base }
           : action === "reply"
-            ? { action, ...base, language: options.language, tone: options.tone }
+            ? {
+                action,
+                ...base,
+                language: options.language,
+                tone: options.tone,
+                ...(refine !== undefined ? { instruction: refine, draft: reply as string } : {}),
+              }
             : translatePayload(view, options.target);
       const res = await analyze(token.token, payload, undefined, ctl.signal);
       if (!mounted.current || res.kind === "aborted") return;
       if (res.kind === "summary") setSummary(res.summary);
-      else if (res.kind === "reply") setReply(res.reply);
+      else if (res.kind === "reply") {
+        if (refine !== undefined && reply !== null) {
+          setHistory((h) => [...h, reply].slice(-MAX_HISTORY));
+          setInstruction("");
+          setRevised(true);
+        } else setHistory([]);
+        setReply(res.reply);
+      }
       else if (res.kind === "translation") setTranslation(res.translation);
       else if (res.kind === "error") {
-        let text = errorText[res.code];
+        let text =
+          refine !== undefined && res.code === "invalid" ? strings.aiRefineInvalid : errorText[res.code];
         if (isAuto && PAUSE_CODES.includes(res.code)) {
           text = res.code === "cap" ? strings.autoPausedCap : `${text} ${strings.autoPausedSuffix}`;
           auto.pause();
         }
-        setError({ action, text, retry: RETRYABLE.includes(res.code) });
+        setError({ action, text, retry: refine === undefined && RETRYABLE.includes(res.code) });
       }
     } finally {
       busy.current = false;
       if (runCtl.current === ctl) runCtl.current = null;
       if (autoCtl.current === ctl) autoCtl.current = null;
-      if (mounted.current) setPending(null);
+      if (mounted.current) {
+        setPending(null);
+        if (refine !== undefined) inputRef.current?.focus(); // the clicked button was disabled while pending
+      }
     }
   };
 
@@ -216,6 +251,20 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     const item = Office.context.mailbox?.item as Office.MessageRead | undefined | null;
     const ok = await openReplyForm(item, toReplyHtml(reply));
     if (mounted.current && !ok) setOpenFailed(true);
+  };
+
+  const trimmed = instruction.trim();
+  const blank = isBlank(instruction) || trimmed.length > MAX_INSTRUCTION;
+  const tooLong = reply !== null && reply.length > MAX_DRAFT;
+  const sendRefine = () => {
+    if (!blank && pending === null && !tooLong) void run("reply", false, trimmed);
+  };
+  const prevVersion = () => {
+    if (history.length === 0 || pending !== null) return;
+    if (history.length === 1) inputRef.current?.focus(); // the button disappears with the last step
+    setReply(history[history.length - 1]);
+    setHistory(history.slice(0, -1));
+    setCopy(null);
   };
 
   const after = (which: AnalyzeAction, extra?: React.ReactNode) => (
@@ -351,6 +400,47 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
           after={after(
             "reply",
             <>
+              {tooLong ? (
+                <p className={s.note} role="status">
+                  {strings.aiRefineTooLong}
+                </p>
+              ) : (
+                <Field label={strings.aiRefineLabel}>
+                  <div className={s.refine}>
+                    <Input
+                      ref={inputRef}
+                      style={{ flex: "1 1 120px", minWidth: "120px" }}
+                      value={instruction}
+                      maxLength={MAX_INSTRUCTION}
+                      placeholder={strings.aiRefinePlaceholder}
+                      readOnly={pending !== null}
+                      aria-disabled={pending !== null}
+                      onChange={(_, d) => setInstruction(d.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          sendRefine();
+                        }
+                      }}
+                    />
+                    <Button
+                      appearance="secondary"
+                      disabled={blank || pending !== null}
+                      onClick={sendRefine}
+                    >
+                      {strings.aiRefineSend}
+                    </Button>
+                  </div>
+                </Field>
+              )}
+              <span className={s.note} role="status">
+                {revised ? strings.aiRefineDone : ""}
+              </span>
+              {history.length > 0 && (
+                <Button disabled={pending !== null} onClick={prevVersion}>
+                  {strings.aiPrevVersion}
+                </Button>
+              )}
               <Button appearance="primary" onClick={() => void openReply()}>
                 {strings.aiOpenReply}
               </Button>

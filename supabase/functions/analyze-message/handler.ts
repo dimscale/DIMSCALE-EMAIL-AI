@@ -5,7 +5,7 @@ import type { Config } from "../_shared/entra.ts";
 import { log } from "../_shared/log.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { validateStateful } from "../_shared/stateful.ts";
-import { generateReply, LANGUAGES, type ReplyOpts, TONE_OPTIONS } from "./replyOptions.ts";
+import { generateReply, LANGUAGES, type ReplyOpts, type Revise, TONE_OPTIONS } from "./replyOptions.ts";
 import { generateSummary, hasLink } from "./summary.ts";
 import { generateTranslation, type Target, TARGETS } from "./translate.ts";
 
@@ -34,14 +34,14 @@ async function readCapped(req: Request, max: number): Promise<string | null> {
   return text + dec.decode();
 }
 
-type Payload = DraftInput & ({ action: "summarize" } | { action: "reply"; opts: ReplyOpts } | { action: "translate"; target: Target });
+type Payload = DraftInput & ({ action: "summarize" } | { action: "reply"; opts: ReplyOpts; revise?: Revise } | { action: "translate"; target: Target });
 
 /** Strict payload validation per action (AC-3, AC-35). Returns null when invalid. Lengths are UTF-16 units, like the pane. */
 export function parsePayload(raw: unknown): Payload | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const b = raw as Record<string, unknown>;
   const { action, body, fromDomain, fromName, subject, language, tone, targetLanguage } = b;
-  const extra = action === "reply" ? ["language", "tone"] : action === "translate" ? ["targetLanguage"] : [];
+  const extra = action === "reply" ? ["language", "tone", "instruction", "draft"] : action === "translate" ? ["targetLanguage"] : [];
   const keys = Object.keys(b);
   const base = ["action", "body", "fromDomain", "fromName", "subject"];
   if (!base.every((k) => keys.includes(k)) || keys.some((k) => !base.includes(k) && !extra.includes(k))) return null;
@@ -54,7 +54,16 @@ export function parsePayload(raw: unknown): Payload | null {
   if (action === "reply") {
     const l = keys.includes("language") ? language : "match", t = keys.includes("tone") ? tone : "none";
     if (!(LANGUAGES as readonly unknown[]).includes(l) || !(TONE_OPTIONS as readonly unknown[]).includes(t)) return null;
-    return { action, ...input, opts: { language: l as ReplyOpts["language"], tone: t as ReplyOpts["tone"] } };
+    const opts = { language: l as ReplyOpts["language"], tone: t as ReplyOpts["tone"] };
+    const hasI = keys.includes("instruction"), hasD = keys.includes("draft");
+    if (hasI !== hasD) return null; // both or none (AC-53)
+    if (!hasI) return { action, ...input, opts };
+    const { instruction, draft } = b;
+    if (typeof instruction !== "string" || typeof draft !== "string") return null;
+    const ins = instruction.trim();
+    const blank = (x: string) => x.replace(/\p{Cf}/gu, "").trim() === ""; // zero-width chars alone are blank
+    if (ins.length > 300 || draft.length > 2000 || blank(ins) || blank(draft)) return null;
+    return { action, ...input, opts, revise: { instruction: ins.replace(/\p{Cc}+/gu, " "), draft } };
   }
   if (action === "translate") {
     if (typeof targetLanguage !== "string" || !Object.hasOwn(TARGETS, targetLanguage) || fromName !== "" || fromDomain !== "") return null;
@@ -144,8 +153,8 @@ export async function handle(
       const r = await generateTranslation(input, target, { ...ai, maxOutputTokens: TRANSLATE_MAX_OUTPUT_TOKENS }, fetchFn);
       return r.ok ? json({ ok: true, action, translation: r.translation }, 200) : aiFail(r);
     }
-    const { action: _a, opts, ...input } = payload;
-    const r = await generateReply(input, opts, ai, fetchFn);
+    const { action: _a, opts, revise, ...input } = payload;
+    const r = await generateReply(input, opts, ai, fetchFn, revise);
     if (r.ok && hasLink(r.reply)) return aiFail(NO_LINKS);
     return r.ok ? json({ ok: true, action, reply: r.reply }, 200) : aiFail(r);
   })();

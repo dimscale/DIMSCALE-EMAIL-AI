@@ -7,7 +7,7 @@
   <Version>1.0.2.1</Version>
   <ProviderName>DIMSCALE</ProviderName>
   <DefaultLocale>pt-PT</DefaultLocale>
-  <DisplayName DefaultValue="DIMSCALE Mail AI (teste separador)"/>
+  <DisplayName DefaultValue="Assistente IA (teste separador)"/>
   <Description DefaultValue="Helps you read, triage and answer email with AI."/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-128.png"/>

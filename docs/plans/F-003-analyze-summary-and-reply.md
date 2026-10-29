@@ -147,3 +147,17 @@ _Empty. Each step records the commands it ran, the real output, dates and live o
 - **Deploy (user's CLI):** `supabase functions deploy analyze-message --use-api` (version 3). No migration and no new secret were needed.
 - **Smoke tests with `curl`:** OPTIONS from `https://dimscale.github.io` and `https://localhost:3000` return 204 with the origin; OPTIONS from `https://evil.example` returns 204 with no `Access-Control-Allow-Origin`; POST with no token or a garbage token returns 401; GET returns 405.
 - **Not done yet:** merge to `main` (the published pane is still the previous version), and all the live checks in Outlook (AC-27 to AC-32, AC-47 to AC-51, F-012 AC-44, AC-52 to AC-54).
+
+## Amendment (d) plan: refine the suggested reply (2026-10-29)
+Spec: F-003 amendment (d), AC-53 to AC-58. No manifest change, no migration, no new secret.
+- **Step 37 (function, coder):** `parsePayload` accepts optional `instruction` (1 to 300 units after trim) and `draft` (1 to 2,000 units), both or none, only for `action: "reply"`; `generateReply` adds the labelled sections and the revise sentence; same output checks. Deno tests for AC-53, AC-55, AC-57, AC-58. Satisfies AC-53, AC-55, AC-57, AC-58.
+- **Step 38 (pane, coder):** `analyzeClient` sends the two fields; `AiTools`/`ToolCard` add the "Pedir alterações" box, Enter/button, "Versão anterior" (max 5, memory only), one request at a time, abort on item change; PT-PT strings. Vitest tests for AC-54, AC-56. Satisfies AC-54, AC-56.
+- **Step 39:** `security.md` data-flow update, QA, Opus review, function redeploy, merge, live check. Evidence is recorded here.
+
+### 2026-10-29 (c): amendment (d) evidence (reply refinement, steps 37 to 39)
+- **Reviews:** Opus review APPROVE WITH COMMENTS (no Critical or High). Medium fixed: draft and instruction now have their own delimiters and `stripMarkers` removes all six markers; focus kept on the input and "Resposta atualizada" announced. Low fixed: IME Enter, row wraps at 320 px, link-request hint, 300-unit and invisible-character checks in pane and function, "below" restored in the revise sentence, stale comments, test gaps. Left as documented: the 16 KiB raw-body cap can reject a refinement of a CJK email (3-byte UTF-8), Portuguese and English are not affected.
+- **QA (haiku):** AC-53 to AC-58 pass with mocked OpenAI, Office.js and Graph; AC-55's "the model ignores the injection" is not verifiable without a live model.
+- **Checks after the fixes (orchestrator):** Deno `analyze-message` 41, `whoami` 24, `graph-webhook` 13, `auto-draft-cron` 6, `auto-reply-settings` 9, `_shared` 55 (with the analyze-message `deno.json`), all passed; `tsc` clean; `office-addin-lint` clean; `vitest` 38 files, 469 passed, 2 todo; `npm run build` compiled with 3 size warnings.
+- **Deploy:** `supabase functions deploy analyze-message --use-api`. `_shared/ai.ts` (`stripMarkers`) also feeds `graph-webhook` and `auto-draft-cron`; they are not redeployed yet and behave the same unless an email contains the literal markers.
+- **Smoke tests (curl):** OPTIONS from `https://dimscale.github.io` and `https://localhost:3000` return 204 with the origin; from `https://evil.example` 204 without `Access-Control-Allow-Origin`; POST with no token or a garbage token returns 401; GET returns 405.
+- **Not done:** merge to `main`; live checks (320 px layout and 200 % zoom, screen reader, injection with a live model, `analyze-message` logs after a real revision).

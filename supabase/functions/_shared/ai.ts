@@ -26,11 +26,12 @@ export type AiResult =
   | { ok: true; reply: string }
   | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean };
 
-function stripMarkers(s: string): string {
+const MARKERS = [OPEN, CLOSE, "<<<DRAFT", "DRAFT>>>", "<<<INSTRUCTION", "INSTRUCTION>>>"]; // F-003 (d): draft and instruction have their own delimiters
+export function stripMarkers(s: string): string {
   let prev: string;
   do {
     prev = s;
-    s = s.replaceAll(OPEN, "").replaceAll(CLOSE, ""); // loop: removal can create a new marker
+    for (const m of MARKERS) s = s.replaceAll(m, ""); // loop: removal can create a new marker
   } while (s !== prev);
   return s;
 }
