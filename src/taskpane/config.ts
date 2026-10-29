@@ -4,6 +4,7 @@ export const CLIENT_ID = "d157a20c-8820-43ad-8dbf-174a5cade5ea"; // Entra app "D
 export const FUNCTION_URL = "https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/whoami";
 export const SETTINGS_URL =
   "https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/auto-reply-settings";
+export const ANALYZE_URL = "https://qepzpkseyzclxnqguqta.supabase.co/functions/v1/analyze-message";
 
 export const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}`;
 export const SCOPES = [`api://${CLIENT_ID}/access_as_user`, "profile"];

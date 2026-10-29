@@ -26,7 +26,13 @@ type State =
   | { kind: "ok"; view: MessageView };
 
 const useStyles = makeStyles({
-  fields: { display: "flex", flexDirection: "column", gap: "4px", paddingTop: "8px", paddingBottom: "8px" },
+  fields: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    paddingTop: "8px",
+    paddingBottom: "8px",
+  },
   label: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
   value: { overflowWrap: "anywhere" },
   preview: {
@@ -41,15 +47,41 @@ const useStyles = makeStyles({
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     ":focus-visible": { outline: `2px solid ${tokens.colorStrokeFocus2}`, outlineOffset: "1px" },
   },
-  secondary: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, display: "block", paddingTop: "4px" },
-  empty: { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "24px 0", textAlign: "center" },
-  hidden: { position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" },
+  secondary: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase200,
+    display: "block",
+    paddingTop: "4px",
+  },
+  empty: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+    padding: "24px 0",
+    textAlign: "center",
+  },
+  hidden: {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    overflow: "hidden",
+    clip: "rect(0 0 0 0)",
+    whiteSpace: "nowrap",
+  },
 });
 
 const sender = (v: MessageView) =>
-  v.senderName && v.senderEmail ? `${v.senderName} <${v.senderEmail}>` : v.senderName || v.senderEmail || "—";
+  v.senderName && v.senderEmail
+    ? `${v.senderName} <${v.senderEmail}>`
+    : v.senderName || v.senderEmail || "—";
 
-const MessagePanel: React.FC = () => {
+export type BelowCtx = { view: MessageView; itemKey: number } | null;
+
+// renderBelow: the App renders the AI section after the message; ctx is null unless the message loaded (ok state).
+const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode }> = ({
+  renderBelow,
+}) => {
   const s = useStyles();
   const [state, setState] = React.useState<State>({ kind: "loading" });
   const [attempt, setAttempt] = React.useState(0);
@@ -88,24 +120,31 @@ const MessagePanel: React.FC = () => {
     };
   }, [attempt]);
 
+  const below = renderBelow?.(state.kind === "ok" ? { view: state.view, itemKey: attempt } : null);
   if (state.kind === "loading") {
     return (
-      <Skeleton aria-busy="true" role="status">
-        <span className={s.hidden}>{strings.loading}</span>
-        <div className={s.fields} aria-hidden="true">
-          <SkeletonItem size={16} />
-          <SkeletonItem size={16} />
-          <SkeletonItem size={16} />
-        </div>
-      </Skeleton>
+      <>
+        <Skeleton aria-busy="true" role="status">
+          <span className={s.hidden}>{strings.loading}</span>
+          <div className={s.fields} aria-hidden="true">
+            <SkeletonItem size={16} />
+            <SkeletonItem size={16} />
+            <SkeletonItem size={16} />
+          </div>
+        </Skeleton>
+        {below}
+      </>
     );
   }
   if (state.kind === "none") {
     return (
-      <div className={s.empty}>
-        <MailRegular fontSize={32} aria-hidden="true" />
-        <p>{strings.noItem}</p>
-      </div>
+      <>
+        <div className={s.empty}>
+          <MailRegular fontSize={32} aria-hidden="true" />
+          <p>{strings.noItem}</p>
+        </div>
+        {below}
+      </>
     );
   }
   const v = state.view;
@@ -118,36 +157,45 @@ const MessagePanel: React.FC = () => {
     </div>
   );
   return (
-    <div>
-      <div className={s.fields}>
-        {field(strings.subject, v.subject)}
-        {field(strings.from, sender(v))}
-        {field(strings.date, v.date)}
+    <>
+      <div>
+        <div className={s.fields}>
+          {field(strings.subject, v.subject)}
+          {field(strings.from, sender(v))}
+          {field(strings.date, v.date)}
+        </div>
+        {state.kind === "error" ? (
+          <MessageBar intent="error" role="alert">
+            <MessageBarBody>{strings.error}</MessageBarBody>
+            <MessageBarActions>
+              <Button onClick={() => setAttempt((n) => n + 1)}>{strings.retry}</Button>
+            </MessageBarActions>
+          </MessageBar>
+        ) : (
+          <Accordion collapsible>
+            <AccordionItem value="msg">
+              <AccordionHeader icon={<MailRegular />} expandIconPosition="end">
+                {strings.messageSection}
+              </AccordionHeader>
+              <AccordionPanel>
+                <pre
+                  className={s.preview}
+                  role="region"
+                  aria-label={strings.bodyPreview}
+                  tabIndex={0}
+                  dir="auto"
+                >
+                  {v.body.trim() ? v.body : strings.noBody}
+                </pre>
+                {v.truncated && <span className={s.secondary}>{strings.truncated}</span>}
+                <span className={s.secondary}>{strings.bodyLength(v.bodyLength)}</span>
+              </AccordionPanel>
+            </AccordionItem>
+          </Accordion>
+        )}
       </div>
-      {state.kind === "error" ? (
-        <MessageBar intent="error" role="alert">
-          <MessageBarBody>{strings.error}</MessageBarBody>
-          <MessageBarActions>
-            <Button onClick={() => setAttempt((n) => n + 1)}>{strings.retry}</Button>
-          </MessageBarActions>
-        </MessageBar>
-      ) : (
-        <Accordion collapsible>
-          <AccordionItem value="msg">
-            <AccordionHeader icon={<MailRegular />} expandIconPosition="end">
-              {strings.messageSection}
-            </AccordionHeader>
-            <AccordionPanel>
-              <pre className={s.preview} role="region" aria-label={strings.bodyPreview} tabIndex={0} dir="auto">
-                {v.body.trim() ? v.body : strings.noBody}
-              </pre>
-              {v.truncated && <span className={s.secondary}>{strings.truncated}</span>}
-              <span className={s.secondary}>{strings.bodyLength(v.bodyLength)}</span>
-            </AccordionPanel>
-          </AccordionItem>
-        </Accordion>
-      )}
-    </div>
+      {below}
+    </>
   );
 };
 

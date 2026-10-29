@@ -11,15 +11,20 @@ afterEach(cleanup);
 
 describe("App layout (F-012)", () => {
   it("has one h1, tabs Analisar/Responder, the assurance line and AI tool cards", async () => {
-    (globalThis as any).Office = { CoercionType: { Text: "text" }, context: { mailbox: { item: undefined } } };
+    (globalThis as any).Office = {
+      CoercionType: { Text: "text" },
+      context: { mailbox: { item: undefined } },
+    };
     render(<App />);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("img", { name: "DIMSCALE" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe(
+      "true"
+    );
     expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "DIMSCALE AI Assistant" })).toBeTruthy();
-    expect(screen.getByText("Resumo do email")).toBeTruthy();
-    expect(screen.getByText("Resposta rápida")).toBeTruthy();
+    expect(screen.queryByText("Resumo do email")).toBeNull(); // superseded by F-003 (no message: no AI section)
+    expect(screen.queryByText("Resposta rápida")).toBeNull();
     expect(screen.getByText("Melhorar texto e tom")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
     expect(await screen.findByText("Respostas automáticas")).toBeTruthy();
@@ -44,13 +49,22 @@ describe("backend notice placement (F-012)", () => {
     vi.resetModules();
     vi.doUnmock("./BackendStatus");
     vi.doMock("./config", () => ({ isConfigured: () => false }));
-    vi.doMock("./auth", () => ({ isNaaSupported: () => true, getTokenSilent: vi.fn(), signIn: vi.fn() }));
+    vi.doMock("./auth", () => ({
+      isNaaSupported: () => true,
+      getTokenSilent: vi.fn(),
+      signIn: vi.fn(),
+    }));
     const { default: RealApp } = await import("./App");
-    (globalThis as any).Office = { CoercionType: { Text: "text" }, context: { mailbox: { item: undefined } } };
+    (globalThis as any).Office = {
+      CoercionType: { Text: "text" },
+      context: { mailbox: { item: undefined } },
+    };
     const { container } = render(<RealApp />);
     const bar = await screen.findByText(/ainda não está configurado/);
     expect(container.querySelector("footer")?.contains(bar)).toBe(false);
-    expect(screen.queryByRole("status", { name: "" , hidden: false })).toBeNull();
-    expect(container.querySelector('footer [aria-hidden="true"]')?.textContent).toContain("Backend não configurado");
+    expect(screen.queryByRole("status", { name: "", hidden: false })).toBeNull();
+    expect(container.querySelector('footer [aria-hidden="true"]')?.textContent).toContain(
+      "Backend não configurado"
+    );
   });
 });

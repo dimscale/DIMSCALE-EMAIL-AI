@@ -1,7 +1,16 @@
 import * as React from "react";
-import { Badge, Card, FluentProvider, Tab, TabList, makeStyles, tokens } from "@fluentui/react-components";
+import {
+  Badge,
+  Card,
+  FluentProvider,
+  Tab,
+  TabList,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
 import { ShieldCheckmarkRegular } from "@fluentui/react-icons";
 import BackendStatus from "./BackendStatus";
+import AiTools from "./AiTools";
 import MessagePanel from "./MessagePanel";
 import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
@@ -11,9 +20,27 @@ import { Wordmark } from "./Wordmark";
 type View = "analyze" | "reply";
 
 const useStyles = makeStyles({
-  root: { minHeight: "100vh", display: "flex", flexDirection: "column", fontSize: tokens.fontSizeBase300 },
-  header: { display: "flex", alignItems: "center", height: "40px", padding: "0 12px", boxSizing: "border-box" },
-  h1: { display: "flex", alignItems: "center", gap: "8px", margin: 0, fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightSemibold },
+  root: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    fontSize: tokens.fontSizeBase300,
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    height: "40px",
+    padding: "0 12px",
+    boxSizing: "border-box",
+  },
+  h1: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    margin: 0,
+    fontSize: tokens.fontSizeBase400,
+    fontWeight: tokens.fontWeightSemibold,
+  },
   main: { flex: 1, padding: "0 12px", maxWidth: "640px" },
   panel: {
     display: "flex",
@@ -26,11 +53,20 @@ const useStyles = makeStyles({
   row: { display: "flex", alignItems: "center", gap: "8px" },
   icon: { display: "flex", fontSize: "20px", flex: "none" },
   secondary: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
-  assistantIntro: { margin: "4px 0 0", color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
+  assistantIntro: {
+    margin: "4px 0 0",
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase200,
+  },
   tools: { display: "flex", flexDirection: "column", gap: "8px" },
   toolCard: { display: "flex", flexDirection: "column", gap: "6px", padding: "12px" },
   toolTitle: { margin: 0, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold },
-  toolDescription: { margin: 0, color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, lineHeight: "18px" },
+  toolDescription: {
+    margin: 0,
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase200,
+    lineHeight: "18px",
+  },
   footer: { padding: "8px 12px 12px", borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
@@ -62,7 +98,11 @@ const App: React.FC = () => {
         </h1>
       </header>
       <main className={s.main}>
-        <TabList selectedValue={view} onTabSelect={(_, d) => setView(d.value as View)} aria-label={strings.tabsLabel}>
+        <TabList
+          selectedValue={view}
+          onTabSelect={(_, d) => setView(d.value as View)}
+          aria-label={strings.tabsLabel}
+        >
           <Tab value="analyze" id="tab-analyze" aria-controls="panel-analyze">
             {strings.tabAnalyze}
           </Tab>
@@ -80,16 +120,23 @@ const App: React.FC = () => {
           hidden={view !== "analyze"}
           style={view !== "analyze" ? { display: "none" } : undefined}
         >
-          <MessagePanel />
-          <section aria-labelledby="ai-tools-heading">
-            <h2 id="ai-tools-heading" className={s.toolTitle}>{strings.aiAssistantTitle}</h2>
-            <p className={s.assistantIntro}>{strings.aiAssistantIntro}</p>
-            <div className={s.tools}>
-              <AiToolCard title={strings.aiSummaryTitle} description={strings.aiSummaryDescription} />
-              <AiToolCard title={strings.aiReplyTitle} description={strings.aiReplyDescription} />
-              <AiToolCard title={strings.aiImproveTitle} description={strings.aiImproveDescription} />
-            </div>
-          </section>
+          <MessagePanel
+            renderBelow={(ctx) => (
+              <section aria-labelledby="ai-tools-heading">
+                <h2 id="ai-tools-heading" className={s.toolTitle}>
+                  {strings.aiAssistantTitle}
+                </h2>
+                <p className={s.assistantIntro}>{strings.aiAssistantIntro}</p>
+                <div className={s.tools}>
+                  {ctx && <AiTools key={ctx.itemKey} view={ctx.view} />}
+                  <AiToolCard
+                    title={strings.aiImproveTitle}
+                    description={strings.aiImproveDescription}
+                  />
+                </div>
+              </section>
+            )}
+          />
           <div className={s.row}>
             <span className={s.icon} aria-hidden="true">
               <ShieldCheckmarkRegular />
