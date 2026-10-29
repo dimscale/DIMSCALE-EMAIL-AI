@@ -190,7 +190,7 @@ describe("Traduzir card (F-003/AC-41, F-012/AC-46)", () => {
     fetchMock.mockResolvedValue(json(200, TR));
     render(<App />);
     tab("Traduzir");
-    expect((screen.getByLabelText("Traduzir para") as HTMLSelectElement).value).toBe("pt");
+    expect((screen.getByLabelText("Traduzir para") as HTMLSelectElement).value).toBe("auto");
     fireEvent.change(screen.getByLabelText("Traduzir para"), { target: { value: "en" } });
     expect(fetchMock).not.toHaveBeenCalled();
     await click("Traduzir");
@@ -207,6 +207,34 @@ describe("Traduzir card (F-003/AC-41, F-012/AC-46)", () => {
     expect(sent().body).toHaveLength(4000);
     expect(body).not.toContain("Ana");
     expect(body).not.toContain("exemplo");
+  });
+  it("defaults to Automático (PT ↔ EN) and sends targetLanguage auto", async () => {
+    setup(makeItem("corpo"));
+    fetchMock.mockResolvedValue(json(200, TR));
+    render(<App />);
+    tab("Traduzir");
+    const sel = screen.getByLabelText("Traduzir para") as HTMLSelectElement;
+    expect(sel.value).toBe("auto");
+    expect(Array.from(sel.options).map((o) => o.text)).toEqual([
+      "Automático (PT ↔ EN)",
+      "Português",
+      "English",
+    ]);
+    await click("Traduzir");
+    expect(sent()).toMatchObject({ action: "translate", targetLanguage: "auto" });
+  });
+  it("choosing Português sends pt and choosing English sends en", async () => {
+    setup(makeItem("corpo"));
+    fetchMock.mockResolvedValue(json(200, TR));
+    render(<App />);
+    tab("Traduzir");
+    const sel = screen.getByLabelText("Traduzir para");
+    fireEvent.change(sel, { target: { value: "pt" } });
+    await click("Traduzir");
+    expect(sent(0)).toMatchObject({ targetLanguage: "pt" });
+    fireEvent.change(sel, { target: { value: "en" } });
+    await click("Traduzir");
+    expect(sent(1)).toMatchObject({ targetLanguage: "en" });
   });
   it("renders subject and body as text, copies subject + blank line + body, has no reply-form button", async () => {
     setup(makeItem("corpo"));

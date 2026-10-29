@@ -35,7 +35,7 @@ import ToolCard from "./ToolCard";
 
 export type ToolTab = "summary" | "reply" | "translate";
 export type ToolOptions = { language: ReplyLanguage; tone: ReplyTone; target: TargetLanguage };
-export const DEFAULT_OPTIONS: ToolOptions = { language: "match", tone: "none", target: "pt" };
+export const DEFAULT_OPTIONS: ToolOptions = { language: "match", tone: "none", target: "auto" };
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: "8px", minWidth: 0, maxWidth: "100%" },
@@ -82,6 +82,7 @@ const TONES: [ReplyTone, string][] = [
   ["friendly", strings.replyToneFriendly],
 ];
 const TARGETS: [TargetLanguage, string][] = [
+  ["auto", strings.translateAuto],
   ["pt", strings.translatePt],
   ["en", strings.translateEn],
 ];

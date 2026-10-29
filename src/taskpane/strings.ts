@@ -31,6 +31,7 @@ export const strings = {
   aiTranslating: "A traduzir…",
   aiTranslatedSubject: (x: string) => `Assunto: ${x}`,
   translateTargetLabel: "Traduzir para",
+  translateAuto: "Automático (PT ↔ EN)",
   translatePt: "Português",
   translateEn: "English",
   replyLanguageLabel: "Idioma",

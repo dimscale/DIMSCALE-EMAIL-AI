@@ -109,6 +109,21 @@ describe("analyzeClient translate and abort (F-003/AC-46)", () => {
     });
     expect(JSON.parse(f.mock.calls[0][1].body)).toEqual(tr);
   });
+  it("accepts all three targetLanguage values and sends each one as is", async () => {
+    for (const targetLanguage of ["auto", "pt", "en"] as const) {
+      const f = resp(200, {
+        ok: true,
+        action: "translate",
+        translation: { subject: "", body: "x" },
+      });
+      const p = { ...tr, targetLanguage };
+      expect(await analyze("t", p, f as any)).toEqual({
+        kind: "translation",
+        translation: { subject: "", body: "x" },
+      });
+      expect(JSON.parse(f.mock.calls[0][1].body)).toEqual(p);
+    }
+  });
   it("rejects a 200 without a valid translation as the generic error", async () => {
     for (const body of [
       { ok: true, action: "translate" },

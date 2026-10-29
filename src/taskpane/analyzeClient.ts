@@ -5,7 +5,8 @@ export type AnalyzeAction = "summarize" | "reply" | "translate";
 // Options are enums only: no free text ever reaches the function's instructions (F-003).
 export type ReplyLanguage = "match" | "pt" | "en";
 export type ReplyTone = "none" | "concise" | "detailed" | "formal" | "friendly";
-export type TargetLanguage = "pt" | "en";
+// "auto": Portuguese -> English, English -> Portuguese (F-003 amendment 2026-10-29 (b)).
+export type TargetLanguage = "auto" | "pt" | "en";
 
 type Base = { subject: string; fromName: string; fromDomain: string; body: string };
 export type AnalyzePayload =
