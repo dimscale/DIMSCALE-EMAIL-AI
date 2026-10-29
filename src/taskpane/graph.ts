@@ -1,4 +1,4 @@
-/* global fetch, Response */
+/* global fetch, Response, URL, AbortController, setTimeout, clearTimeout */
 import { getApp } from "./auth";
 
 export const GRAPH_SCOPES = ["https://graph.microsoft.com/Mail.ReadBasic"];
@@ -94,14 +94,24 @@ export async function fetchRecentSenders(
 
   const allMessages: Array<{ from?: { emailAddress?: { address?: string; name?: string } } }> = [];
   let totalFetched = 0;
+  let pageCount = 0;
 
-  while (url && totalFetched < 300) {
-    const res: Response = await fetchFn(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+  while (url && totalFetched < 300 && pageCount < 5) {
+    pageCount++;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    let res: Response;
+    try {
+      res = await fetchFn(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!res.ok) {
       throw new Error(`Graph request failed with status ${res.status}`);
@@ -109,10 +119,31 @@ export async function fetchRecentSenders(
 
     const data: any = await res.json();
     const items = Array.isArray(data?.value) ? data.value : [];
+    if (items.length === 0) {
+      break;
+    }
     allMessages.push(...items);
     totalFetched += items.length;
 
-    url = typeof data?.["@odata.nextLink"] === "string" ? data["@odata.nextLink"] : undefined;
+    const nextLink =
+      typeof data?.["@odata.nextLink"] === "string" ? data["@odata.nextLink"] : undefined;
+    if (nextLink) {
+      try {
+        const parsed = new URL(nextLink);
+        if (
+          parsed.protocol === "https:" &&
+          parsed.hostname.toLowerCase() === "graph.microsoft.com"
+        ) {
+          url = nextLink;
+        } else {
+          url = undefined;
+        }
+      } catch {
+        url = undefined;
+      }
+    } else {
+      url = undefined;
+    }
   }
 
   return filterRecentSenders(allMessages, ownAddress);

@@ -112,7 +112,11 @@ const useStyles = makeStyles({
 
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export const ResponderPanel: React.FC = () => {
+export interface ResponderPanelProps {
+  active?: boolean;
+}
+
+export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true }) => {
   const s = useStyles();
 
   const [enabled, setEnabled] = React.useState<boolean>(false);
@@ -124,12 +128,17 @@ export const ResponderPanel: React.FC = () => {
   const [graphConsentNeeded, setGraphConsentNeeded] = React.useState<boolean>(false);
   const [graphDenied, setGraphDenied] = React.useState<boolean>(false);
 
-  const [loadingInitial, setLoadingInitial] = React.useState<boolean>(true);
+  const [loadingInitial, setLoadingInitial] = React.useState<boolean>(active);
   const [loadingSenders, setLoadingSenders] = React.useState<boolean>(false);
   const [saving, setSaving] = React.useState<boolean>(false);
   const [confirmDelete, setConfirmDelete] = React.useState<boolean>(false);
+  const [loadSettingsError, setLoadSettingsError] = React.useState<boolean>(false);
 
   const [notice, setNotice] = React.useState<{ intent: "info" | "success" | "error"; text: string } | null>(null);
+
+  const deleteAllButtonRef = React.useRef<HTMLButtonElement>(null);
+  const confirmYesRef = React.useRef<HTMLButtonElement>(null);
+  const hasLoadedRef = React.useRef<boolean>(false);
 
   const getOwnAddress = (): string => {
     try {
@@ -139,54 +148,72 @@ export const ResponderPanel: React.FC = () => {
     }
   };
 
-  // 1. Initial load: read settings from backend and check Graph token
-  React.useEffect(() => {
-    let active = true;
+  const init = React.useCallback(async () => {
+    setLoadingInitial(true);
+    setLoadSettingsError(false);
 
-    async function init() {
-      setLoadingInitial(true);
+    try {
       const authRes = await getTokenSilent();
-      if (!active) return;
-
       if (authRes?.kind === "token") {
         const settingsRes = await fetchSettings(authRes.token);
-        if (active && settingsRes.kind === "ok") {
+        if (settingsRes.kind === "ok") {
           setEnabled(settingsRes.data.enabled);
           setServerStatus(settingsRes.data.status);
           setSelectedContacts(settingsRes.data.contacts);
+          setLoadSettingsError(false);
+        } else {
+          setLoadSettingsError(true);
         }
+      } else {
+        setLoadSettingsError(true);
       }
 
       // Check Graph permissions for candidates
-      const graphRes = await getGraphTokenSilent();
-      if (!active) return;
+      try {
+        const graphRes = await getGraphTokenSilent();
 
-      if (graphRes?.kind === "token") {
-        setGraphConsentNeeded(false);
-        setLoadingSenders(true);
-        try {
-          const list = await fetchRecentSenders(graphRes.token, getOwnAddress());
-          if (active) setCandidates(list);
-        } catch {
-          // Graph call failed gracefully
-        } finally {
-          if (active) setLoadingSenders(false);
+        if (graphRes?.kind === "token") {
+          setGraphConsentNeeded(false);
+          setLoadingSenders(true);
+          try {
+            const list = await fetchRecentSenders(graphRes.token, getOwnAddress());
+            setCandidates(list);
+          } catch {
+            // Graph call failed gracefully
+          } finally {
+            setLoadingSenders(false);
+          }
+        } else if (graphRes?.kind === "needConsent") {
+          setGraphConsentNeeded(true);
+        } else {
+          setGraphDenied(true);
         }
-      } else if (graphRes?.kind === "needConsent") {
-        setGraphConsentNeeded(true);
-      } else {
+      } catch {
         setGraphDenied(true);
       }
-
-      if (active) setLoadingInitial(false);
+    } catch {
+      setLoadSettingsError(true);
+    } finally {
+      setLoadingInitial(false);
     }
-
-    init();
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  React.useEffect(() => {
+    if (!active) return;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    init();
+  }, [active, init]);
+
+  React.useEffect(() => {
+    if (confirmDelete) {
+      confirmYesRef.current?.focus();
+    }
+  }, [confirmDelete]);
+
+  const handleRetrySettings = () => {
+    init();
+  };
 
   const handleRequestConsent = async () => {
     setNotice(null);
@@ -210,6 +237,7 @@ export const ResponderPanel: React.FC = () => {
   };
 
   const handleToggleSwitch = (_: unknown, data: { checked: boolean }) => {
+    if (loadSettingsError) return;
     setNotice(null);
     if (data.checked && selectedContacts.length === 0) {
       setNotice({ intent: "error", text: strings.needAtLeastOneContact });
@@ -219,6 +247,7 @@ export const ResponderPanel: React.FC = () => {
   };
 
   const handleToggleContact = (address: string) => {
+    if (loadSettingsError) return;
     setNotice(null);
     const lower = address.toLowerCase();
     const isSelected = selectedContacts.includes(lower);
@@ -236,6 +265,7 @@ export const ResponderPanel: React.FC = () => {
 
   const handleAddManual = (e: React.FormEvent) => {
     e.preventDefault();
+    if (loadSettingsError) return;
     setNotice(null);
     const raw = manualAddress.trim().toLowerCase();
     if (!raw || !EMAIL_REGEX.test(raw) || raw.length > 254) {
@@ -261,6 +291,7 @@ export const ResponderPanel: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (loadSettingsError || saving) return;
     setNotice(null);
     if (enabled && selectedContacts.length === 0) {
       setNotice({ intent: "error", text: strings.needAtLeastOneContact });
@@ -295,6 +326,7 @@ export const ResponderPanel: React.FC = () => {
   };
 
   const handleDeleteAll = async () => {
+    if (loadSettingsError || saving) return;
     setNotice(null);
     const authRes = await getTokenSilent();
     if (authRes.kind !== "token") {
@@ -311,10 +343,20 @@ export const ResponderPanel: React.FC = () => {
       setEnabled(false);
       setServerStatus("off");
       setSelectedContacts([]);
-      setNotice({ intent: "success", text: strings.saveSuccess });
+      setNotice({ intent: "success", text: strings.contactsDeleted });
     } else {
       setNotice({ intent: "error", text: strings.shortError });
     }
+    setTimeout(() => {
+      deleteAllButtonRef.current?.focus();
+    }, 0);
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDelete(false);
+    setTimeout(() => {
+      deleteAllButtonRef.current?.focus();
+    }, 0);
   };
 
   const renderStatus = () => {
@@ -363,6 +405,10 @@ export const ResponderPanel: React.FC = () => {
 
   const atCap = selectedContacts.length >= 50;
 
+  if (!active && !hasLoadedRef.current) {
+    return null;
+  }
+
   if (loadingInitial) {
     return (
       <div className={s.container}>
@@ -376,6 +422,7 @@ export const ResponderPanel: React.FC = () => {
       <div className={s.row}>
         <Switch
           checked={enabled}
+          disabled={loadSettingsError}
           onChange={handleToggleSwitch}
           label={strings.autoRepliesSwitch}
         />
@@ -383,6 +430,19 @@ export const ResponderPanel: React.FC = () => {
           {strings.statusLabel} {renderStatus()}
         </span>
       </div>
+
+      {loadSettingsError && (
+        <MessageBar intent="error">
+          <MessageBarBody>
+            <div className={s.row}>
+              <span>{strings.loadSettingsError}</span>
+              <Button size="small" appearance="subtle" onClick={handleRetrySettings}>
+                {strings.retry}
+              </Button>
+            </div>
+          </MessageBarBody>
+        </MessageBar>
+      )}
 
       {notice && (
         <MessageBar intent={notice.intent}>
@@ -414,6 +474,9 @@ export const ResponderPanel: React.FC = () => {
           {strings.contactsHeader(selectedContacts.length)}
         </h2>
         {atCap && <span className={s.statusText}>{strings.contactsCapReached}</span>}
+        {candidates.length === 0 && !loadingSenders && !graphConsentNeeded && !graphDenied && (
+          <span className={s.statusText}>{strings.noRecentSenders}</span>
+        )}
       </div>
 
       {loadingSenders && <Spinner size="tiny" label={strings.loadingSenders} />}
@@ -426,12 +489,16 @@ export const ResponderPanel: React.FC = () => {
             <div key={c.address} className={s.contactItem} dir="auto">
               <Checkbox
                 checked={isSelected}
-                disabled={!isSelected && atCap}
+                disabled={(!isSelected && atCap) || loadSettingsError}
                 onChange={() => handleToggleContact(c.address)}
                 label={{
-                  children: <span className={s.contactText}>{labelText}</span>,
+                  children: (
+                    <span className={s.contactText} dir="auto">
+                      {labelText}
+                    </span>
+                  ),
                 }}
-                aria-label={`${c.name} ${c.address}`}
+                aria-label={c.name ? `${c.name} ${c.address}` : c.address}
               />
             </div>
           );
@@ -446,25 +513,26 @@ export const ResponderPanel: React.FC = () => {
           placeholder={strings.addAddressPlaceholder}
           aria-label={strings.addAddressPlaceholder}
           type="email"
+          disabled={loadSettingsError}
         />
         <Button
           appearance="secondary"
           icon={<AddRegular />}
           onClick={handleAddManual}
-          disabled={!manualAddress.trim() || atCap}
+          disabled={!manualAddress.trim() || atCap || loadSettingsError}
         >
           {strings.addAddressButton}
         </Button>
       </form>
 
       {confirmDelete ? (
-        <div className={s.confirmBox}>
+        <div className={s.confirmBox} role="alertdialog" aria-label={strings.deleteAllConfirm}>
           <span>{strings.deleteAllConfirm}</span>
           <div className={s.confirmButtons}>
-            <Button appearance="primary" onClick={handleDeleteAll} disabled={saving}>
+            <Button ref={confirmYesRef} appearance="primary" onClick={handleDeleteAll} disabled={saving}>
               {strings.confirmYes}
             </Button>
-            <Button appearance="secondary" onClick={() => setConfirmDelete(false)}>
+            <Button appearance="secondary" onClick={handleCancelDelete} disabled={saving}>
               {strings.confirmCancel}
             </Button>
           </div>
@@ -474,14 +542,15 @@ export const ResponderPanel: React.FC = () => {
           <Button
             appearance="primary"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loadSettingsError}
           >
             {saving ? strings.saving : strings.saveButton}
           </Button>
           <Button
+            ref={deleteAllButtonRef}
             appearance="subtle"
             onClick={() => setConfirmDelete(true)}
-            disabled={saving || selectedContacts.length === 0}
+            disabled={saving || loadSettingsError || selectedContacts.length === 0}
           >
             {strings.deleteAllButton}
           </Button>

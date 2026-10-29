@@ -151,12 +151,12 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     expect(extraBox.disabled).toBe(true);
   });
 
-  it("shows Permitir acesso button when consent is needed", async () => {
+  it("shows Autorizar acesso button when consent is needed", async () => {
     (getGraphTokenSilent as any).mockResolvedValueOnce({ kind: "needConsent" });
     (requestGraphConsent as any).mockResolvedValueOnce({ kind: "token", token: "new_token" });
 
     render(<ResponderPanel />);
-    const allowBtn = await screen.findByRole("button", { name: "Permitir acesso" });
+    const allowBtn = await screen.findByRole("button", { name: "Autorizar acesso" });
     expect(screen.getByText("Permitir acesso aos remetentes recentes")).toBeTruthy();
 
     fireEvent.click(allowBtn);

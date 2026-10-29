@@ -10,14 +10,17 @@ import App from "./App";
 afterEach(cleanup);
 
 describe("App layout (F-012)", () => {
-  it("has one h1, tabs Analisar/Responder, the assurance line and the coming-soon cards", async () => {
+  it("has one h1, tabs Analisar/Responder, the assurance line and AI tool cards", async () => {
     (globalThis as any).Office = { CoercionType: { Text: "text" }, context: { mailbox: { item: undefined } } };
     render(<App />);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("img", { name: "DIMSCALE" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Analisar" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Sem envio automático. O envio é sempre feito por si.")).toBeTruthy();
-    expect(screen.getByText("IA (resumo e resposta sugerida) em breve.")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "DIMSCALE AI Assistant" })).toBeTruthy();
+    expect(screen.getByText("Resumo do email")).toBeTruthy();
+    expect(screen.getByText("Resposta rápida")).toBeTruthy();
+    expect(screen.getByText("Melhorar texto e tom")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Responder" }));
     expect(await screen.findByText("Respostas automáticas")).toBeTruthy();
     expect(screen.getByRole("tabpanel", { name: "Responder" })).toBeTruthy();

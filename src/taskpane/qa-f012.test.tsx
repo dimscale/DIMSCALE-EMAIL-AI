@@ -350,7 +350,8 @@ describe("ItemChanged behaviour (F-012/AC-35)", () => {
 // ---------- AC-23 / AC-10: PT-PT literals ----------
 describe("PT-PT literals (F-012/AC-23, approved strings in the spec)", () => {
   it("uses the approved wording of the F-012 Strings section", () => {
-    expect(strings.comingSoonAnalyze).toBe("IA (resumo e resposta sugerida) em breve.");
+    expect(strings.aiAssistantTitle).toBe("DIMSCALE AI Assistant");
+    expect(strings.aiComingSoon).toBe("Em breve");
     expect(strings.assurance).toBe("Sem envio automático. O envio é sempre feito por si.");
     expect(strings.comingSoonReply).toBe("Respostas automáticas para contactos escolhidos: em breve.");
     expect(strings.connected).toBe("Ligado");
