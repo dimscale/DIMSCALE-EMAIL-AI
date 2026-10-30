@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@azure/msal-browser": "5.26.0",
-    "@fluentui/react-components": "^9.55.1",
+    "@fluentui/react-components": "^9.75.0",
     "@fluentui/react-icons": "2.0.344",
     "core-js": "^3.36.0",
     "es6-promise": "^4.2.8",
@@ -34,12 +34,12 @@
     "regenerator-runtime": "^0.14.1"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.1",
+    "@babel/core": "^8.0.10",
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-typescript": "^8.0.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@types/office-js": "^1.0.377",
+    "@types/office-js": "^1.0.615",
     "@types/office-runtime": "^1.0.35",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
@@ -64,11 +64,11 @@
     "os-browserify": "^0.3.0",
     "process": "^0.11.10",
     "source-map-loader": "^5.0.0",
-    "supabase": "2.121.0",
+    "supabase": "2.122.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.2",
     "vitest": "^5.0.5",
-    "webpack": "^5.105.0",
+    "webpack": "^5.112.2",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^6.0.0"
   },
