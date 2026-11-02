@@ -262,6 +262,28 @@ describe("diagnostic code on ai_output_invalid", () => {
     await click("Enviar alterações");
     expect(screen.getByRole("alert").textContent).toContain("(código: link)");
   });
+  const r503 = (retryable: boolean, why: string) => ({
+    ok: false,
+    status: 503,
+    json: async () => ({ ok: false, error: "ai_unavailable", retryable, why }),
+  });
+  it("refine rejected by OpenAI: the new text and code, no links hint, no retry button", async () => {
+    fetchMock.mockResolvedValue(r503(false, "http_401"));
+    type("x");
+    await click("Enviar alterações");
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain("O serviço de IA recusou o pedido (configuração). Avise o administrador.");
+    expect(text).toContain("(código: http_401)");
+    expect(text).not.toContain("Ligações e endereços");
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).toBeNull();
+  });
+  it("refine unavailable shows its code and still has no retry button (refine keeps the instruction)", async () => {
+    fetchMock.mockResolvedValue(r503(true, "timeout"));
+    type("x");
+    await click("Enviar alterações");
+    expect(screen.getByRole("alert").textContent).toContain("(código: timeout)");
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).toBeNull();
+  });
   it("unknown or non-string why is ignored; server text is never shown", async () => {
     for (const w of ["<b>evil</b>", 42, "Schema"]) {
       fetchMock.mockResolvedValue(r502(w));

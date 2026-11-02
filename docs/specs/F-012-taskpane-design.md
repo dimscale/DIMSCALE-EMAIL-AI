@@ -375,3 +375,10 @@ The AI behaviour inside the cards (requests, auto mode, options, errors) is test
 - **Why:** the user did not see the point of two buttons (2026-10-29). The Resumo tab inside the pane is unchanged.
 - **Custom tab dropped (user decision, recorded 2026-11-02):** AC-37 to AC-42 (the "DIMSCALE MAIL" own-tab experiment in classic Windows, new Outlook and Mac) are **no longer pursued**. `manifest.customtab-test.xml` stays in the repo as a test manifest and is never published. The group label on the ribbon is "DIMSCALE".
 - **Consequence:** F-003 AC-50 (reload check) and F-012 AC-52/AC-53 (second-button live checks) no longer apply. Manifest version stays 1.0.2.0 (never sent to the tenant admin yet).
+
+## Amendment 2026-11-02 (b): title DIMSCALE Mail, wordmark removed (user decision)
+- **Add-in name:** `DisplayName` is now **"DIMSCALE Mail"** in `manifest.xml` (version **1.0.4.0**) and **"DIMSCALE Mail (teste separador)"** in `manifest.customtab-test.xml` (version 1.0.4.1). Supersedes the "Assistente IA" name of the amendment above. Ribbon unchanged: one button "DIMSCALE Mail", group "DIMSCALE", `ReadItem` only. The `IaButton.Tooltip` reads "Abre o painel DIMSCALE Mail: ...".
+- **In-pane wordmark removed** (supersedes the wordmark parts of AC-10, AC-11 and AC-20, and Q11): the user decided that the text wordmark "DIMSCALE Mail" duplicates the add-in name that Outlook shows (Q11 stays open: not verified by this change). The pane now starts with the tabs. The `Wordmark` component and its paths file were deleted (nothing else used them).
+- **Accessibility kept:** the pane keeps one `h1` "DIMSCALE Mail", visually hidden (not `display: none`), so screen readers still announce it. The 40 px header row no longer exists; the layout at 320 px is unchanged below the tabs.
+- **Tests:** the wordmark colour test and the header-height test were replaced by a test that the pane has no header row or logo and that the hidden `h1` comes first; `manifest.test.ts` pins the new names and versions. Theme tests are unchanged.
+- **Why:** user decision 2026-11-02 (no duplicated title). A manifest change, so the admin upload of the final manifest uses 1.0.4.0.

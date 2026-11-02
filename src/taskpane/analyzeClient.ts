@@ -55,6 +55,7 @@ export type AnalyzeErrorCode =
   | "disabled"
   | "not_configured"
   | "unavailable"
+  | "rejected" // OpenAI refused the request (key, model access, parameter): not retryable, an admin must fix it
   | "invalid"
   | "other";
 
@@ -65,7 +66,7 @@ export type AnalyzeResult =
   | { kind: "aborted" } // the caller aborted (item changed, auto mode off): the UI ignores it
   | { kind: "error"; code: AnalyzeErrorCode; why?: WhyCode };
 
-// Closed set of content-free diagnostic codes the function may add to a rejected reply; anything else is dropped.
+// Closed set of content-free diagnostic codes the function may add to a 502 ai_output_invalid; anything else is dropped.
 export const WHY_CODES = [
   "empty",
   "toolong",
@@ -74,14 +75,24 @@ export const WHY_CODES = [
   "schema",
   "incomplete",
   "link",
+  "badbody",
 ] as const;
-export type WhyCode = (typeof WHY_CODES)[number];
+// 503 ai_unavailable adds http_<status>, and "timeout" or "network" when retryable (see why503).
+export type WhyCode = (typeof WHY_CODES)[number] | `http_${number}` | "timeout" | "network";
 
 export const RETRYABLE: AnalyzeErrorCode[] = ["unavailable", "invalid", "other"];
 
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null =>
   typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null;
+
+// Only fixed shapes are kept, so no server text can reach the UI. A non-retryable 503 keeps http_NNN only.
+function why503(v: unknown, retryable: boolean): WhyCode | undefined {
+  if (typeof v !== "string") return undefined;
+  if (/^http_\d{3}$/.test(v) || (retryable && (v === "timeout" || v === "network")))
+    return v as WhyCode;
+  return undefined;
+}
 
 // Unknown or missing category/confidence/reason: degrade to the plain summary (no classification block).
 function parseClassification(s: any): Classification | undefined {
@@ -124,8 +135,15 @@ export async function analyze(
       if (res.status === 503 && error === "disabled") return { kind: "error", code: "disabled" };
       if (res.status === 503 && error === "ai_not_configured")
         return { kind: "error", code: "not_configured" };
-      if (res.status === 503 && error === "ai_unavailable")
-        return { kind: "error", code: body?.retryable === true ? "unavailable" : "invalid" };
+      if (res.status === 503 && error === "ai_unavailable") {
+        const retryable = body?.retryable === true; // anything but the boolean true is not retryable
+        const why = why503(body?.why, retryable);
+        return {
+          kind: "error",
+          code: retryable ? "unavailable" : "rejected",
+          ...(why ? { why } : {}),
+        };
+      }
       if (res.status === 502 && error === "ai_output_invalid") {
         const why = oneOf(WHY_CODES, body?.why);
         return { kind: "error", code: "invalid", ...(why ? { why } : {}) };

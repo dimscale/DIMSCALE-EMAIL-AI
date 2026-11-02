@@ -4,7 +4,7 @@ import type { Config } from "../_shared/entra.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { fakeDb } from "../_shared/testing.ts";
 import { handle } from "./handler.ts";
-import { NO_DOMAINS_SENTENCE } from "./replyOptions.ts";
+import { NO_DOMAINS_SENTENCE, NO_SIGNOFF_SENTENCE, PARAGRAPH_SENTENCE } from "./replyOptions.ts";
 
 const T = "11111111-1111-1111-1111-111111111111", C = "22222222-2222-2222-2222-222222222222";
 const OID = "33333333-3333-3333-3333-333333333333";
@@ -311,13 +311,13 @@ Deno.test("AC-11: OpenAI failures are 503 ai_unavailable, one call each", async 
     for (const [st, retryable] of [[429, true], [500, true], [503, true], [400, false], [401, false], [403, false], [404, false]] as const) {
       const s = setup({}, () => new Response("{}", { status: st }));
       const res = await s.call(t);
-      assertEquals([res.status, await res.json()], [503, { ok: false, error: "ai_unavailable", retryable }]);
+      assertEquals([res.status, await res.json()], [503, { ok: false, error: "ai_unavailable", retryable, why: `http_${st}` }]);
       assertEquals(s.requests.length, 1);
     }
     const f = fakeDb();
-    for (const err of [new DOMException("t", "TimeoutError"), new TypeError("net")]) {
+    for (const [err, why] of [[new DOMException("t", "TimeoutError"), "timeout"], [new DOMException("a", "AbortError"), "timeout"], [new TypeError("net"), "network"]] as const) {
       const res = await handle(new Request("https://f.test/x", { method: "POST", body: JSON.stringify(good), headers: { Authorization: `Bearer ${t}` } }), cfg, keySet, f.db, (k) => BASE_ENV[k], (() => Promise.reject(err)) as unknown as typeof fetch);
-      assertEquals([res.status, await res.json()], [503, { ok: false, error: "ai_unavailable", retryable: true }]);
+      assertEquals([res.status, await res.json()], [503, { ok: false, error: "ai_unavailable", retryable: true, why }]);
     }
   } finally {
     loud();
@@ -418,7 +418,8 @@ Deno.test("AC-35/AC-36: reply options accepted, defaults equal the no-option req
     const res = await s.call(t, { ...replyPayload, language: "en", tone: "formal" });
     assertEquals([res.status, await res.json()], [200, { ok: true, action: "reply", reply: "Obrigado." }]);
     const o = JSON.parse(s.requests[0].init.body as string);
-    assert(o.instructions.endsWith("Write the reply in English, whatever the language of the email. This replaces the language rule above. Use a formal, courteous register. " + NO_DOMAINS_SENTENCE));
+    assert(o.instructions.endsWith(`Use a formal, courteous register. ${NO_DOMAINS_SENTENCE} ${NO_SIGNOFF_SENTENCE} ${PARAGRAPH_SENTENCE} The whole reply must be in English.`));
+    assertFalse(o.instructions.includes("in the language of that email"));
     assertEquals([o.input, o.max_output_tokens], [b.input, 2000]);
     // reply with options still rejects links and markup
     for (const [r, why] of [['{"reply":"see https://evil.example"}', "newlink"], ['{"reply":"<b>x</b>"}', "markup"]]) {
@@ -448,7 +449,7 @@ Deno.test("AC-37/AC-38: translate through the handler", async () => {
       assertEquals([bad.status, await bad.json()], [502, { ok: false, error: "ai_output_invalid" }]);
     }
     const down = await setup({}, () => new Response("{}", { status: 500 })).call(t, trPayload);
-    assertEquals([down.status, await down.json()], [503, { ok: false, error: "ai_unavailable", retryable: true }]);
+    assertEquals([down.status, await down.json()], [503, { ok: false, error: "ai_unavailable", retryable: true, why: "http_500" }]);
   } finally {
     loud();
   }
@@ -648,9 +649,9 @@ Deno.test("F-007/AC-6: classified takes one slot first, same gates and error cod
     assertEquals([(await s.call(null, cls)).status, s.f.calls], [401, []]);
     s = setup({}, () => new Response("x", { status: 503 }));
     const u = await s.call(t, cls);
-    assertEquals([u.status, await u.json(), s.requests.length], [503, { ok: false, error: "ai_unavailable", retryable: true }, 1]);
+    assertEquals([u.status, await u.json(), s.requests.length], [503, { ok: false, error: "ai_unavailable", retryable: true, why: "http_503" }, 1]);
     s = setup({}, () => new Response("x", { status: 401 }));
-    assertEquals(await (await s.call(t, cls)).json(), { ok: false, error: "ai_unavailable", retryable: false });
+    assertEquals(await (await s.call(t, cls)).json(), { ok: false, error: "ai_unavailable", retryable: false, why: "http_401" });
   } finally {
     loud();
   }
@@ -709,6 +710,46 @@ Deno.test("reply rejections carry a fixed why code: body and log reason, no cont
     const sres = await setup({}, out("not json")).call(t, good);
     assertEquals([sres.status, await sres.json()], [502, { ok: false, error: "ai_output_invalid" }]);
     assertEquals(JSON.parse(lines[lines.length - 1]).reason, "ai_output_invalid");
+  } finally {
+    loud();
+  }
+});
+
+// F-003 (g): the frozen function/pane error contract, for every action. Mocked OpenAI; the log line carries the fixed reason only.
+type Mock = () => Response | Promise<Response>;
+const unavailable = (retryable: boolean, why: string) => ({ ok: false, error: "ai_unavailable", retryable, why });
+const timeoutBody: Mock = () => new Response(new ReadableStream({ start: (c) => c.error(new DOMException("MARK_ERR", "TimeoutError")) })); // headers arrive, reading the body times out
+const TRANSPORT: [string, Mock, number, Record<string, unknown>, string][] = [
+  ...([[400, false], [401, false], [403, false], [404, false], [429, true], [500, true]] as const).map(([st, retry]): [string, Mock, number, Record<string, unknown>, string] =>
+    [`http ${st}`, () => new Response("MARK_OPENAI_ERR", { status: st }), 503, unavailable(retry, `http_${st}`), `ai_unavailable_http_${st}`]),
+  ["timeout before headers", () => Promise.reject(new DOMException("MARK_ERR", "TimeoutError")), 503, unavailable(true, "timeout"), "ai_unavailable_timeout"],
+  ["abort before headers", () => Promise.reject(new DOMException("MARK_ERR", "AbortError")), 503, unavailable(true, "timeout"), "ai_unavailable_timeout"],
+  ["network error", () => Promise.reject(new TypeError("MARK_ERR")), 503, unavailable(true, "network"), "ai_unavailable_network"],
+  ["timeout while reading the body", timeoutBody, 503, unavailable(true, "timeout"), "ai_unavailable_timeout"],
+  ["200 with a non-JSON body", () => new Response("MARK_OPENAI_ERR"), 502, { ok: false, error: "ai_output_invalid", why: "badbody" }, "ai_output_badbody"],
+];
+
+Deno.test("F-003 (g): every transport failure has the frozen status, body and log reason for every action, with no content", async () => {
+  const lines = quiet();
+  try {
+    const t = await mint();
+    const actions: [string, Record<string, unknown>][] = [
+      ["summarize", good], ["classified", cls], ["translate", trPayload], ["reply", replyPayload], ["refine", { ...replyPayload, instruction: "mais curto", draft: "Olá Ana." }],
+    ];
+    for (const [action, payload] of actions) {
+      for (const [name, ai, status, body, logReason] of TRANSPORT) {
+        const label = `${action}: ${name}`;
+        lines.length = 0;
+        const s = setup({}, ai);
+        const res = await s.call(t, { ...payload, subject: "MARK_SUBJ", body: "MARK_BODY" });
+        assertEquals([res.status, await res.json(), s.requests.length], [status, body, 1], label);
+        assertEquals(lines.length, 1, label);
+        const l = JSON.parse(lines[0]);
+        assertEquals([l.status, l.reason, Object.keys(l).sort()], [status, logReason, ["fn", "id", "method", "ms", "reason", "status"]], label);
+        for (const v of ["MARK_", OID, "sk-test-KEY"]) assertFalse(lines[0].includes(v), `${label}: ${v}`);
+        assertEquals(s.f.calls, ["analyzeTake"], label); // the slot is taken, nothing else is written
+      }
+    }
   } finally {
     loud();
   }

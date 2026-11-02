@@ -27,7 +27,8 @@ export type AiResult =
   | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean; why?: Why };
 /** Closed, content-free diagnostic codes for a rejected reply (shown in the pane and logged; never any text from the model or the email). */
 export const WHY_CODES = ["empty", "toolong", "newlink", "markup", "schema", "incomplete", "link"] as const;
-export type Why = (typeof WHY_CODES)[number];
+/** Plus the transport codes of requestResponses: the OpenAI HTTP status (number only, never its message), timeout, network, unreadable 2xx body. */
+export type Why = (typeof WHY_CODES)[number] | "timeout" | "network" | "badbody" | `http_${number}`;
 
 const MARKERS = [OPEN, CLOSE, "<<<DRAFT", "DRAFT>>>", "<<<INSTRUCTION", "INSTRUCTION>>>"]; // F-003 (d): draft and instruction have their own delimiters
 export function stripMarkers(s: string): string {
@@ -138,9 +139,10 @@ export type AiFail = Extract<AiResult, { ok: false }>;
 
 /** One Responses API call (no retry). Returns the parsed JSON response or a failure. `reasoning` is sent only when cfg.reasoningEffort is set. */
 export async function requestResponses(
-  text: string, cfg: AiConfig, instructions: string, name: string, schema: unknown, fetchFn: typeof fetch = fetch,
+  text: string, cfg: AiConfig, instructions: string, name: string, schema: unknown, fetchFn: typeof fetch = fetch, retryBodyTimeout = true,
 ): Promise<{ ok: true; json: unknown } | AiFail> {
-  const unavailable = (retryable: boolean): AiFail => ({ ok: false, reason: "ai_unavailable", retryable });
+  const unavailable = (retryable: boolean, why?: Why): AiFail => ({ ok: false, reason: "ai_unavailable", retryable, ...(why ? { why } : {}) });
+  const timedOut = (e: unknown) => ["TimeoutError", "AbortError"].includes((e as { name?: string } | null)?.name ?? "");
   if (!cfg.apiKey || !cfg.model) return unavailable(false);
   let res: Response;
   try {
@@ -158,20 +160,22 @@ export async function requestResponses(
       }),
       signal: AbortSignal.timeout(30_000),
     });
-  } catch {
-    return unavailable(true); // timeout or network
+  } catch (e) {
+    return unavailable(true, timedOut(e) ? "timeout" : "network");
   }
-  if (res.status === 429 || res.status >= 500) return unavailable(true);
-  if (!res.ok) return unavailable(false);
+  if (res.status === 429 || res.status >= 500) return unavailable(true, `http_${res.status}`);
+  if (!res.ok) return unavailable(false, `http_${res.status}`);
   try {
     return { ok: true, json: await res.json() };
-  } catch {
-    return { ok: false, reason: "ai_output_invalid", retryable: false };
+  } catch (e) {
+    // The 30 s signal also covers reading the body: a timeout there is retryable, anything else is an unreadable body.
+    // retryBodyTimeout=false (F-013 drafts only) keeps their pre-F-003(g) result for a body-read timeout: failed ai_output_invalid, never re-queued.
+    return timedOut(e) && retryBodyTimeout ? unavailable(true, "timeout") : { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" };
   }
 }
 
 export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<AiResult> {
   const text = buildInput(input);
-  const r = await requestResponses(text, cfg, INSTRUCTIONS, "draft_reply", SCHEMA, fetchFn);
+  const r = await requestResponses(text, cfg, INSTRUCTIONS, "draft_reply", SCHEMA, fetchFn, false);
   return r.ok ? parseOutput(r.json, text) : r;
 }

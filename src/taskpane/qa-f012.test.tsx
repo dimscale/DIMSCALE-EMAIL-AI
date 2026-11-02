@@ -220,24 +220,8 @@ describe("theme resolution edges (F-012/AC-7)", () => {
   });
 });
 
-// ---------- AC-11 / AC-20 / AC-23: App layout and wordmark ----------
-const logoFills = () =>
-  Array.from(document.querySelectorAll('svg[role="img"] path')).map((p) => p.getAttribute("fill"));
+// ---------- AC-11 / AC-20 / AC-23: App layout (the in-pane wordmark was removed, 2026-11-02 amendment b) ----------
 describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
-  it("wordmark colour is #ffffff on dark, #000000 on light, currentColor under forced colours", () => {
-    setOffice();
-    stubMatchMedia({ "(prefers-color-scheme: dark)": true });
-    const d = render(<App />);
-    expect(new Set(logoFills())).toEqual(new Set(["#ffffff"]));
-    d.unmount();
-    stubMatchMedia({});
-    render(<App />);
-    expect(new Set(logoFills())).toEqual(new Set(["#000000"]));
-    cleanup();
-    stubMatchMedia({ "(forced-colors: active)": true, "(prefers-color-scheme: dark)": true });
-    render(<App />);
-    expect(new Set(logoFills())).toEqual(new Set(["currentColor"]));
-  });
   it("one h1 whose accessible name is 'DIMSCALE Mail' and a labelled tablist", () => {
     setOffice();
     render(<App />);
@@ -255,24 +239,14 @@ describe("App chrome (F-012/AC-10, AC-11, AC-16, AC-19, AC-20)", () => {
     );
     expect(screen.getByRole("tabpanel", { name: "Resumo" })).toBeTruthy();
   });
-  it("header is one row of at most 40 px (F-012/AC-11)", () => {
+  it("no header row or logo: the pane starts with the h1 (visually hidden) and the tabs (F-012 amendment 2026-11-02 b)", () => {
     setOffice();
-    render(<App />);
-    const header = document.querySelector("header") as HTMLElement;
-    let h = window.getComputedStyle(header).height;
-    if (!h) {
-      for (const sheet of Array.from(document.styleSheets)) {
-        for (const rule of Array.from((sheet as CSSStyleSheet).cssRules)) {
-          const r = rule as CSSStyleRule;
-          if (
-            r.style?.height &&
-            header.classList.contains(r.selectorText?.replace(/^\./, "") ?? "")
-          )
-            h = r.style.height;
-        }
-      }
-    }
-    expect(parseFloat(h), `header height computed as "${h}"`).toBeLessThanOrEqual(40);
+    const { container } = render(<App />);
+    expect(container.querySelector("header")).toBeNull();
+    expect(container.querySelector('svg[role="img"]')).toBeNull(); // the old wordmark was an svg with role="img"
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.compareDocumentPosition(screen.getByRole("tablist")) & 4).toBe(4); // tablist follows the h1
+    expect(h1.nextElementSibling?.tagName).toBe("MAIN"); // nothing visible between the h1 and the tabs
   });
 });
 
@@ -435,7 +409,6 @@ describe("source and page guards (F-012/AC-2, AC-3, AC-4, AC-20, AC-22, AC-27)",
     "MessagePanel.tsx",
     "BackendStatus.tsx",
     "theme.ts",
-    "Wordmark.tsx",
     "strings.ts",
     "messageView.ts",
     "index.tsx",

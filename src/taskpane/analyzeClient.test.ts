@@ -60,7 +60,7 @@ describe("analyzeClient (F-003/AC-18, AC-21)", () => {
       "unavailable"
     );
     expect(await code(503, { ok: false, error: "ai_unavailable", retryable: false })).toBe(
-      "invalid"
+      "rejected"
     );
     expect(await code(502, { ok: false, error: "ai_output_invalid" })).toBe("invalid");
     const why = async (w: unknown) =>
@@ -94,6 +94,49 @@ describe("analyzeClient (F-003/AC-18, AC-21)", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await p).toEqual({ kind: "error", code: "unavailable" });
     vi.useRealTimers();
+  });
+});
+
+describe("analyzeClient honest AI errors (F-003 amendment (g))", () => {
+  const r503 = (retryable: unknown, why?: unknown) =>
+    analyze(
+      "t",
+      payload,
+      resp(503, {
+        ok: false,
+        error: "ai_unavailable",
+        retryable,
+        ...(why !== undefined ? { why } : {}),
+      }) as any
+    );
+  const rejected = { kind: "error", code: "rejected" };
+  it("503 retryable:false is rejected and keeps only an http_NNN why", async () => {
+    expect(await r503(false, "http_401")).toEqual({ ...rejected, why: "http_401" });
+    expect(await r503(false)).toEqual(rejected);
+    // timeout and network belong to retryable failures only; the rest is dropped
+    const bad = ["timeout", "network", "http_4", "http_4011", "http_40a", "http_401\n"];
+    for (const w of [...bad, "HTTP_401", "badbody", "<b>x</b>", 401, null, {}])
+      expect(await r503(false, w)).toEqual(rejected);
+  });
+  it("503 retryable:true is unavailable and keeps http_NNN, timeout or network", async () => {
+    for (const w of ["http_429", "http_503", "timeout", "network"])
+      expect(await r503(true, w)).toEqual({ kind: "error", code: "unavailable", why: w });
+    expect(await r503(true)).toEqual({ kind: "error", code: "unavailable" });
+    for (const w of ["http_99", "http_5031", "empty", "Timeout", "<b>x</b>", 503, {}])
+      expect(await r503(true, w)).toEqual({ kind: "error", code: "unavailable" });
+  });
+  it("a retryable flag that is not the boolean true counts as not retryable", async () => {
+    for (const r of ["true", 1, undefined, null])
+      expect(await r503(r, "http_401")).toEqual({ ...rejected, why: "http_401" });
+  });
+  it("502 ai_output_invalid keeps badbody and the old codes; http_ and timeout are not accepted there", async () => {
+    const why = (w: unknown) =>
+      analyze("t", payload, resp(502, { ok: false, error: "ai_output_invalid", why: w }) as any);
+    expect(await why("badbody")).toEqual({ kind: "error", code: "invalid", why: "badbody" });
+    for (const w of ["empty", "toolong", "newlink", "markup", "schema", "incomplete", "link"])
+      expect(await why(w)).toEqual({ kind: "error", code: "invalid", why: w });
+    for (const w of ["http_401", "timeout", "network"])
+      expect(await why(w)).toEqual({ kind: "error", code: "invalid" });
   });
 });
 

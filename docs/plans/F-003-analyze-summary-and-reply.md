@@ -161,3 +161,7 @@ Spec: F-003 amendment (d), AC-53 to AC-58. No manifest change, no migration, no 
 - **Deploy:** `supabase functions deploy analyze-message --use-api`. `_shared/ai.ts` (`stripMarkers`) also feeds `graph-webhook` and `auto-draft-cron`; they are not redeployed yet and behave the same unless an email contains the literal markers.
 - **Smoke tests (curl):** OPTIONS from `https://dimscale.github.io` and `https://localhost:3000` return 204 with the origin; from `https://evil.example` 204 without `Access-Control-Allow-Origin`; POST with no token or a garbage token returns 401; GET returns 405.
 - **Not done:** merge to `main`; live checks (320 px layout and 200 % zoom, screen reader, injection with a live model, `analyze-message` logs after a real revision).
+
+### Evidence for amendments (g) and (h) (2026-11-02)
+- **Amendment (g), reply layout and honest AI errors:** to be filled by the orchestrator after deploy.
+- **Amendment (h):** to be filled by the orchestrator after deploy.

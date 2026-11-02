@@ -70,7 +70,7 @@ Any automatic action; writing a category, flag or folder to the mailbox; Graph; 
 ## Evidence
 _Empty. Each step records the commands it ran, the real output and the dates here._
 
-### 2026-11-03: build evidence (orchestrator)
+### 2026-11-02: build evidence (orchestrator)
 - **Checks after the review and QA fixes:** `tsc` clean; `office-addin-lint` clean; `vitest` 41 files, 488 passed, 2 todo; `npm run build` compiled with 3 size warnings; `npm run validate` manifest valid; Deno `analyze-message` 63, `whoami` 24, `graph-webhook` 13, `auto-draft-cron` 6, `auto-reply-settings` 13, `_shared` 78 (with the analyze-message `deno.json`), all passed; `deno lint` clean in analyze-message, `_shared` and auto-reply-settings.
 - **Reviews:** Opus review APPROVE WITH COMMENTS (no Critical or High; M1 manifest version fixed, M2 safety sentence added); QA found 4 defects (reason characters, truncation line), all fixed; a focused re-review of the fixes was requested.
 - **Deploy:** `supabase functions deploy` for `analyze-message`, `auto-reply-settings`, `graph-webhook` and `auto-draft-cron` (`--use-api`), before any pane reaches `main`. Smoke tests with `curl`: OPTIONS from `https://dimscale.github.io` and `https://localhost:3000` return 204 with the origin, from `https://evil.example` 204 without `Access-Control-Allow-Origin`; no token or a garbage token returns 401; GET returns 405 (`analyze-message`, `graph-webhook`); `auto-reply-settings` PUT without token 401; cron without or with a wrong secret 401; `whoami` without token 401.

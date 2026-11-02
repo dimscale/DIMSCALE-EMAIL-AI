@@ -1,4 +1,4 @@
-// Mirrors isNoReplyLocalPart in supabase/functions/_shared/filters.ts (F-013/AC-33, AC-49 + amendment 2026-11-03). Keep the rule equal.
+// Mirrors isNoReplyLocalPart in supabase/functions/_shared/filters.ts (F-013/AC-33, AC-49 + amendment 2026-11-02). Keep the rule equal.
 // NFKC, drop ignorable/format characters, lower-case, trim, cut at the first "+". Cyrillic look-alikes are not handled (accepted limit).
 const NOREPLY = /^(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster)$/;
 

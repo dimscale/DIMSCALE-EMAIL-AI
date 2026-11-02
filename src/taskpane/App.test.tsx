@@ -17,7 +17,8 @@ describe("App layout (F-012)", () => {
     };
     render(<App />);
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("img", { name: "DIMSCALE" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "DIMSCALE Mail" })).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "DIMSCALE" })).toBeNull(); // in-pane wordmark removed (2026-11-02)
     const names = ["Resumo", "Resposta", "Traduzir", "Automático"];
     expect(screen.getAllByRole("tab")).toEqual(
       names.map((n) => screen.getByRole("tab", { name: n }))

@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertFalse } from "@std/assert";
-import type { AiResult } from "./ai.ts";
+import { type AiResult, generateDraft } from "./ai.ts";
 import { readSettings } from "./config.ts";
 import type { Graph, GResult, Msg } from "./graph.ts";
 import { processClaimed, type ProcDeps } from "./processor.ts";
@@ -165,6 +165,49 @@ Deno.test("AC-22: AI unavailable is retried with backoff, then failed after 5 at
     }
     assertEquals([row(s).status, row(s).reason, row(s).attempts], ["failed", "ai_unavailable", 5]);
     assertFalse(s.calls.some((c) => c.startsWith("createReply")));
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003 (g): the extra `why` of an AI failure changes neither the row reason nor the retry semantics nor the log", async () => {
+  const lines: string[] = [];
+  silence = console.log;
+  console.log = (l: string) => lines.push(l);
+  try {
+    const cases: [AiResult, string, string][] = [
+      [{ ok: false, reason: "ai_unavailable", retryable: true, why: "http_503" }, "pending", "ai_unavailable"],
+      [{ ok: false, reason: "ai_unavailable", retryable: false, why: "http_401" }, "failed", "ai_unavailable"],
+      [{ ok: false, reason: "ai_unavailable", retryable: true, why: "timeout" }, "pending", "ai_unavailable"],
+      [{ ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" }, "failed", "ai_output_invalid"],
+    ];
+    for (const [fail, status, reason] of cases) {
+      const s = setup({}, () => Promise.resolve(fail));
+      await enqueue(s, "m1");
+      await processClaimed(s.deps);
+      assertEquals([row(s).status, row(s).reason], [status, reason]);
+      assertFalse(s.calls.some((c) => c.startsWith("createReply")));
+    }
+    assertEquals(lines.length, 4);
+    for (const w of ["http_", "badbody", "timeout"]) assertFalse(lines.join("\n").includes(w), w);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003 (g): through the real generateDraft, a body-read timeout still FAILS the auto draft at once (ai_output_invalid), a pre-header timeout is still re-queued", async () => {
+  quiet();
+  try {
+    const bodyTimeout = (() => Promise.resolve(new Response(new ReadableStream({ start: (c) => c.error(new DOMException("t", "TimeoutError")) })))) as unknown as typeof fetch;
+    const headerTimeout = (() => Promise.reject(new DOMException("t", "TimeoutError"))) as unknown as typeof fetch;
+    for (const [f, status, reason] of [[bodyTimeout, "failed", "ai_output_invalid"], [headerTimeout, "pending", "ai_unavailable"]] as const) {
+      const s = setup();
+      s.deps.ai = (i, c) => generateDraft(i, c, f);
+      await enqueue(s, "m1");
+      await processClaimed(s.deps);
+      assertEquals([row(s).status, row(s).reason, row(s).attempts], [status, reason, 1]);
+      assertFalse(s.calls.some((c) => c.startsWith("createReply")));
+    }
   } finally {
     loud();
   }

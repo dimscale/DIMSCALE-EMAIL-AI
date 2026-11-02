@@ -4,7 +4,7 @@ Source of truth: [docs/status.md](status.md). This page is a short reading guide
 
 ## What works
 - The pane is live on GitHub Pages and tested by the user in Outlook: tabs Resumo, Resposta, Traduzir and Automático; summary, suggested reply (language and tone, "Pedir alterações"), translate.
-- The manifest is 1.0.3.0: "Assistente IA", one ribbon button "DIMSCALE Mail", `ReadItem` only.
+- The manifest is 1.0.4.0: "DIMSCALE Mail", one ribbon button "DIMSCALE Mail", `ReadItem` only.
 - The Automático tab accepts contacts by hand; the F-013 backend is built. Nothing is sent automatically.
 - Auto summary mode stays hidden until the DPO answers D5.
 

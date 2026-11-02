@@ -83,11 +83,13 @@ describe.each(["manifest.xml", "manifest.customtab-test.xml"])(
   }
 );
 
-it("versions: manifest 1.0.3.0, test manifest 1.0.3.1", () => {
-  expect(manifest).toContain("<Version>1.0.3.0</Version>");
-  expect(readFileSync(resolve(process.cwd(), "manifest.customtab-test.xml"), "utf8")).toContain(
-    "<Version>1.0.3.1</Version>"
-  );
+it("versions and names: manifest 1.0.4.0, test manifest 1.0.4.1, DisplayName DIMSCALE Mail", () => {
+  const test = readFileSync(resolve(process.cwd(), "manifest.customtab-test.xml"), "utf8");
+  expect(manifest).toContain("<Version>1.0.4.0</Version>");
+  expect(manifest).toContain('<DisplayName DefaultValue="DIMSCALE Mail"/>');
+  expect(test).toContain("<Version>1.0.4.1</Version>");
+  expect(test).toContain('<DisplayName DefaultValue="DIMSCALE Mail (teste separador)"/>');
+  for (const m of [manifest, test]) expect(m).not.toMatch(/Assistente IA|DIMSCALE Mail AI/);
 });
 
 describe("production build (F-012/AC-48)", () => {

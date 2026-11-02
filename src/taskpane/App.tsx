@@ -8,7 +8,6 @@ import MessagePanel from "./MessagePanel";
 import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
 import { useOfficeTheme } from "./theme";
-import { Wordmark } from "./Wordmark";
 
 type View = ToolTab | "auto";
 
@@ -24,20 +23,14 @@ const useStyles = makeStyles({
     flexDirection: "column",
     fontSize: tokens.fontSizeBase300,
   },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    height: "40px",
-    padding: "0 12px",
-    boxSizing: "border-box",
-  },
-  h1: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    margin: 0,
-    fontSize: tokens.fontSizeBase400,
-    fontWeight: tokens.fontWeightSemibold,
+  // Visually hidden, still read by screen readers: the title is not drawn (user decision 2026-11-02, no duplicated name).
+  hidden: {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    overflow: "hidden",
+    clip: "rect(0 0 0 0)",
+    whiteSpace: "nowrap",
   },
   main: {
     flex: 1,
@@ -77,18 +70,12 @@ const App: React.FC = () => {
   const s = useStyles();
   const auto = useAutoSummary();
   const [options, setOptions] = React.useState<ToolOptions>(DEFAULT_OPTIONS);
-  const { kind, theme } = useOfficeTheme();
+  const { theme } = useOfficeTheme();
   const [noticeHost, setNoticeHost] = React.useState<HTMLElement | null>(null);
   const [view, setView] = React.useState<View>("summary");
-  const logo = kind === "dark" ? "#ffffff" : kind === "light" ? "#000000" : "currentColor";
   return (
     <FluentProvider theme={theme} className={s.root}>
-      <header className={s.header}>
-        <h1 className={s.h1}>
-          <Wordmark color={logo} />
-          <span>{strings.brandSuffix}</span>
-        </h1>
-      </header>
+      <h1 className={s.hidden}>{strings.appName}</h1>
       <main className={s.main}>
         <TabList
           size="small"

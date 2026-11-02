@@ -2,7 +2,7 @@ import { assert, assertEquals, assertFalse, assertStringIncludes } from "@std/as
 import { createLocalJWKSet, decodeProtectedHeader, exportJWK, exportPKCS8, generateKeyPair, jwtVerify, SignJWT } from "jose";
 import { makeAppTokenProvider } from "./appToken.ts";
 import { autoDraftsEnabled, readSettings } from "./config.ts";
-import { buildInput, generateDraft, INSTRUCTIONS, parseOutput as parseOutputWhy } from "./ai.ts";
+import { buildInput, generateDraft, INSTRUCTIONS, parseOutput as parseOutputWhy, requestResponses } from "./ai.ts";
 import { evaluate, type FilterCtx, isAllowedSender } from "./filters.ts";
 import type { Msg } from "./graph.ts";
 import { log } from "./log.ts";
@@ -285,10 +285,30 @@ Deno.test("parseOutput: links already in the email are allowed; any markup is re
 Deno.test("generateDraft: timeout, 429 and 5xx are retryable; other 4xx and no key are not", async () => {
   const cfg = { apiKey: "K", model: "m", maxOutputTokens: 800 };
   const st = (s: number) => generateDraft(DI, cfg, (() => Promise.resolve(new Response("{}", { status: s }))) as unknown as typeof fetch);
-  assertEquals(await st(429), { ok: false, reason: "ai_unavailable", retryable: true });
-  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true });
-  assertEquals(await st(400), { ok: false, reason: "ai_unavailable", retryable: false });
-  assertEquals(await generateDraft(DI, cfg, (() => Promise.reject(new DOMException("t", "TimeoutError"))) as unknown as typeof fetch), { ok: false, reason: "ai_unavailable", retryable: true });
+  assertEquals(await st(429), { ok: false, reason: "ai_unavailable", retryable: true, why: "http_429" });
+  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true, why: "http_503" });
+  assertEquals(await st(400), { ok: false, reason: "ai_unavailable", retryable: false, why: "http_400" });
+  assertEquals(await generateDraft(DI, cfg, (() => Promise.reject(new DOMException("t", "TimeoutError"))) as unknown as typeof fetch), { ok: false, reason: "ai_unavailable", retryable: true, why: "timeout" });
   assertEquals(await generateDraft(DI, { ...cfg, apiKey: "" }, (() => { throw new Error("must not call"); }) as unknown as typeof fetch), { ok: false, reason: "ai_unavailable", retryable: false });
   assertEquals(await generateDraft(DI, { ...cfg, model: "" }, (() => { throw new Error("must not call"); }) as unknown as typeof fetch), { ok: false, reason: "ai_unavailable", retryable: false });
+});
+
+Deno.test("generateDraft: transport codes (F-003 g): http status, timeout, network, reading-body timeout, unreadable 2xx body", async () => {
+  const cfg = { apiKey: "K", model: "m", maxOutputTokens: 800 };
+  const run = (f: () => Response | Promise<Response>) => generateDraft(DI, cfg, f as unknown as typeof fetch);
+  for (const [s, retryable] of [[400, false], [401, false], [403, false], [404, false], [429, true], [500, true], [502, true]] as const) {
+    assertEquals(await run(() => new Response("MARK", { status: s })), { ok: false, reason: "ai_unavailable", retryable, why: `http_${s}` });
+  }
+  assertEquals(await run(() => Promise.reject(new DOMException("t", "AbortError"))), { ok: false, reason: "ai_unavailable", retryable: true, why: "timeout" });
+  assertEquals(await run(() => Promise.reject(new TypeError("net"))), { ok: false, reason: "ai_unavailable", retryable: true, why: "network" });
+  assertEquals(await run(() => Promise.reject("not an Error")), { ok: false, reason: "ai_unavailable", retryable: true, why: "network" });
+  assertEquals(await run(() => Promise.reject(null)), { ok: false, reason: "ai_unavailable", retryable: true, why: "network" });
+  const stream = (e: unknown) => () => new Response(new ReadableStream({ start: (c) => c.error(e) }));
+  // F-013 keeps its old semantics: a body-read timeout is NOT retryable for auto drafts (the pane actions use requestResponses with the default, see handler_test).
+  assertEquals(await run(stream(new DOMException("t", "TimeoutError"))), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
+  assertEquals(await run(stream(new DOMException("t", "AbortError"))), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
+  const direct = await requestResponses("x", { apiKey: "K", model: "m", maxOutputTokens: 800 }, "i", "n", {}, stream(new DOMException("t", "TimeoutError")) as unknown as typeof fetch);
+  assertEquals(direct, { ok: false, reason: "ai_unavailable", retryable: true, why: "timeout" });
+  assertEquals(await run(stream(new TypeError("reset"))), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
+  assertEquals(await run(() => new Response("MARK not json")), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
 });

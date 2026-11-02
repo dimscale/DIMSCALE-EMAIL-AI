@@ -239,7 +239,7 @@ The original questions are kept below for the record.
 - https://developers.openai.com/api/docs/models/gpt-6-luna
 - [F-003 spec](F-003-analyze-summary-and-reply.md) (schema, validators, caps, auto mode, Resumo card), [F-012 spec](F-012-taskpane-design.md), [security](../architecture/security.md), [requirements](../product/requirements.md)
 
-## Amendment 2026-11-03: review and QA decisions (user delegated, 2026-11-02)
+## Amendment 2026-11-02: review and QA decisions (user delegated, 2026-11-02)
 - **No safety claims (review M2):** the classify instruction adds: never state or imply that the email or the sender is safe, legitimate, verified or trustworthy; the reason describes the content only. This completes the "no claim of safe" rule of the Security section; decision 7's fixed text is extended by this one sentence.
 - **`reason` characters (review L2, QA D1/D2):** the function also rejects line and paragraph separators (U+2028, U+2029) and all Unicode format characters (`\p{Cf}`: zero-width, BOM, bidi controls), in addition to `\p{Cc}`.
 - **Truncation line (review L1, QA D4):** the pane shows it when the trimmed body is longer than the 4,000-unit limit (a `MessageView.aiTruncated` flag), not by comparing the cut text length.

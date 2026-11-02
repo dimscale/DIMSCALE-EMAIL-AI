@@ -49,6 +49,7 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     lineHeight: "18px",
   },
+  code: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
   list: { margin: 0, paddingLeft: "20px", overflowWrap: "anywhere" },
   text: { margin: 0, overflowWrap: "anywhere" },
   refine: { display: "flex", flexWrap: "wrap", gap: "4px", alignItems: "flex-end", minWidth: 0 },
@@ -62,13 +63,20 @@ const errorText: Record<AnalyzeErrorCode, string> = {
   disabled: strings.aiErrDisabled,
   not_configured: strings.aiErrNotConfigured,
   unavailable: strings.aiErrUnavailable,
+  rejected: strings.aiErrRejected,
   invalid: strings.aiErrInvalid,
   other: strings.aiErrOther,
 };
 // Auto mode pauses for the pane session on these (F-003 AC-44).
-const PAUSE_CODES: AnalyzeErrorCode[] = ["cap", "unauthorized", "disabled", "not_configured"];
+const PAUSE_CODES: AnalyzeErrorCode[] = [
+  "cap",
+  "unauthorized",
+  "disabled",
+  "not_configured",
+  "rejected",
+];
 
-type Err = { action: AnalyzeAction; text: string; retry?: boolean };
+type Err = { action: AnalyzeAction; text: string; code?: string; retry?: boolean };
 type CopyState = { which: AnalyzeAction; ok: boolean } | null;
 
 const MAX_INSTRUCTION = 300;
@@ -194,13 +202,17 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       else if (res.kind === "error") {
         let text =
           refine !== undefined && res.code === "invalid" ? strings.aiRefineInvalid : errorText[res.code];
-        if (action === "reply" && res.code === "invalid" && res.why)
-          text = `${text} ${strings.aiErrCode(res.why)}`; // fixed code, never server text
         if (isAuto && PAUSE_CODES.includes(res.code)) {
           text = res.code === "cap" ? strings.autoPausedCap : `${text} ${strings.autoPausedSuffix}`;
           auto.pause();
         }
-        setError({ action, text, retry: refine === undefined && RETRYABLE.includes(res.code) });
+        // res.why is a fixed code validated in analyzeClient (never server text); shown for every action.
+        setError({
+          action,
+          text,
+          code: res.why,
+          retry: refine === undefined && RETRYABLE.includes(res.code),
+        });
       }
     } finally {
       busy.current = false;
@@ -291,7 +303,10 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       {empty && <p className={s.note}>{strings.aiNoText}</p>}
       {error?.action === action && (
         <MessageBar intent="error" role="alert">
-          <MessageBarBody>{error.text}</MessageBarBody>
+          <MessageBarBody>
+            {error.text}
+            {error.code && <span className={s.code}> {strings.aiErrCode(error.code)}</span>}
+          </MessageBarBody>
           {error.retry && (
             <MessageBarActions>
               <Button onClick={() => void run(action)} disabled={pending !== null}>

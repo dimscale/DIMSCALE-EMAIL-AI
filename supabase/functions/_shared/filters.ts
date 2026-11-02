@@ -9,7 +9,7 @@ export const isAllowedSender = (from: string | null | undefined, allowList: stri
   return f !== "" && allowList.some((a) => normalizeAddress(a) === f);
 };
 
-// F-013/AC-49 + amendment 2026-11-03: NFKC, drop ignorable/format characters, lower-case, trim, cut at the first "+". Mirrored in src/taskpane/noReply.ts.
+// F-013/AC-49 + amendment 2026-11-02: NFKC, drop ignorable/format characters, lower-case, trim, cut at the first "+". Mirrored in src/taskpane/noReply.ts.
 const NOREPLY = /^(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster)$/;
 export const isNoReplyLocalPart = (address: string) => {
   const local = (address.split("@")[0] ?? "").normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Cf}]/gu, "").toLowerCase().trim();
@@ -20,7 +20,7 @@ export const domainOf = (address: string) => normalizeAddress(address).split("@"
 /** Filter 18: true only on an explicit dmarc=fail or compauth=fail token; anything missing or odd passes (fail-open). */
 const AUTH_FAIL = /(?:^|[\s;])(?:dmarc|compauth)=fail(?=[\s;(]|$)/i;
 // Closed parenthesised comments (nested, one linear pass) are removed first. An unclosed one is kept as plain text, so a sender
-// cannot hide a real failure behind a stray "(" (review 2026-11-03: that only adds skips, the conservative direction).
+// cannot hide a real failure behind a stray "(" (review 2026-11-02: that only adds skips, the conservative direction).
 const stripComments = (v: string) => {
   let depth = 0, start = 0, out = "";
   for (let i = 0; i < v.length; i++) {

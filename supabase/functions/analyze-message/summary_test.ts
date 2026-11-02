@@ -87,6 +87,6 @@ Deno.test("AC-7: generateSummary sends the exact request", async () => {
 
 Deno.test("AC-11: generateSummary maps transport failures", async () => {
   const st = (s: number) => generateSummary(DI, { apiKey: "K", model: "m", maxOutputTokens: 1 }, (() => Promise.resolve(new Response("{}", { status: s }))) as unknown as typeof fetch);
-  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true });
-  assertEquals(await st(401), { ok: false, reason: "ai_unavailable", retryable: false });
+  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true, why: "http_503" });
+  assertEquals(await st(401), { ok: false, reason: "ai_unavailable", retryable: false, why: "http_401" });
 });

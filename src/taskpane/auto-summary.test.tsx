@@ -358,6 +358,11 @@ describe("errors and pause (F-003/AC-44)", () => {
     [401, { ok: false, error: "unauthorized" }, /A sessão expirou.*pausa até reabrir o painel/],
     [503, { ok: false, error: "disabled" }, /desligada.*pausa até reabrir o painel/],
     [503, { ok: false, error: "ai_not_configured" }, /configurada.*pausa até reabrir o painel/],
+    [
+      503,
+      { ok: false, error: "ai_unavailable", retryable: false, why: "http_401" },
+      /recusou o pedido.*pausa até reabrir o painel.*\(código: http_401\)/,
+    ],
   ];
   it.each(pauseCases)(
     "status %s pauses auto mode for the session, once",

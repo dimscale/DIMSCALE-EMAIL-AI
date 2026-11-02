@@ -90,7 +90,7 @@ describe("MessagePanel", () => {
     expect(screen.getByText("Other")).toBeTruthy();
     O.context.mailbox.item = null;
     act(() => handler?.());
-    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail AI")).toBeTruthy();
+    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail")).toBeTruthy();
     unmount();
     expect(O.context.mailbox.removeHandlerAsync).toHaveBeenCalledTimes(1);
   });
@@ -115,7 +115,7 @@ describe("MessagePanel", () => {
   it("shows the no-item message (AC-7)", () => {
     mockOffice(undefined);
     renderOpen();
-    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail AI")).toBeTruthy();
+    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail")).toBeTruthy();
   });
   it("renders HTML/script in the body literally (AC-8)", () => {
     const evil = "<script>alert(1)</script><b>x</b>";
@@ -152,7 +152,7 @@ describe("MessagePanel", () => {
   it("shows the no-item message when item is null, not only undefined (AC-7)", () => {
     mockOffice(null);
     renderOpen();
-    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail AI")).toBeTruthy();
+    expect(screen.getByText("Abra uma mensagem para usar o DIMSCALE Mail")).toBeTruthy();
   });
 
   it("keeps showing the error and Retry after a second and third failure (AC-6)", () => {

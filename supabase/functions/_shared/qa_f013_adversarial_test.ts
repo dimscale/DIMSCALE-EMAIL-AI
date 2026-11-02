@@ -25,7 +25,7 @@ Deno.test("ADV F-013/AC-45: dmarc=fail and compauth=fail token boundaries (RFC-s
     "mx.example;\r\n\tspf=pass;\r\n\tdmarc=fail header.from=x.pt", "dmarc=pass; compauth=fail reason=000",
     "dmarc=fail (p=reject)", "dmarc=fail (a (nested) b)",
     "dmarc=pass reason=x; dmarc=fail",
-    // review 2026-11-03: an unclosed "(" must not hide a real failure, in the same header or in a later one
+    // review 2026-11-02: an unclosed "(" must not hide a real failure, in the same header or in a later one
     "dmarc=pass (unclosed dmarc=fail", "spf=pass (\nx; dmarc=fail action=none", "dkim=fail (bad sig header.d=a;dmarc=fail",
     "spf=none (sender IP is 1.2.3.4) smtp.helo=evil(; dmarc=fail action=none", "attacker; spf=pass (\nx; dmarc=fail action=none",
   ];
@@ -101,7 +101,7 @@ Deno.test("ADV F-013/AC-49: no-reply local parts (filter 11) are matched exactly
     assert(isNoReplyLocalPart(a), a);
   }
   for (const a of ["ana@x.pt", "noreply.team@x.pt", "x-noreply@x.pt", "noreplyx@x.pt"]) assertFalse(isNoReplyLocalPart(a), a);
-  // Amendment 2026-11-03: NFKC, ignorable characters, lower-case, trim and the "+" cut are normalised.
+  // Amendment 2026-11-02: NFKC, ignorable characters, lower-case, trim and the "+" cut are normalised.
   for (const a of ["noreply+x@x.pt", "ｎｏｒｅｐｌｙ@x.pt" /* fullwidth */, "noreply​@x.pt" /* zero-width */, "no­reply@x.pt", " noreply@x.pt", "no-reply+a+b@x.pt", "ｎｏｒｅｐｌｙ＋x@x.pt"]) {
     assert(isNoReplyLocalPart(a), `no-reply: ${JSON.stringify(a)}`);
   }

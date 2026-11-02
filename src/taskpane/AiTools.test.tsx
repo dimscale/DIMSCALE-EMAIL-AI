@@ -308,8 +308,8 @@ describe("AiTools errors (F-003/AC-21)", () => {
     [
       503,
       { ok: false, error: "ai_unavailable", retryable: false },
-      "A IA devolveu uma resposta inválida. Tente novamente.",
-      true,
+      "O serviço de IA recusou o pedido (configuração). Avise o administrador.",
+      false,
     ],
     [500, { ok: false, error: "server_error" }, "Erro no serviço DIMSCALE. Tente novamente.", true],
   ];
@@ -338,6 +338,89 @@ describe("AiTools errors (F-003/AC-21)", () => {
     await click("Resumir");
     expect(screen.getByRole("alert").textContent).toContain("O serviço de IA não respondeu.");
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
+  });
+});
+
+describe("AiTools honest AI errors on every action (F-003 amendment (g))", () => {
+  const REJECTED = "O serviço de IA recusou o pedido (configuração). Avise o administrador.";
+  // [tab to open, button that runs the action]
+  const actions: [string, string][] = [
+    ["Resumo", "Resumir"],
+    ["Resposta", "Sugerir resposta"],
+    ["Traduzir", "Traduzir"],
+  ];
+  const err = (status: number, body: object) => json(status, { ok: false, ...body });
+  const open = (tabName: string) => {
+    setup(makeItem("corpo"));
+    render(<App />);
+    tab(tabName);
+  };
+  const spies: ReturnType<typeof vi.spyOn>[] = [];
+  const watchConsole = () =>
+    (["log", "info", "warn", "error", "debug"] as const).forEach((m) =>
+      spies.push(vi.spyOn(console, m).mockImplementation(() => undefined))
+    );
+  afterEach(() => {
+    spies.forEach((sp) => sp.mockRestore());
+    spies.length = 0;
+  });
+  const noConsole = () => spies.forEach((sp) => expect(sp).not.toHaveBeenCalled());
+
+  it.each(actions)("%s: a rejected request shows the new text and the code, with no retry", async (t, b) => {
+    watchConsole();
+    fetchMock.mockResolvedValue(
+      err(503, { error: "ai_unavailable", retryable: false, why: "http_401" })
+    );
+    open(t);
+    await click(b);
+    const text = screen.getByRole("alert").textContent ?? "";
+    expect(text).toContain(REJECTED);
+    expect(text).toContain("(código: http_401)");
+    expect(text).not.toContain("inválida");
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    noConsole();
+  });
+  it.each(actions)("%s: a rejected request without a why shows the text and no code", async (t, b) => {
+    fetchMock.mockResolvedValue(err(503, { error: "ai_unavailable", retryable: false }));
+    open(t);
+    await click(b);
+    expect(screen.getByRole("alert").textContent).toContain(REJECTED);
+    expect(screen.getByRole("alert").textContent).not.toContain("código");
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).toBeNull();
+  });
+  it.each(actions)("%s: unavailable and invalid keep a retry button and show their code", async (t, b) => {
+    open(t);
+    for (const [status, body, code] of [
+      [503, { error: "ai_unavailable", retryable: true, why: "http_429" }, "http_429"],
+      [503, { error: "ai_unavailable", retryable: true, why: "timeout" }, "timeout"],
+      [503, { error: "ai_unavailable", retryable: true, why: "network" }, "network"],
+      [502, { error: "ai_output_invalid", why: "badbody" }, "badbody"],
+    ] as [number, object, string][]) {
+      fetchMock.mockResolvedValue(err(status, body));
+      await click(b);
+      expect(screen.getByRole("alert").textContent).toContain(`(código: ${code})`);
+      expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
+    }
+  });
+  it.each(actions)("%s: an unknown why is never shown", async (t, b) => {
+    watchConsole();
+    open(t);
+    const bad = ["<b>evil</b>", "Invalid API key sk-123", "http_4", "http_4011", "timeout", 42, {}];
+    for (const why of bad) {
+      fetchMock.mockResolvedValue(err(503, { error: "ai_unavailable", retryable: false, why }));
+      await click(b);
+      expect(screen.getByRole("alert").textContent).toContain(REJECTED);
+      expect(screen.getByRole("alert").textContent).not.toContain("código");
+      expect(screen.queryByText(/evil|sk-123/)).toBeNull();
+    }
+    for (const why of ["<b>evil</b>", "http_401", "Schema", 7]) {
+      fetchMock.mockResolvedValue(err(502, { error: "ai_output_invalid", why }));
+      await click(b);
+      expect(screen.getByRole("alert").textContent).not.toContain("código");
+      expect(screen.queryByText(/evil/)).toBeNull();
+    }
+    noConsole();
   });
 });
 

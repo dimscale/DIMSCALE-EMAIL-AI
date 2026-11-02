@@ -1,7 +1,6 @@
 // All UI strings live here (PT-PT, F-012).
 export const strings = {
-  brandSuffix: "Mail",
-  wordmarkName: "DIMSCALE",
+  appName: "DIMSCALE Mail",
   tabsLabel: "Vistas",
   tabSummary: "Resumo",
   tabReply: "Resposta",
@@ -10,7 +9,7 @@ export const strings = {
   aiFooter: "O conteúdo gerado por IA pode estar incorreto",
   aiExpand: "Expandir",
   aiCollapse: "Reduzir",
-  noItem: "Abra uma mensagem para usar o DIMSCALE Mail AI",
+  noItem: "Abra uma mensagem para usar o DIMSCALE Mail",
   loading: "A carregar a mensagem…",
   noSubject: "(sem assunto)",
   noBody: "Esta mensagem não tem conteúdo de texto",
@@ -63,7 +62,7 @@ export const strings = {
   connected: "Ligado",
   connectedAs: (name: string) => `Ligado como ${name}`,
   unsupported:
-    "Esta versão do Outlook não suporta o início de sessão do DIMSCALE Mail AI. Atualize o Outlook ou utilize o Outlook na Web.",
+    "Esta versão do Outlook não suporta o início de sessão do DIMSCALE Mail. Atualize o Outlook ou utilize o Outlook na Web.",
   needSignIn: "Inicie sessão para ligar ao backend DIMSCALE",
   signIn: "Iniciar sessão",
   signInFailed: "Falha ao iniciar sessão",
@@ -107,6 +106,7 @@ export const strings = {
   aiErrDisabled: "A IA está temporariamente desligada.",
   aiErrNotConfigured: "A IA ainda não está configurada.",
   aiErrUnavailable: "O serviço de IA não respondeu. Tente novamente.",
+  aiErrRejected: "O serviço de IA recusou o pedido (configuração). Avise o administrador.",
   aiErrInvalid: "A IA devolveu uma resposta inválida. Tente novamente.",
   aiErrOther: "Erro no serviço DIMSCALE. Tente novamente.",
   aiTypeLabels: {

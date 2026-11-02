@@ -96,6 +96,6 @@ Deno.test("F-007/AC-5: every failure is ai_output_invalid", () => {
 
 Deno.test("F-007/AC-5: transport failures map like F-003", async () => {
   const st = (s: number) => generateClassified(DI, { apiKey: "K", model: "m", maxOutputTokens: 1 }, (() => Promise.resolve(new Response("{}", { status: s }))) as unknown as typeof fetch);
-  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true });
-  assertEquals(await st(401), { ok: false, reason: "ai_unavailable", retryable: false });
+  assertEquals(await st(503), { ok: false, reason: "ai_unavailable", retryable: true, why: "http_503" });
+  assertEquals(await st(401), { ok: false, reason: "ai_unavailable", retryable: false, why: "http_401" });
 });

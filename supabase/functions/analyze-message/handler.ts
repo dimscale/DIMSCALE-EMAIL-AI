@@ -88,10 +88,13 @@ export async function handle(
   if (cfg && origin && cfg.allowedOrigins.includes(origin)) cors["Access-Control-Allow-Origin"] = origin;
   const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   const aiFail = (r: AiFail) => {
-    reason = r.reason;
-    if (r.reason === "ai_unavailable") return json({ ok: false, error: "ai_unavailable", retryable: r.retryable }, 503);
-    if (r.why) reason = `ai_output_${r.why}`; // fixed vocabulary (WHY_CODES), never content
-    return json({ ok: false, error: "ai_output_invalid", ...(r.why ? { why: r.why } : {}) }, 502);
+    const why = r.why ? { why: r.why } : {};
+    if (r.reason === "ai_unavailable") {
+      reason = r.why ? `ai_unavailable_${r.why}` : r.reason; // fixed vocabulary (http_<status>, timeout, network), never content
+      return json({ ok: false, error: "ai_unavailable", retryable: r.retryable, ...why }, 503);
+    }
+    reason = r.why ? `ai_output_${r.why}` : r.reason; // fixed vocabulary (WHY_CODES, badbody), never content
+    return json({ ok: false, error: "ai_output_invalid", ...why }, 502);
   };
 
   const res = await (async (): Promise<Response> => {

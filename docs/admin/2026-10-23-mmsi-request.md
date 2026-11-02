@@ -3,7 +3,7 @@
 - **Estado:** pronto a enviar pelo utilizador quando disser que o add-in está pronto. Atualizado em 2026-11-02 (ficheiro original de 2026-10-23). Substitui todos os pedidos anteriores.
 - **Fontes Microsoft:** no fim de cada secção. Nomes dos menus em inglês, como aparecem nos portais.
 - **Nada aqui é secreto.** Nenhuma chave, segredo ou chave privada passa por este documento ou por e-mail. Só o ficheiro público `drafts.crt` é enviado.
-- **Estado do add-in:** manifesto **1.0.3.0**, nome **"Assistente IA"**, **um** botão no friso "DIMSCALE Mail" (grupo "DIMSCALE MAIL"), permissão `ReadItem` apenas. Não há botão "Resumo" nem segunda página.
+- **Estado do add-in:** manifesto **1.0.4.0**, nome **"DIMSCALE Mail"**, **um** botão no friso "DIMSCALE Mail" (grupo "DIMSCALE"), permissão `ReadItem` apenas. Não há botão "Resumo" nem segunda página.
 
 ---
 
@@ -69,7 +69,7 @@ Get-ManagementRoleAssignment -RoleAssignee <Object ID do service principal> | Fo
 Fonte: https://learn.microsoft.com/exchange/permissions-exo/application-rbac
 
 ### E. Implementação centralizada do add-in (manifesto final)
-14. O manifesto final **1.0.3.0** está publicado em `https://dimscale.github.io/DIMSCALE-EMAIL-AI/manifest.xml` (gerado pelo CI). Nome do add-in: **"Assistente IA"**. Traz **um** botão "DIMSCALE Mail" no grupo "DIMSCALE MAIL" do friso do Outlook, painel fixável, permissão `ReadItem`.
+14. O manifesto final **1.0.4.0** SERÁ publicado em `https://dimscale.github.io/DIMSCALE-EMAIL-AI/manifest.xml` (gerado pelo CI) após o merge para `main`; ainda não está publicado. Nome do add-in: **"DIMSCALE Mail"**. Traz **um** botão "DIMSCALE Mail" no grupo "DIMSCALE" do friso do Outlook, painel fixável, permissão `ReadItem`.
 15. **Microsoft 365 admin center > Settings > Integrated apps > Add-ins** (ligação perto do topo) **> Deploy Add-in > Next >** carregar o manifesto (**Upload custom apps**, ficheiro ou URL acima) **> Upload >** escolher **Specific users/groups** (recomendado: o grupo piloto, depois alargar; a Microsoft recomenda atribuir por grupos e implementar por fases) **> Deploy**.
 16. Pode demorar: a Microsoft indica que os add-ins **podem demorar 24 a 72 horas a aparecer no friso**; os utilizadores podem ter de reiniciar o Outlook.
 17. Futuras alterações de código chegam aos utilizadores sem intervenção. Só uma alteração do manifesto pede novo upload (selecionar o add-in > **Update**).

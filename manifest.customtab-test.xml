@@ -4,10 +4,10 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" xsi:type="MailApp">
   <Id>82659dcb-0ac6-483b-96b9-1335f1ef8ed2</Id>
-  <Version>1.0.3.1</Version>
+  <Version>1.0.4.1</Version>
   <ProviderName>DIMSCALE</ProviderName>
   <DefaultLocale>pt-PT</DefaultLocale>
-  <DisplayName DefaultValue="Assistente IA (teste separador)"/>
+  <DisplayName DefaultValue="DIMSCALE Mail (teste separador)"/>
   <Description DefaultValue="Helps you read, triage and answer email with AI."/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-128.png"/>
@@ -86,7 +86,7 @@
           <bt:String id="IaButton.Title" DefaultValue="DIMSCALE Mail"/>
         </bt:ShortStrings>
         <bt:LongStrings>
-          <bt:String id="IaButton.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail AI: resumo, resposta, tradução e respostas automáticas."/>
+          <bt:String id="IaButton.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail: resumo, resposta, tradução e respostas automáticas."/>
         </bt:LongStrings>
       </Resources>
     </VersionOverrides>

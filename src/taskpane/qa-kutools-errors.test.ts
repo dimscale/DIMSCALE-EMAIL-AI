@@ -44,11 +44,11 @@ describe("error table, every status and malformed bodies (F-003/AC-21)", () => {
     expect(await code(summarize, 401, null, true)).toBe("unauthorized");
   });
 
-  it("503 ai_unavailable: retryable must be the boolean true; the string 'true' or a missing flag is not retryable", async () => {
+  it("503 ai_unavailable: retryable must be the boolean true; the string 'true' or a missing flag is not retryable (rejected, F-003 amendment (g))", async () => {
     expect(await code(reply, 503, { ok: false, error: "ai_unavailable", retryable: "true" })).toBe(
-      "invalid"
+      "rejected"
     );
-    expect(await code(reply, 503, { ok: false, error: "ai_unavailable" })).toBe("invalid");
+    expect(await code(reply, 503, { ok: false, error: "ai_unavailable" })).toBe("rejected");
     expect(await code(reply, 503, { ok: false, error: "ai_unavailable", retryable: true })).toBe(
       "unavailable"
     );
