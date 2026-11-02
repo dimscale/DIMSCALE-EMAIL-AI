@@ -4,6 +4,7 @@ import type { Config } from "../_shared/entra.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { fakeDb } from "../_shared/testing.ts";
 import { handle } from "./handler.ts";
+import { NO_DOMAINS_SENTENCE } from "./replyOptions.ts";
 
 const T = "11111111-1111-1111-1111-111111111111", C = "22222222-2222-2222-2222-222222222222";
 const OID = "33333333-3333-3333-3333-333333333333";
@@ -381,6 +382,25 @@ Deno.test("AC-35: payload per action, every invalid case is 422 with no DB and n
   }
 });
 
+Deno.test("manual reply naming a domain: 502 with log reason ai_output_link and no content; domain-free reply passes", async () => {
+  const lines = quiet();
+  try {
+    const t = await mint();
+    const edenred = { ...replyPayload, subject: "MyEdenred - Confirme o seu email", fromName: "MyEdenred", fromDomain: "appmyedenred.pt", body: "Confirme o seu email MARK_BODY" };
+    const bad = await setup({}, () => new Response(JSON.stringify(wrap('{"reply":"Obrigado, contactei appmyedenred.pt."}')))).call(t, edenred);
+    assertEquals([bad.status, await bad.json()], [502, { ok: false, error: "ai_output_invalid" }]);
+    const last = JSON.parse(lines[lines.length - 1]);
+    assertEquals([last.reason, Object.keys(last).sort()], ["ai_output_link", ["fn", "id", "method", "ms", "reason", "status"]]);
+    const all = lines.join(" ");
+    assertFalse(all.includes("appmyedenred") || all.includes("MARK_BODY"));
+    const s = setup({}, () => new Response(JSON.stringify(wrap('{"reply":"Obrigado, confirmo o email da MyEdenred."}'))));
+    assertEquals([(await s.call(t, edenred)).status], [200]);
+    assert(JSON.parse(s.requests[0].init.body as string).instructions.includes("Never write domain names, web addresses, e-mail addresses or file names"));
+  } finally {
+    loud();
+  }
+});
+
 Deno.test("AC-35/AC-36: reply options accepted, defaults equal the no-option request", async () => {
   quiet();
   try {
@@ -398,7 +418,7 @@ Deno.test("AC-35/AC-36: reply options accepted, defaults equal the no-option req
     const res = await s.call(t, { ...replyPayload, language: "en", tone: "formal" });
     assertEquals([res.status, await res.json()], [200, { ok: true, action: "reply", reply: "Obrigado." }]);
     const o = JSON.parse(s.requests[0].init.body as string);
-    assert(o.instructions.endsWith("Write the reply in English, whatever the language of the email. This replaces the language rule above. Use a formal, courteous register."));
+    assert(o.instructions.endsWith("Write the reply in English, whatever the language of the email. This replaces the language rule above. Use a formal, courteous register. " + NO_DOMAINS_SENTENCE));
     assertEquals([o.input, o.max_output_tokens], [b.input, 2000]);
     // reply with options still rejects links and markup
     for (const r of ['{"reply":"see https://evil.example"}', '{"reply":"<b>x</b>"}']) {

@@ -1,5 +1,5 @@
 import { assert, assertFalse } from "@std/assert";
-import { hasLink, introducesNewLinks } from "./ai.ts";
+import { hasLink, introducesNewLinks, parseOutput } from "./ai.ts";
 
 const MUST_FLAG = [
   "http://evil.example", "HTTPS://X.y", "www.evil.example", "go //evil.example/x", "boss@evil.example",
@@ -9,7 +9,7 @@ const MUST_FLAG = [
 ];
 const MUST_PASS = [
   "Pagar a fatura até sexta.", "a/b e c/d", "Olá @Ana", "2026-10-29", "versão v1.2", "reunião às 9.30", "valor 1.234,56 EUR", "3.14",
-  "etc. e tal", "ex.: isto", "Sr.Silva", "Bom dia.Obrigado", "Fim.Seguimos", "index.html", "Dr. Costa, e.g. amanhã", "1.2.3",
+  "etc. e tal", "ex.: isto", "Sr.Silva", "Bom dia.Obrigado", "Fim.Seguimos", "MyEdenred", "Edenred", "Obrigado.", "Confirmo o email da MyEdenred. Obrigado.", "index.html", "Dr. Costa, e.g. amanhã", "1.2.3",
 ];
 
 Deno.test("hasLink: table of must-flag strings", () => {
@@ -55,4 +55,9 @@ Deno.test("hasLink: 16,000 chars stays fast", () => {
   hasLink("a.b.c.d ".repeat(2000));
   introducesNewLinks("Olá ".repeat(4000), "a-b.c-d ".repeat(2000));
   assert(performance.now() - t < 1000);
+});
+Deno.test("parseOutput: a reply that repeats the sender name MyEdenred (no dot) is accepted", () => {
+  const email = "Sender: MyEdenred appmyedenred.pt";
+  const r = parseOutput({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ reply: "Olá, obrigado. Cumprimentos, MyEdenred." }) }] }] }, email);
+  assert(r.ok);
 });

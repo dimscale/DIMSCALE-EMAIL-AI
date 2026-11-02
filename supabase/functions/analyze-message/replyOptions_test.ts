@@ -1,6 +1,6 @@
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertFalse } from "@std/assert";
 import { buildInput, generateDraft, INSTRUCTIONS, SCHEMA } from "../_shared/ai.ts";
-import { generateReply, LANGUAGE_SENTENCES, LANGUAGES, TONE_OPTIONS, TONE_SENTENCES } from "./replyOptions.ts";
+import { generateReply, LANGUAGE_SENTENCES, LANGUAGES, NO_DOMAINS_SENTENCE, TONE_OPTIONS, TONE_SENTENCES } from "./replyOptions.ts";
 
 const DI = { subject: "Fatura", fromName: "Ana", fromDomain: "exemplo.pt", body: "Olá, pode pagar?" };
 const CFG = { apiKey: "sk-test", model: "m", maxOutputTokens: 2000, reasoningEffort: "low" };
@@ -11,18 +11,20 @@ const capture = async (run: (f: typeof fetch) => Promise<unknown>) => {
   return body;
 };
 
-Deno.test("AC-36: match + none is byte-identical to generateDraft", async () => {
-  const a = await capture((f) => generateDraft(DI, CFG, f));
-  assertEquals(await capture((f) => generateReply(DI, { language: "match", tone: "none" }, CFG, f)), a);
+Deno.test("AC-36: match + none differs from generateDraft (F-013) only by the no-domain sentence", async () => {
+  const a = JSON.parse(await capture((f) => generateDraft(DI, CFG, f)));
+  assertEquals(a.instructions, INSTRUCTIONS); // F-013 request unchanged
+  assertFalse(a.instructions.includes(NO_DOMAINS_SENTENCE));
+  const b = JSON.parse(await capture((f) => generateReply(DI, { language: "match", tone: "none" }, CFG, f)));
+  assertEquals(b, { ...a, instructions: `${INSTRUCTIONS} ${NO_DOMAINS_SENTENCE}` });
 });
 
 Deno.test("AC-36: every option adds only the fixed sentences, language before tone; input and schema unchanged", async () => {
   const base = JSON.parse(await capture((f) => generateDraft(DI, CFG, f)));
   for (const language of LANGUAGES) {
     for (const tone of TONE_OPTIONS) {
-      if (language === "match" && tone === "none") continue;
       const b = JSON.parse(await capture((f) => generateReply(DI, { language, tone }, CFG, f)));
-      assertEquals(b.instructions, [INSTRUCTIONS, (LANGUAGE_SENTENCES as Record<string, string>)[language], (TONE_SENTENCES as Record<string, string>)[tone]].filter(Boolean).join(" "));
+      assertEquals(b.instructions, [INSTRUCTIONS, (LANGUAGE_SENTENCES as Record<string, string>)[language], (TONE_SENTENCES as Record<string, string>)[tone], NO_DOMAINS_SENTENCE].filter(Boolean).join(" "));
       assertEquals([b.input, b.text, b.max_output_tokens, b.reasoning], [buildInput(DI), base.text, 2000, { effort: "low" }]);
       assertEquals(b.text.format.schema, SCHEMA);
     }

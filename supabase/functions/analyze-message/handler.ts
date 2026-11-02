@@ -15,7 +15,6 @@ const MAX_RAW = 16 * 1024;
 const MAX_CAP = 1_000_000;
 // shortcut: effort and token cap are constants, not env (spec decision 9); make them env only if the user asks.
 const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000, TRANSLATE_MAX_OUTPUT_TOKENS = 4000;
-const NO_LINKS: AiFail = { ok: false, reason: "ai_output_invalid", retryable: false };
 
 /** Body as text, or null when over `max` bytes: Content-Length is checked first, then a byte counter stops an unlabelled stream. */
 async function readCapped(req: Request, max: number): Promise<string | null> {
@@ -159,7 +158,10 @@ export async function handle(
     }
     const { action: _a, opts, revise, ...input } = payload;
     const r = await generateReply(input, opts, ai, fetchFn, revise);
-    if (r.ok && hasLink(r.reply)) return aiFail(NO_LINKS);
+    if (r.ok && hasLink(r.reply)) {
+      reason = "ai_output_link"; // fixed reason, never the content
+      return json({ ok: false, error: "ai_output_invalid" }, 502);
+    }
     return r.ok ? json({ ok: true, action, reply: r.reply }, 200) : aiFail(r);
   })();
   log({ fn: FN, id, method: req.method, status: res.status, reason, ms: Date.now() - t0 });

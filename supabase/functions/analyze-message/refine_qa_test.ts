@@ -3,6 +3,7 @@
 import { assert, assertEquals, assertFalse } from "@std/assert";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
 import { buildInput, INSTRUCTIONS } from "../_shared/ai.ts";
+import { NO_DOMAINS_SENTENCE } from "./replyOptions.ts";
 import type { Config } from "../_shared/entra.ts";
 import { fakeDb } from "../_shared/testing.ts";
 import { handle, parsePayload } from "./handler.ts";
@@ -128,7 +129,7 @@ Deno.test("AC-53 (QA): emoji at the limits reach the prompt unchanged, trimmed i
 });
 
 // AC-58 (QA): a request without the two fields is the same prompt as before the revision feature.
-Deno.test("AC-58 (QA): default reply (no fields, or match + none) sends exactly INSTRUCTIONS and buildInput", async () => {
+Deno.test("AC-58 (QA): default reply (no fields, or match + none) sends INSTRUCTIONS plus only the no-domain sentence, and buildInput", async () => {
   captureLogs();
   try {
     const t = await mint();
@@ -136,7 +137,7 @@ Deno.test("AC-58 (QA): default reply (no fields, or match + none) sends exactly 
       const s = setup();
       assertEquals((await s.call(t, { action: "reply", ...email, ...extra })).status, 200);
       const b = JSON.parse(s.requests[0].body as string);
-      assertEquals(b.instructions, INSTRUCTIONS);
+      assertEquals(b.instructions, `${INSTRUCTIONS} ${NO_DOMAINS_SENTENCE}`);
       assertEquals(b.input, buildInput(email));
       assertFalse(b.input.includes("Current draft"));
     }
