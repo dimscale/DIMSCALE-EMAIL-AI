@@ -19,16 +19,21 @@ export const domainOf = (address: string) => normalizeAddress(address).split("@"
 
 /** Filter 18: true only on an explicit dmarc=fail or compauth=fail token; anything missing or odd passes (fail-open). */
 const AUTH_FAIL = /(?:^|[\s;])(?:dmarc|compauth)=fail(?=[\s;(]|$)/i;
-// Parenthesised comments (nested, one linear pass) are removed first; an unclosed one drops the rest (fewer skips, fail-open).
+// Closed parenthesised comments (nested, one linear pass) are removed first. An unclosed one is kept as plain text, so a sender
+// cannot hide a real failure behind a stray "(" (review 2026-11-03: that only adds skips, the conservative direction).
 const stripComments = (v: string) => {
-  let depth = 0, out = "";
-  for (const ch of v) {
-    if (ch === "(") depth++;
-    else if (ch === ")" && depth > 0) { depth--; if (depth === 0) out += " "; } else if (depth === 0) out += ch;
+  let depth = 0, start = 0, out = "";
+  for (let i = 0; i < v.length; i++) {
+    const ch = v[i];
+    if (ch === "(") { if (depth++ === 0) start = i; }
+    else if (ch === ")" && depth > 0) { if (--depth === 0) out += " "; }
+    else if (depth === 0) out += ch;
   }
-  return out;
+  return depth > 0 ? out + v.slice(start) : out;
 };
-export const authFailed = (value: string | undefined) => value !== undefined && AUTH_FAIL.test(stripComments(value));
+// Each Authentication-Results header is judged on its own (the values are joined with a line feed): one failing header is enough.
+export const authFailed = (value: string | undefined) =>
+  value !== undefined && value.split(String.fromCharCode(10)).some((h) => AUTH_FAIL.test(stripComments(h)));
 
 export type FilterCtx = {
   mailSha256: string; // SHA-256 of the owner's lower-cased address

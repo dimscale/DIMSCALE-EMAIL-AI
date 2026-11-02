@@ -177,6 +177,7 @@ export const strings = {
   needAtLeastOneContact: "Escolha pelo menos um contacto.",
   invalidEmail: "Endereço de email inválido.",
   ownAddressNotAllowed: "Não pode adicionar o seu próprio endereço.",
+  noReplyDropped: "Foram retirados da lista endereços de não-resposta guardados antes. Guarde para atualizar.",
   noReplyNotAllowed: "Não pode adicionar um endereço de não-resposta (por exemplo noreply).",
   contactAlreadyAdded: "Este endereço já está na lista.",
   responderAssurance:

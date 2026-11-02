@@ -181,7 +181,9 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
           setEnabled(settingsRes.data.enabled);
           setServerStatus(settingsRes.data.status);
           // F-013 amendment: a list stored before AC-49 may hold no-reply contacts; drop them so saving is not refused
-          setSelectedContacts(settingsRes.data.contacts.filter((c) => !isNoReplyLocalPart(c)));
+          const kept = settingsRes.data.contacts.filter((c) => !isNoReplyLocalPart(c));
+          setSelectedContacts(kept);
+          if (kept.length < settingsRes.data.contacts.length) setNotice({ intent: "info", text: strings.noReplyDropped });
           setLoadSettingsError(false);
         } else {
           setLoadSettingsError(true);

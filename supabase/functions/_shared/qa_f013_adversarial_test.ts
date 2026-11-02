@@ -25,11 +25,14 @@ Deno.test("ADV F-013/AC-45: dmarc=fail and compauth=fail token boundaries (RFC-s
     "mx.example;\r\n\tspf=pass;\r\n\tdmarc=fail header.from=x.pt", "dmarc=pass; compauth=fail reason=000",
     "dmarc=fail (p=reject)", "dmarc=fail (a (nested) b)",
     "dmarc=pass reason=x; dmarc=fail",
+    // review 2026-11-03: an unclosed "(" must not hide a real failure, in the same header or in a later one
+    "dmarc=pass (unclosed dmarc=fail", "spf=pass (\nx; dmarc=fail action=none", "dkim=fail (bad sig header.d=a;dmarc=fail",
+    "spf=none (sender IP is 1.2.3.4) smtp.helo=evil(; dmarc=fail action=none", "attacker; spf=pass (\nx; dmarc=fail action=none",
   ];
   for (const v of skip) assert(authFailed(v), `should skip: ${v}`);
   const pass = [
     "dmarc=pass; spf=fail", "dkim=fail", "spf=fail", "dmarc=pass reason=\"dmarc=fail\"", "dmarc=pass (policy \"dmarc=fail\")",
-    "dmarc=pass (note: dmarc=fail)", "dmarc=pass (note dmarc=fail here)", "dmarc=pass (a (dmarc=fail) b)", "dmarc=pass (unclosed dmarc=fail", "dmarc=fail)", "dmarc=fail.", "xcompauth=fail", "compauth=fail_x", "dmarc=fail_x",
+    "dmarc=pass (note: dmarc=fail)", "dmarc=pass (note dmarc=fail here)", "dmarc=pass (a (dmarc=fail) b)", "dmarc=fail)", "dmarc=fail.", "xcompauth=fail", "compauth=fail_x", "dmarc=fail_x",
     "dmarc=failx", "xdmarc=fail", "dmarc = fail", "dmarc=\r\n fail", "dmarc:fail", "",
   ];
   for (const v of pass) assertFalse(authFailed(v), `should pass: ${JSON.stringify(v)}`);

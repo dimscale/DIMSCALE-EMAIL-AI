@@ -210,6 +210,8 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     render(<ResponderPanel />);
     await screen.findByText("Contactos a responder (1)");
     expect(screen.queryByLabelText(/noreply@x\.com/)).toBeNull();
+    // the user is told that stored no-reply addresses were removed from the list
+    expect(screen.getByText(/Foram retirados da lista endereços de não-resposta/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => {
