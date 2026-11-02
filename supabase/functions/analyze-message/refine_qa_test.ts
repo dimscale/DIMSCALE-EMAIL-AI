@@ -166,7 +166,7 @@ Deno.test("AC-57 (QA): revision on 200, 422, 503 disabled, 429 cap, 502 invalid 
       assertEquals(Object.keys(o).sort(), ["fn", "id", "method", "ms", "reason", "status"]);
       reasons.push(o.reason);
     }
-    assertEquals(reasons, ["ok", "payload_invalid", "disabled", "ok", "cap_reached", "ai_output_invalid"]);
+    assertEquals(reasons, ["ok", "payload_invalid", "disabled", "ok", "cap_reached", "ai_output_markup"]);
     assertFalse(lines.join("\n").includes("MARK_"));
   } finally {
     console.log = origLog;

@@ -194,6 +194,8 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       else if (res.kind === "error") {
         let text =
           refine !== undefined && res.code === "invalid" ? strings.aiRefineInvalid : errorText[res.code];
+        if (action === "reply" && res.code === "invalid" && res.why)
+          text = `${text} ${strings.aiErrCode(res.why)}`; // fixed code, never server text
         if (isAuto && PAUSE_CODES.includes(res.code)) {
           text = res.code === "cap" ? strings.autoPausedCap : `${text} ${strings.autoPausedSuffix}`;
           auto.pause();

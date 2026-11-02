@@ -63,6 +63,11 @@ describe("analyzeClient (F-003/AC-18, AC-21)", () => {
       "invalid"
     );
     expect(await code(502, { ok: false, error: "ai_output_invalid" })).toBe("invalid");
+    const why = async (w: unknown) =>
+      analyze("t", payload, resp(502, { ok: false, error: "ai_output_invalid", why: w }) as any);
+    expect(await why("markup")).toEqual({ kind: "error", code: "invalid", why: "markup" });
+    expect(await why("nope")).toEqual({ kind: "error", code: "invalid" });
+    expect(await why({ a: 1 })).toEqual({ kind: "error", code: "invalid" });
     expect(await code(500, { ok: false, error: "server_error" })).toBe("other");
     expect(await code(503, { ok: false, error: "server_error" })).toBe("other");
     expect(await code(429, { ok: false, error: "other" })).toBe("other");

@@ -96,6 +96,7 @@ export const strings = {
   aiRefineSend: "Enviar alterações",
   aiRefineTooLong: "A resposta é demasiado longa para pedir alterações. Edite-a no formulário.",
   aiRefineDone: "Resposta atualizada",
+  aiErrCode: (why: string) => `(código: ${why})`,
   aiRefineInvalid:
     "A IA não conseguiu aplicar o pedido. Ligações e endereços não podem ser acrescentados pela IA: adicione-os no formulário de resposta.",
   aiPrevVersion: "Versão anterior",

@@ -89,7 +89,9 @@ export async function handle(
   const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   const aiFail = (r: AiFail) => {
     reason = r.reason;
-    return r.reason === "ai_unavailable" ? json({ ok: false, error: "ai_unavailable", retryable: r.retryable }, 503) : json({ ok: false, error: "ai_output_invalid" }, 502);
+    if (r.reason === "ai_unavailable") return json({ ok: false, error: "ai_unavailable", retryable: r.retryable }, 503);
+    if (r.why) reason = `ai_output_${r.why}`; // fixed vocabulary (WHY_CODES), never content
+    return json({ ok: false, error: "ai_output_invalid", ...(r.why ? { why: r.why } : {}) }, 502);
   };
 
   const res = await (async (): Promise<Response> => {
@@ -160,7 +162,7 @@ export async function handle(
     const r = await generateReply(input, opts, ai, fetchFn, revise);
     if (r.ok && hasLink(r.reply)) {
       reason = "ai_output_link"; // fixed reason, never the content
-      return json({ ok: false, error: "ai_output_invalid" }, 502);
+      return json({ ok: false, error: "ai_output_invalid", why: "link" }, 502);
     }
     return r.ok ? json({ ok: true, action, reply: r.reply }, 200) : aiFail(r);
   })();

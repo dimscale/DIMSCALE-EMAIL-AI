@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertFalse } from "@std/assert";
 import { buildInput, generateDraft, INSTRUCTIONS, SCHEMA } from "../_shared/ai.ts";
 import { generateReply, LANGUAGE_SENTENCES, LANGUAGES, NO_DOMAINS_SENTENCE, TONE_OPTIONS, TONE_SENTENCES } from "./replyOptions.ts";
+import { hasLink } from "../_shared/ai.ts";
 
 const DI = { subject: "Fatura", fromName: "Ana", fromDomain: "exemplo.pt", body: "Olá, pode pagar?" };
 const CFG = { apiKey: "sk-test", model: "m", maxOutputTokens: 2000, reasoningEffort: "low" };
@@ -36,4 +37,13 @@ Deno.test("AC-36: every option adds only the fixed sentences, language before to
   assertEquals(TONE_SENTENCES.formal, "Use a formal, courteous register.");
   assertEquals(TONE_SENTENCES.friendly, "Use a warm, friendly register while staying professional.");
   assert(Object.keys(TONE_SENTENCES).length === 4 && Object.keys(LANGUAGE_SENTENCES).length === 2);
+});
+
+Deno.test("realistic MyEdenred notification reply passes parseOutput and hasLink", async () => {
+  const email = { subject: "MyEdenred - Confirme o seu email", fromName: "MyEdenred", fromDomain: "appmyedenred.pt", body: "Confirme o seu email para ativar a conta." };
+  const txt = "Boa tarde,\n\nObrigado pelo aviso. Vou confirmar o meu email.\n\nCom os melhores cumprimentos,\nThiago";
+  const f = (() => Promise.resolve(new Response(JSON.stringify({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ reply: txt }) }] }] })))) as unknown as typeof fetch;
+  const r = await generateReply(email, { language: "match", tone: "none" }, CFG, f);
+  assertEquals(r, { ok: true, reply: txt });
+  assertFalse(hasLink(txt));
 });

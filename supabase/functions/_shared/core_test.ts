@@ -2,7 +2,7 @@ import { assert, assertEquals, assertFalse, assertStringIncludes } from "@std/as
 import { createLocalJWKSet, decodeProtectedHeader, exportJWK, exportPKCS8, generateKeyPair, jwtVerify, SignJWT } from "jose";
 import { makeAppTokenProvider } from "./appToken.ts";
 import { autoDraftsEnabled, readSettings } from "./config.ts";
-import { buildInput, generateDraft, INSTRUCTIONS, parseOutput } from "./ai.ts";
+import { buildInput, generateDraft, INSTRUCTIONS, parseOutput as parseOutputWhy } from "./ai.ts";
 import { evaluate, type FilterCtx, isAllowedSender } from "./filters.ts";
 import type { Msg } from "./graph.ts";
 import { log } from "./log.ts";
@@ -10,6 +10,12 @@ import { ctEqual, sha256Hex } from "./safe.ts";
 import { validateStateful } from "./stateful.ts";
 
 // ---------- safe ----------
+// F-013 tests compare the exact rejection; the diagnostic `why` is asserted in the handler tests.
+const parseOutput = (...a: Parameters<typeof parseOutputWhy>) => {
+  const { why: _why, ...r } = parseOutputWhy(...a) as Record<string, unknown>;
+  return r;
+};
+
 Deno.test("ctEqual and sha256Hex", async () => {
   assert(await ctEqual("abc", "abc"));
   assertFalse(await ctEqual("abc", "abd"));
@@ -244,7 +250,10 @@ Deno.test("generateDraft: exact request shape", async () => {
 });
 
 Deno.test("generateDraft: invalid outputs are ai_output_invalid", async () => {
-  const run = (json: unknown) => generateDraft(DI, { apiKey: "K", model: "m", maxOutputTokens: 800 }, (() => Promise.resolve(new Response(JSON.stringify(json)))) as unknown as typeof fetch);
+  const run = async (json: unknown) => {
+    const { why: _why, ...r } = (await generateDraft(DI, { apiKey: "K", model: "m", maxOutputTokens: 800 }, (() => Promise.resolve(new Response(JSON.stringify(json)))) as unknown as typeof fetch)) as Record<string, unknown>;
+    return r; // the diagnostic `why` is covered by the handler tests
+  };
   const invalid = { ok: false, reason: "ai_output_invalid", retryable: false } as const;
   assertEquals(await run(completed("not json")), invalid);
   assertEquals(await run(completed(JSON.stringify({ reply: "x", extra: 1 }))), invalid);

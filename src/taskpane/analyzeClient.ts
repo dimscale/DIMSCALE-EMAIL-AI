@@ -63,7 +63,19 @@ export type AnalyzeResult =
   | { kind: "reply"; reply: string }
   | { kind: "translation"; translation: Translation }
   | { kind: "aborted" } // the caller aborted (item changed, auto mode off): the UI ignores it
-  | { kind: "error"; code: AnalyzeErrorCode };
+  | { kind: "error"; code: AnalyzeErrorCode; why?: WhyCode };
+
+// Closed set of content-free diagnostic codes the function may add to a rejected reply; anything else is dropped.
+export const WHY_CODES = [
+  "empty",
+  "toolong",
+  "newlink",
+  "markup",
+  "schema",
+  "incomplete",
+  "link",
+] as const;
+export type WhyCode = (typeof WHY_CODES)[number];
 
 export const RETRYABLE: AnalyzeErrorCode[] = ["unavailable", "invalid", "other"];
 
@@ -114,8 +126,10 @@ export async function analyze(
         return { kind: "error", code: "not_configured" };
       if (res.status === 503 && error === "ai_unavailable")
         return { kind: "error", code: body?.retryable === true ? "unavailable" : "invalid" };
-      if (res.status === 502 && error === "ai_output_invalid")
-        return { kind: "error", code: "invalid" };
+      if (res.status === 502 && error === "ai_output_invalid") {
+        const why = oneOf(WHY_CODES, body?.why);
+        return { kind: "error", code: "invalid", ...(why ? { why } : {}) };
+      }
       return { kind: "error", code: "other" };
     }
     if (body?.ok === true && body.action === "reply" && str(body.reply) !== null)

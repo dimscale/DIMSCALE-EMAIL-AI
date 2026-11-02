@@ -24,7 +24,10 @@ export type DraftInput = { subject: string; fromName: string; fromDomain: string
 export type AiConfig = { apiKey: string; model: string; maxOutputTokens: number; reasoningEffort?: string };
 export type AiResult =
   | { ok: true; reply: string }
-  | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean };
+  | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean; why?: Why };
+/** Closed, content-free diagnostic codes for a rejected reply (shown in the pane and logged; never any text from the model or the email). */
+export const WHY_CODES = ["empty", "toolong", "newlink", "markup", "schema", "incomplete", "link"] as const;
+export type Why = (typeof WHY_CODES)[number];
 
 const MARKERS = [OPEN, CLOSE, "<<<DRAFT", "DRAFT>>>", "<<<INSTRUCTION", "INSTRUCTION>>>"]; // F-003 (d): draft and instruction have their own delimiters
 export function stripMarkers(s: string): string {
@@ -106,23 +109,28 @@ export function singleOutputText(res: unknown): string | null {
 
 /** Strict output validation: complete, no refusal, JSON matching the schema, 1..3,000 chars, no new links. */
 export function parseOutput(res: unknown, input: string): AiResult {
-  const bad: AiResult = { ok: false, reason: "ai_output_invalid", retryable: false };
+  const bad = (why: Why): AiResult => ({ ok: false, reason: "ai_output_invalid", retryable: false, why });
   const text = singleOutputText(res);
-  if (text === null) return bad;
+  if (text === null) {
+    const status = (res as { status?: unknown } | null)?.status; // max_output_tokens also reports "incomplete"
+    return bad(status === "incomplete" ? "incomplete" : "schema");
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    return bad;
+    return bad("schema");
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return bad;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return bad("schema");
   const keys = Object.keys(parsed);
   const reply = (parsed as { reply?: unknown }).reply;
-  if (keys.length !== 1 || keys[0] !== "reply" || typeof reply !== "string") return bad;
-  if (reply.trim() === "" || reply.length > 3000 || introducesNewLinks(reply, input)) return bad;
+  if (keys.length !== 1 || keys[0] !== "reply" || typeof reply !== "string") return bad("schema");
+  if (reply.trim() === "") return bad("empty");
+  if (reply.length > 3000) return bad("toolong");
+  if (introducesNewLinks(reply, input)) return bad("newlink");
   // AI output is plain text: any angle bracket is rejected, so no markup can reach the draft.
   // shortcut: comment assumed plain text until spike V1, if HTML implement the spec's escape/PATCH fallback
-  if (/[<>]/.test(reply)) return bad;
+  if (/[<>]/.test(reply)) return bad("markup");
   return { ok: true, reply };
 }
 

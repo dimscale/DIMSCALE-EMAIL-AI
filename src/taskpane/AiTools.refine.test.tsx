@@ -243,3 +243,34 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
     expect(screen.getByText(/demasiado longa/)).toBeTruthy();
   });
 });
+
+describe("diagnostic code on ai_output_invalid", () => {
+  const r502 = (why?: unknown) => ({
+    ok: false,
+    status: 502,
+    json: async () => ({ ok: false, error: "ai_output_invalid", ...(why !== undefined ? { why } : {}) }),
+  });
+  it("reply request shows the fixed code", async () => {
+    fetchMock.mockResolvedValue(r502("newlink"));
+    await click("Sugerir resposta");
+    expect(screen.getByRole("alert").textContent).toContain("A IA devolveu uma resposta inválida");
+    expect(screen.getByRole("alert").textContent).toContain("(código: newlink)");
+  });
+  it("refine request shows the fixed code", async () => {
+    fetchMock.mockResolvedValue(r502("link"));
+    type("x");
+    await click("Enviar alterações");
+    expect(screen.getByRole("alert").textContent).toContain("(código: link)");
+  });
+  it("unknown or non-string why is ignored; server text is never shown", async () => {
+    for (const w of ["<b>evil</b>", 42, "Schema"]) {
+      fetchMock.mockResolvedValue(r502(w));
+      await click("Sugerir resposta");
+      expect(screen.getByRole("alert").textContent).not.toContain("código");
+      expect(screen.queryByText(/evil/)).toBeNull();
+    }
+    fetchMock.mockResolvedValue(r502());
+    await click("Sugerir resposta");
+    expect(screen.getByRole("alert").textContent).not.toContain("código");
+  });
+});
