@@ -4,11 +4,14 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// QA (independent): F-003 AC-42 with the REAL config (no mock of ./config). Mocks only: Office, fetch, auth.
+// F-003 AC-71: the flag forced OFF (production config is true since 2026-11-02, checked by reading config.ts). Mocks only: Office, fetch, auth.
 vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div> }));
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
+vi.mock("./config", async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  AUTO_MODE_AVAILABLE: false,
+}));
 import App from "./App";
-import { AUTO_SUMMARY_AVAILABLE } from "./config";
 import { getTokenSilent } from "./auth";
 
 type Cb = (r: { status: string; value?: string }) => void;
@@ -80,15 +83,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("auto mode flag off, real config (F-003/AC-42, AC-17)", () => {
-  it("config.ts exports the literal false", () => {
-    expect(AUTO_SUMMARY_AVAILABLE).toBe(false);
-    expect(readFileSync(join(process.cwd(), "src/taskpane/config.ts"), "utf8")).toMatch(
-      /export const AUTO_SUMMARY_AVAILABLE = false;/
-    );
+describe("auto mode flag off (F-003/AC-71)", () => {
+  it("config.ts exports AUTO_MODE_AVAILABLE = true (user decision 2026-11-02) and the old flag no longer exists", () => {
+    const cfg = readFileSync(join(process.cwd(), "src/taskpane/config.ts"), "utf8");
+    expect(cfg).toMatch(/export const AUTO_MODE_AVAILABLE = true;/);
+    expect(cfg).not.toMatch(/AUTO_SUMMARY_AVAILABLE/);
   });
 
-  it("roamingSettings autoSummary=true: zero requests, zero token calls, no settings read, no switch, across item changes and tab switches for 2 minutes", async () => {
+  it("every auto key true in roamingSettings: zero requests, zero token calls, no settings read, no switch, across item changes and tab switches for 2 minutes", async () => {
     vi.useFakeTimers();
     setup(makeItem("A"));
     render(<App />);
@@ -109,14 +111,15 @@ describe("auto mode flag off, real config (F-003/AC-42, AC-17)", () => {
     expect(rs.saveAsync).not.toHaveBeenCalled();
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.queryByText(/Resumo automático/)).toBeNull();
+    expect(screen.queryByText(/Resposta automática|Tradução automática/)).toBeNull();
     expect(screen.queryByText(/ligado/)).toBeNull();
   });
 
-  it("Automático tab with the flag off: no analyze-message request (settings calls are not AI)", async () => {
+  it("Lista tab with the flag off: no analyze-message request (settings calls are not AI)", async () => {
     vi.useFakeTimers();
     setup(makeItem("A"));
     render(<App />);
-    tab("Automático");
+    tab("Lista");
     tab("Resumo");
     await change(makeItem("B"));
     await advance(5000);

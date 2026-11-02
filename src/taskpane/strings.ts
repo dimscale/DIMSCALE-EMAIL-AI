@@ -5,7 +5,7 @@ export const strings = {
   tabSummary: "Resumo",
   tabReply: "Resposta",
   tabTranslate: "Traduzir",
-  tabAuto: "Automático",
+  tabAuto: "Lista",
   aiFooter: "O conteúdo gerado por IA pode estar incorreto",
   aiExpand: "Expandir",
   aiCollapse: "Reduzir",
@@ -43,19 +43,34 @@ export const strings = {
   replyToneDetailed: "Detalhado",
   replyToneFormal: "Formal",
   replyToneFriendly: "Amigável",
-  autoSummaryLabel: "Resumo automático",
+  autoSwitchLabel: "Automático",
+  // Accessible names tell the three switches apart (and from the Traduzir option "Automático (PT ↔ EN)").
+  autoSummaryAria: "Resumo automático",
+  autoReplyAria: "Resposta automática",
+  autoTranslateAria: "Tradução automática",
   autoSummaryDialogTitle: "Ligar o resumo automático?",
   autoSummaryDialogBody:
-    "Com o resumo automático, sempre que abrir um e-mail com este painel no separador Resumo, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para gerar o resumo, sem clicar em Resumir. Cada resumo conta para o seu limite diário de 50 pedidos de IA. Pode desligar a qualquer momento.",
-  autoSummaryConfirm: "Ligar",
-  autoSummaryCancel: "Cancelar",
+    "Com o resumo automático, sempre que abrir um e-mail com este painel no separador Resumo, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para gerar o resumo, sem clicar em Resumir. Cada resumo conta para o seu limite diário de 50 pedidos de IA, partilhado com a resposta e a tradução. Pode desligar a qualquer momento.",
+  autoReplyDialogTitle: "Ligar a resposta automática?",
+  autoReplyDialogBody:
+    "Com a resposta automática, sempre que abrir um e-mail com este painel no separador Resposta, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para sugerir uma resposta, sem clicar em Sugerir resposta. A resposta só aparece no painel: nada é enviado nem aberto automaticamente. Cada resposta conta para o seu limite diário de 50 pedidos de IA, partilhado com o resumo e a tradução. Pode desligar a qualquer momento.",
+  autoTranslateDialogTitle: "Ligar a tradução automática?",
+  autoTranslateDialogBody:
+    "Com a tradução automática, sempre que abrir um e-mail com este painel no separador Traduzir, o assunto e o texto do e-mail (sem o nome nem o domínio do remetente) são enviados à OpenAI para o traduzir, sem clicar em Traduzir. Cada tradução conta para o seu limite diário de 50 pedidos de IA, partilhado com o resumo e a resposta. Pode desligar a qualquer momento.",
+  autoConfirm: "Ligar",
+  autoCancel: "Cancelar",
   autoSummaryOnNote:
     "Resumo automático ligado: cada e-mail que abrir com o painel neste separador é enviado à OpenAI.",
-  autoSummarySaveFailed:
-    "Não foi possível guardar a preferência. Aplica-se apenas até fechar o painel.",
+  autoReplyOnNote:
+    "Resposta automática ligada: cada e-mail que abrir com o painel neste separador é enviado à OpenAI para sugerir uma resposta, com o Idioma e o Tom escolhidos. Nada é enviado nem aberto automaticamente.",
+  autoTranslateOnNote:
+    "Tradução automática ligada: cada e-mail que abrir com o painel neste separador é traduzido conforme o campo «Traduzir para» e enviado à OpenAI.",
+  autoSaveFailed: "Não foi possível guardar a preferência. Aplica-se apenas até fechar o painel.",
   autoPausedCap:
-    "Atingiu o limite diário de pedidos de IA. O resumo automático fica em pausa até amanhã.",
-  autoPausedSuffix: "O resumo automático fica em pausa até reabrir o painel.",
+    "Atingiu o limite diário de pedidos de IA. O modo automático fica em pausa até amanhã.",
+  autoPausedSuffix: "O modo automático fica em pausa até reabrir o painel.",
+  autoPausedNoteCap: "Modo automático em pausa até amanhã (limite diário atingido).",
+  autoPausedNoteOther: "Modo automático em pausa até reabrir o painel.",
   comingSoonReply: "Respostas automáticas para contactos escolhidos: em breve.",
   assurance: "Sem envio automático. O envio é sempre feito por si.",
   backendWorking: "A ligar ao backend DIMSCALE…",

@@ -7,7 +7,7 @@ vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div>
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
 vi.mock("./config", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
-  AUTO_SUMMARY_AVAILABLE: true,
+  AUTO_MODE_AVAILABLE: true,
 }));
 import App from "./App";
 import { getTokenSilent } from "./auth";
@@ -22,7 +22,7 @@ const SUMMARY = {
   requestedAction: null,
 };
 const DIALOG_BODY =
-  "Com o resumo automático, sempre que abrir um e-mail com este painel no separador Resumo, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para gerar o resumo, sem clicar em Resumir. Cada resumo conta para o seu limite diário de 50 pedidos de IA. Pode desligar a qualquer momento.";
+  "Com o resumo automático, sempre que abrir um e-mail com este painel no separador Resumo, o assunto, o nome e domínio do remetente e o texto do e-mail são enviados à OpenAI para gerar o resumo, sem clicar em Resumir. Cada resumo conta para o seu limite diário de 50 pedidos de IA, partilhado com a resposta e a tradução. Pode desligar a qualquer momento.";
 const ON_NOTE =
   "Resumo automático ligado: cada e-mail que abrir com o painel neste separador é enviado à OpenAI.";
 
@@ -44,7 +44,7 @@ const makeItem = (body: string, o: object = {}) => ({
 const setup = (item: unknown, stored: unknown = true, saveStatus = "succeeded") => {
   handlers.clear();
   rs = {
-    get: vi.fn(() => stored),
+    get: vi.fn((k: string) => (k === "autoSummary" ? stored : undefined)),
     set: vi.fn(),
     saveAsync: vi.fn((cb: Cb) => cb({ status: saveStatus })),
   };
@@ -137,10 +137,8 @@ describe("switch off and on again (F-003/AC-42, AC-43)", () => {
     await advance(800);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await toggle(); // off, no dialog
-    await toggle(); // on: dialog
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ligar" }));
-    });
+    await toggle(); // on again: consent remembered, no dialog
+    expect(screen.queryByRole("dialog")).toBeNull();
     await advance(5000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(sentBodies()).toEqual(["A"]);
@@ -160,10 +158,7 @@ describe("switch off and on again (F-003/AC-42, AC-43)", () => {
     expect(calls).toHaveLength(1);
     await toggle();
     expect(calls[0].signal.aborted).toBe(true);
-    await toggle();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ligar" }));
-    });
+    await toggle(); // consent remembered: no dialog
     await advance(5000);
     expect(calls).toHaveLength(1);
   });
@@ -232,9 +227,6 @@ describe("pause holds for the pane session (F-003/AC-44)", () => {
     expect(screen.getByRole("alert").textContent).toContain("fica em pausa até amanhã");
     await toggle();
     await toggle();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Ligar" }));
-    });
     await change(makeItem("B"));
     await advance(5000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -269,11 +261,11 @@ describe("pause holds for the pane session (F-003/AC-44)", () => {
 });
 
 describe("tab and entry interplay (F-003/AC-43, F-012/AC-50)", () => {
-  it("items changed while on Automático: one auto request after 800 ms when Resumo is selected again, for the current item only", async () => {
+  it("items changed while on Lista: one auto request after 800 ms when Resumo is selected again, for the current item only", async () => {
     setup(makeItem("A"), true);
     render(<App />);
-    tab("Automático");
-    await advance(2000); // A is not sent while on Automático
+    tab("Lista");
+    await advance(2000); // A is not sent while on Lista
     expect(analyzeCalls()).toHaveLength(0);
     await change(makeItem("B"));
     await change(makeItem("C"));

@@ -218,8 +218,8 @@ describe("static guards over every pane source file (F-003/AC-25, F-012/AC-3, AC
     for (const f of [
       "AiTools.tsx",
       "ToolCard.tsx",
-      "AutoSummarySwitch.tsx",
-      "autoSummary.ts",
+      "AutoSwitch.tsx",
+      "autoMode.ts",
       "prefs.ts",
       "analyzeClient.ts",
       "messageView.ts",
@@ -259,8 +259,8 @@ describe("static guards over every pane source file (F-003/AC-25, F-012/AC-3, AC
     const aiFiles = [
       "AiTools.tsx",
       "ToolCard.tsx",
-      "AutoSummarySwitch.tsx",
-      "autoSummary.ts",
+      "AutoSwitch.tsx",
+      "autoMode.ts",
       "prefs.ts",
       "analyzeClient.ts",
       "messageView.ts",
@@ -284,8 +284,8 @@ describe("static guards over every pane source file (F-003/AC-25, F-012/AC-3, AC
     for (const f of [
       "AiTools.tsx",
       "ToolCard.tsx",
-      "AutoSummarySwitch.tsx",
-      "autoSummary.ts",
+      "AutoSwitch.tsx",
+      "autoMode.ts",
       "prefs.ts",
     ]) {
       expect(text(join(ROOT, f)), f).not.toMatch(/\bfetch\(/);

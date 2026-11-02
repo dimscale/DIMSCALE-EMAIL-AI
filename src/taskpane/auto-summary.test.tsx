@@ -6,12 +6,12 @@ vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div>
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
 vi.mock("./config", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
-  AUTO_SUMMARY_AVAILABLE: true,
+  AUTO_MODE_AVAILABLE: true,
 }));
 import App from "./App";
 import { getTokenSilent } from "./auth";
 
-// F-003 AC-42 to AC-45 with the availability flag forced to true. Fake timers, mocked Office and fetch.
+// F-003 AC-42 to AC-45 (summary switch, now AC-59 to AC-68 per tab) with the availability flag true. Only the autoSummary key is stored here. Fake timers, mocked Office and fetch.
 type Cb = (r: { status: string; value?: string }) => void;
 const SUMMARY = {
   points: ["ponto <b>um</b>", "dois", "tres"],
@@ -36,7 +36,7 @@ const makeItem = (body: string, o: object = {}) => ({
 const setup = (item: unknown, stored: unknown = true, saveStatus = "succeeded") => {
   handlers.clear();
   rs = {
-    get: vi.fn(() => stored),
+    get: vi.fn((k: string) => (k === "autoSummary" ? stored : undefined)),
     set: vi.fn(),
     saveAsync: vi.fn((cb: Cb) => cb({ status: saveStatus })),
   };
@@ -107,6 +107,7 @@ describe("switch and consent (F-003/AC-42, AC-45)", () => {
     render(<App />);
     expect((screen.getByRole("switch") as HTMLInputElement).checked).toBe(true);
     expect(screen.getByText(/Resumo automático ligado/)).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "Resumo automático" })).toBeTruthy();
     expect(rs.get).toHaveBeenCalledWith("autoSummary");
     cleanup();
     for (const v of ["true", 1, null, false]) {
@@ -139,7 +140,7 @@ describe("switch and consent (F-003/AC-42, AC-45)", () => {
     expect(rs.set).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("Ligar saves once and starts auto mode; the dialog shows again after switching off and on", async () => {
+  it("Ligar saves once and starts auto mode; later off and on needs no dialog (consent remembered, Q-U18)", async () => {
     fetchMock.mockResolvedValue(summaryOk());
     setup(makeItem("corpo"), false);
     render(<App />);
@@ -150,6 +151,7 @@ describe("switch and consent (F-003/AC-42, AC-45)", () => {
       fireEvent.click(screen.getByRole("button", { name: "Ligar" }));
     });
     expect(rs.set).toHaveBeenCalledWith("autoSummary", true);
+    expect(rs.set).toHaveBeenCalledWith("autoSummaryConsent", true);
     expect(rs.saveAsync).toHaveBeenCalledTimes(1);
     expect((screen.getByRole("switch") as HTMLInputElement).checked).toBe(true);
     await advance(800);
@@ -160,9 +162,12 @@ describe("switch and consent (F-003/AC-42, AC-45)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(rs.set).toHaveBeenLastCalledWith("autoSummary", false);
     expect(rs.saveAsync).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole("switch")); // on again: dialog again
-    await advance(0);
-    expect(screen.getByText("Ligar o resumo automático?")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("switch")); // on again: no dialog
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(rs.set).toHaveBeenLastCalledWith("autoSummaryConsent", true);
+    expect((screen.getByRole("switch") as HTMLInputElement).checked).toBe(true);
   });
   it("a failed save keeps the choice for the session and shows the notice", async () => {
     setup(makeItem("corpo"), false, "failed");
@@ -300,16 +305,16 @@ describe("when it runs (F-003/AC-43)", () => {
     await advance(2000);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-  it("(f) nothing on Resposta, Traduzir or Automático, even across item changes", async () => {
+  it("(f) nothing on Resposta, Traduzir or Lista, even across item changes", async () => {
     setup(makeItem("A"), true);
     render(<App />);
     tab("Traduzir");
     await change(makeItem("B"));
     await advance(2000);
-    tab("Automático");
+    tab("Lista");
     await change(makeItem("C"));
     await advance(2000);
-    // the Automático panel makes its own settings calls; only analyze-message matters here
+    // the Lista panel makes its own settings calls; only analyze-message matters here
     expect(
       fetchMock.mock.calls.filter((c) => String(c[0]).includes("analyze-message"))
     ).toHaveLength(0);

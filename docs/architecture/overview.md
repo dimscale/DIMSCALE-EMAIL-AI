@@ -21,7 +21,7 @@ _Historical. For the current state see [status](../status.md)._
            └─ fetch + Bearer token ─► Supabase Edge Functions (verify_jwt = false, each validates its caller)
                                      ├─ F-002 `whoami`: validates the token itself (JWKS, issuer, audience, azp, scp, expiry)
                                      ├─ F-013 `auto-reply-settings`: same validation + oid/tid; stores the user's switch and chosen contacts
-                                     └─ F-003 `analyze-message`: same validation + oid/tid; on the user's click only, minimizes and delimits the
+                                     └─ F-003 `analyze-message`: same validation + oid/tid; on the user's click, or (summary only today; per-tab switches for reply and translate planned 2026-11-02, not yet in code) automatically for the visible tab when the user switched it on, minimizes and delimits the
                                         open message (subject, name, sender domain, body ≤ 4,000) ─► OpenAI (`store: false`, no tools, `gpt-6-luna`)
                                         ─► summary / reply text back to the pane (daily caps in Postgres, kill switch `ANALYZE_DISABLED`; no Graph)
 
@@ -45,7 +45,7 @@ Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](.
 |---|---|---|---|
 | **Active item** | Read the open message (subject, sender, body) | Office.js `Office.context.mailbox.item` (`body.getAsync`, Mailbox 1.1) | Manifest `ReadItem` |
 | **Active item** | Open a prefilled reply for the user to edit and send (F-003, text from `analyze-message`, HTML-escaped) | `item.displayReplyFormAsync` (Mailbox 1.9; `displayReplyForm` 1.1 fallback), which opens a form and never sends | Manifest `ReadItem` |
-| **Active item + AI backend** | Summary and suggested reply of the open message, on click (F-003); no Graph | Office.js reads the item, pane → `analyze-message` (Entra token) → OpenAI | Manifest `ReadItem` (no change) |
+| **Active item + AI backend** | Summary, suggested reply and translation of the open message, on click or, automatically for the visible tab when the user switched it on (summary only today; per-tab switches for reply and translate planned, F-003 amendment (i) Proposed); no Graph | Office.js reads the item, pane → `analyze-message` (Entra token) → OpenAI | Manifest `ReadItem` (no change) |
 | **Mailbox (pane)** | List recent senders for the contact picker (`from` only, no body) | Graph `GET /me/mailFolders/inbox/messages?$select=from…` | Delegated `Mail.ReadBasic` (admin consent, F-013) |
 | **Mailbox (pane)** | List and select other messages (F-015) | Graph `GET /me/messages` | Delegated, least privileged for the field set (to be decided in F-015) |
 | **Mailbox (server, app-only)** | Read new Inbox mail of allow-listed senders and create a reply draft in Drafts with Outlook closed (F-013) | Graph change notifications, `GET` message, `POST /users/{id}/messages/{id}/createReply` | Exchange RBAC for Applications `Application Mail.Read` + `Application Mail.ReadWrite`, scoped to a mail-enabled group; no Entra application consent |

@@ -59,7 +59,7 @@ const click = async (name: string) => {
 };
 const tab = (name: string) => fireEvent.click(screen.getByRole("tab", { name }));
 // Elements that would mean HTML was interpreted. Fluent icons are <svg>, so svg is not listed.
-const RISKY = "img, script, iframe, object, embed, a[href], a, link, meta, style, input, form";
+const RISKY = "img, script, iframe, object, embed, a[href], a, link, meta, style, input:not([role=switch]), form"; // the three auto-mode Switches are legitimate inputs (F-003 amendment (i))
 
 beforeEach(() => {
   fetchMock = vi.fn();

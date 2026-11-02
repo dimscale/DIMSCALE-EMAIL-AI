@@ -4,6 +4,10 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 
 vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div> }));
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
+vi.mock("./config", async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  AUTO_MODE_AVAILABLE: false, // this suite pins the manual behaviour; roamingSettings below says "on" and must be ignored
+}));
 import App from "./App";
 import { getTokenSilent } from "./auth";
 
@@ -91,7 +95,7 @@ describe("tabs and context (F-012/AC-43, AC-45)", () => {
     );
     expect(screen.getByRole("tabpanel", { name: "Traduzir" })).toBeTruthy();
   });
-  it("reads the body once for the three tool tabs, hides the context on Automático, no request by tab switches", () => {
+  it("reads the body once for the three tool tabs, hides the context on Lista, no request by tab switches", () => {
     setup(makeItem("corpo"));
     render(<App />);
     expect(getAsync).toHaveBeenCalledTimes(1);
@@ -101,8 +105,8 @@ describe("tabs and context (F-012/AC-43, AC-45)", () => {
     expect(getAsync).toHaveBeenCalledTimes(1);
     const panel = screen.getByRole("tabpanel", { name: "Resumo" });
     expect(panel.textContent).toContain("Ana Silva");
-    tab("Automático");
-    expect(panel.hasAttribute("hidden")).toBe(true); // message context and cards are hidden on Automático
+    tab("Lista");
+    expect(panel.hasAttribute("hidden")).toBe(true); // message context and cards are hidden on Lista
     expect(screen.queryByRole("tabpanel", { name: "Resumo" })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -313,8 +317,8 @@ describe("ToolCard (F-012/AC-46)", () => {
   });
 });
 
-describe("auto mode with the flag off (F-003/AC-42, hidden in production)", () => {
-  it("hides the switch and sends no request even with autoSummary = true in roamingSettings", async () => {
+describe("auto mode with the flag off (F-003/AC-71)", () => {
+  it("hides the switches and sends no request even with every auto key true in roamingSettings", async () => {
     vi.useFakeTimers();
     try {
       setup(makeItem("corpo"));

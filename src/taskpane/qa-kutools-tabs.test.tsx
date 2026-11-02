@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe("tab list semantics (F-012/AC-43)", () => {
-  it("one tablist with exactly four tabs in the order Resumo, Resposta, Traduzir, Automático, all native buttons", () => {
+  it("one tablist with exactly four tabs in the order Resumo, Resposta, Traduzir, Lista, all native buttons", () => {
     setup(makeItem("corpo"));
     render(<App />);
     const list = screen.getByRole("tablist");
@@ -61,7 +61,7 @@ describe("tab list semantics (F-012/AC-43)", () => {
       "translate",
       "auto",
     ]);
-    for (const n of ["Resumo", "Resposta", "Traduzir", "Automático"])
+    for (const n of ["Resumo", "Resposta", "Traduzir", "Lista"])
       expect(screen.getByRole("tab", { name: n })).toBeTruthy();
     for (const t of tabs) expect(t.tagName).toBe("BUTTON"); // Enter and Space activate native buttons in a browser
   });
@@ -75,7 +75,7 @@ describe("tab list semantics (F-012/AC-43)", () => {
         .filter((t) => t.getAttribute("aria-selected") === "true")
         .map((t) => t.textContent);
     expect(selectedAt()).toEqual(["Resumo"]);
-    for (const name of ["Resposta", "Traduzir", "Automático"]) {
+    for (const name of ["Resposta", "Traduzir", "Lista"]) {
       fireEvent.click(screen.getByRole("tab", { name }));
       expect(selectedAt()).toEqual([name]);
     }
@@ -86,16 +86,16 @@ describe("tab list semantics (F-012/AC-43)", () => {
     }
   });
 
-  it("each tab names the tabpanel it controls (aria-labelledby), and the Automático panel is its own panel", () => {
+  it("each tab names the tabpanel it controls (aria-labelledby), and the Lista panel is its own panel", () => {
     setup(makeItem("corpo"));
     render(<App />);
     fireEvent.click(screen.getByRole("tab", { name: "Traduzir" }));
     expect(screen.getByRole("tabpanel", { name: "Traduzir" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Lista" }));
     const auto = document.getElementById("panel-auto") as HTMLElement;
     expect(auto.getAttribute("aria-labelledby")).toBe("tab-auto");
     expect(auto.hasAttribute("hidden")).toBe(false);
-    expect(screen.getByRole("tabpanel", { name: "Automático" })).toBeTruthy();
+    expect(screen.getByRole("tabpanel", { name: "Lista" })).toBeTruthy();
   });
 
   it("the removed labels never render: Analisar, Responder, Escrever, the old heading and the old 'em breve' card", () => {

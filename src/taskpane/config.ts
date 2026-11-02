@@ -14,5 +14,6 @@ export const isConfigured = () =>
   !CLIENT_ID.startsWith("00000000") &&
   !FUNCTION_URL.includes("PROJECT-REF");
 
-// F-003 auto mode: the switch stays hidden in production until the DPO answers D5 (Q-U13).
-export const AUTO_SUMMARY_AVAILABLE = false;
+// F-003 auto mode (summary, reply, translate switches). ON by the user's decision of 2026-11-02, D5 still open with the DPO.
+// Kill (pane side): set to false and merge; no switch renders and nothing runs, whatever roamingSettings holds.
+export const AUTO_MODE_AVAILABLE = true;

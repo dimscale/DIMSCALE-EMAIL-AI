@@ -88,7 +88,7 @@ describe("AiTools layout and no auto-run (F-003/AC-16, AC-17, AC-19)", () => {
     expect(btn("Sugerir resposta").disabled).toBe(false);
     tab("Traduzir");
     expect(btn("Traduzir").disabled).toBe(false);
-    tab("Automático");
+    tab("Lista");
     tab("Resumo");
     act(() => handler?.());
     expect(fetchMock).not.toHaveBeenCalled();

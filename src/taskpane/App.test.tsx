@@ -19,7 +19,7 @@ describe("App layout (F-012)", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1, name: "DIMSCALE Mail" })).toBeTruthy();
     expect(screen.queryByRole("img", { name: "DIMSCALE" })).toBeNull(); // in-pane wordmark removed (2026-11-02)
-    const names = ["Resumo", "Resposta", "Traduzir", "Automático"];
+    const names = ["Resumo", "Resposta", "Traduzir", "Lista"];
     expect(screen.getAllByRole("tab")).toEqual(
       names.map((n) => screen.getByRole("tab", { name: n }))
     );
@@ -30,9 +30,9 @@ describe("App layout (F-012)", () => {
     expect(screen.queryByText("Melhorar texto e tom")).toBeNull();
     for (const old of ["Analisar", "Responder", "Escrever"])
       expect(screen.queryByRole("tab", { name: old })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Lista" }));
     expect(await screen.findByText("Respostas automáticas")).toBeTruthy();
-    expect(screen.getByRole("tabpanel", { name: "Automático" })).toBeTruthy();
+    expect(screen.getByRole("tabpanel", { name: "Lista" })).toBeTruthy();
     expect(screen.queryByRole("tabpanel", { name: "Resumo" })).toBeNull(); // hidden panel is out of the a11y tree
   });
 });
@@ -52,7 +52,7 @@ describe("backend notice placement (F-012)", () => {
   it("renders the BackendStatus notice in the host above the tab content and hides the footer line from AT", async () => {
     vi.resetModules();
     vi.doUnmock("./BackendStatus");
-    vi.doMock("./config", () => ({ isConfigured: () => false, AUTO_SUMMARY_AVAILABLE: false }));
+    vi.doMock("./config", () => ({ isConfigured: () => false, AUTO_MODE_AVAILABLE: false }));
     vi.doMock("./auth", () => ({
       isNaaSupported: () => true,
       getTokenSilent: vi.fn(),

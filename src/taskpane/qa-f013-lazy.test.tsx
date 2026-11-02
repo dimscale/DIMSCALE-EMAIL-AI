@@ -67,14 +67,14 @@ describe("F-013 Responder tab is lazy (QA, mocked)", () => {
   it("opening the Responder tab triggers the load once, and switching tabs back and forth does not reload", async () => {
     render(<App />);
     await flush();
-    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Lista" }));
     expect(await screen.findByText("Contactos a responder (1)")).toBeTruthy();
     expect(getGraphTokenSilent).toHaveBeenCalledTimes(1);
     expect(fetchSettings).toHaveBeenCalledTimes(1);
     expect(fetchRecentSenders).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("tab", { name: "Resumo" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Automático" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Lista" }));
     await flush();
     expect(fetchSettings).toHaveBeenCalledTimes(1);
     expect(getGraphTokenSilent).toHaveBeenCalledTimes(1);

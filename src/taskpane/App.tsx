@@ -3,7 +3,7 @@ import { FluentProvider, Tab, TabList, makeStyles, tokens } from "@fluentui/reac
 import { ShieldCheckmarkRegular } from "@fluentui/react-icons";
 import BackendStatus from "./BackendStatus";
 import AiTools, { DEFAULT_OPTIONS, ToolOptions, ToolTab } from "./AiTools";
-import { useAutoSummary } from "./autoSummary";
+import { useAutoMode } from "./autoMode";
 import MessagePanel from "./MessagePanel";
 import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
@@ -68,7 +68,7 @@ const useStyles = makeStyles({
 
 const App: React.FC = () => {
   const s = useStyles();
-  const auto = useAutoSummary();
+  const auto = useAutoMode();
   const [options, setOptions] = React.useState<ToolOptions>(DEFAULT_OPTIONS);
   const { theme } = useOfficeTheme();
   const [noticeHost, setNoticeHost] = React.useState<HTMLElement | null>(null);
@@ -97,7 +97,7 @@ const App: React.FC = () => {
           </Tab>
         </TabList>
         <div ref={setNoticeHost} />
-        {/* Message context, the three cards and the Automático panel stay mounted so state survives tab switches. */}
+        {/* Message context, the three cards and the Lista panel stay mounted so state survives tab switches. */}
         <div
           role="tabpanel"
           id="panel-tools"

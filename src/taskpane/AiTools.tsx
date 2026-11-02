@@ -24,10 +24,11 @@ import {
   TargetLanguage,
   Translation,
 } from "./analyzeClient";
-import { AutoSummary, AUTO_DEBOUNCE_MS } from "./autoSummary";
-import AutoSummarySwitch from "./AutoSummarySwitch";
+import { AutoMode, AUTO_DEBOUNCE_MS } from "./autoMode";
+import AutoSwitch from "./AutoSwitch";
 import { getTokenSilent } from "./auth";
 import { MessageView, toReplyHtml, translatePayload } from "./messageView";
+import { isNoReplyLocalPart } from "./noReply";
 import { openReplyForm } from "./replyForm";
 import { strings } from "./strings";
 import ToolCard from "./ToolCard";
@@ -67,7 +68,7 @@ const errorText: Record<AnalyzeErrorCode, string> = {
   invalid: strings.aiErrInvalid,
   other: strings.aiErrOther,
 };
-// Auto mode pauses for the pane session on these (F-003 AC-44).
+// An auto request ending in one of these pauses all auto mode for the pane session (F-003 AC-68).
 const PAUSE_CODES: AnalyzeErrorCode[] = [
   "cap",
   "unauthorized",
@@ -113,7 +114,13 @@ type Props = {
   tab: ToolTab | "auto";
   options: ToolOptions;
   onOptions: (o: ToolOptions) => void;
-  auto: AutoSummary;
+  auto: AutoMode;
+};
+
+const TAB_ACTION: Record<ToolTab, AnalyzeAction> = {
+  summary: "summarize",
+  reply: "reply",
+  translate: "translate",
 };
 
 const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto }) => {
@@ -132,7 +139,9 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const busy = React.useRef(false);
   const mounted = React.useRef(true);
   const runCtl = React.useRef<AbortController | null>(null); // any run (manual or auto)
-  const autoCtl = React.useRef<AbortController | null>(null); // auto run only
+  const autoCtl = React.useRef<{ ctl: AbortController; action: AnalyzeAction } | null>(null); // auto run only
+  const optionsRef = React.useRef(options); // auto reads the options current when its timer fires
+  optionsRef.current = options;
   const id = view.itemId || `k${itemKey}`;
   const empty = view.aiText.trim() === "";
 
@@ -149,14 +158,18 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     if (busy.current || empty) return;
     if (
       refine !== undefined &&
-      (reply === null || reply.length > MAX_DRAFT || isBlank(refine) || refine.length > MAX_INSTRUCTION)
+      (reply === null ||
+        reply.length > MAX_DRAFT ||
+        isBlank(refine) ||
+        refine.length > MAX_INSTRUCTION)
     )
       return;
     busy.current = true;
-    if (action === "summarize") auto.attempted.add(id);
+    if (refine === undefined) auto.attempted.add(`${action}:${id}`);
     const ctl = new AbortController();
     runCtl.current = ctl;
-    autoCtl.current = isAuto ? ctl : null;
+    autoCtl.current = isAuto ? { ctl, action } : null;
+    const opts = optionsRef.current;
     setPending(action);
     setError(null);
     setCopy(null);
@@ -182,11 +195,11 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
             ? {
                 action,
                 ...base,
-                language: options.language,
-                tone: options.tone,
+                language: opts.language,
+                tone: opts.tone,
                 ...(refine !== undefined ? { instruction: refine, draft: reply as string } : {}),
               }
-            : translatePayload(view, options.target);
+            : translatePayload(view, opts.target);
       const res = await analyze(token.token, payload, undefined, ctl.signal);
       if (!mounted.current || res.kind === "aborted") return;
       if (res.kind === "summary") setSummary(res.summary);
@@ -197,14 +210,15 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
           setRevised(true);
         } else setHistory([]);
         setReply(res.reply);
-      }
-      else if (res.kind === "translation") setTranslation(res.translation);
+      } else if (res.kind === "translation") setTranslation(res.translation);
       else if (res.kind === "error") {
         let text =
-          refine !== undefined && res.code === "invalid" ? strings.aiRefineInvalid : errorText[res.code];
+          refine !== undefined && res.code === "invalid"
+            ? strings.aiRefineInvalid
+            : errorText[res.code];
         if (isAuto && PAUSE_CODES.includes(res.code)) {
           text = res.code === "cap" ? strings.autoPausedCap : `${text} ${strings.autoPausedSuffix}`;
-          auto.pause();
+          auto.pause(res.code, action);
         }
         // res.why is a fixed code validated in analyzeClient (never server text); shown for every action.
         setError({
@@ -217,7 +231,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     } finally {
       busy.current = false;
       if (runCtl.current === ctl) runCtl.current = null;
-      if (autoCtl.current === ctl) autoCtl.current = null;
+      if (autoCtl.current?.ctl === ctl) autoCtl.current = null;
       if (mounted.current) {
         setPending(null);
         if (refine !== undefined) inputRef.current?.focus(); // the clicked button was disabled while pending
@@ -225,21 +239,31 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     }
   };
 
-  // Switching auto mode off aborts an in-flight auto request at once.
+  // Switching a tab's auto mode off aborts that action's in-flight auto request at once.
   React.useEffect(() => {
-    if (!auto.on) autoCtl.current?.abort();
-  }, [auto.on]);
+    const cur = autoCtl.current;
+    if (cur && !auto.on[cur.action]) cur.ctl.abort();
+  }, [auto.on.summarize, auto.on.reply, auto.on.translate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto mode: one summary per item per pane session, 800 ms after the item (or the Resumo tab) settles.
+  // Auto mode: only the visible tab's action, one request per email per tab per pane session, 800 ms after
+  // the last trigger. The deps re-arm it when a pending request ends (wait, not skip). Auto reply and
+  // translate skip no-reply senders (no request, no cap slot).
+  const autoAction = tab === "auto" ? null : TAB_ACTION[tab];
+  const skipSender = autoAction !== "summarize" && isNoReplyLocalPart(view.senderEmail);
   React.useEffect(() => {
-    if (!auto.active || tab !== "summary" || empty || auto.attempted.has(id)) return undefined;
-    const t = setTimeout(() => {
-      auto.attempted.add(id);
-      void run("summarize", true);
-    }, AUTO_DEBOUNCE_MS);
+    if (
+      !autoAction ||
+      !auto.active(autoAction) ||
+      empty ||
+      skipSender ||
+      pending !== null ||
+      auto.attempted.has(`${autoAction}:${id}`)
+    )
+      return undefined;
+    const t = setTimeout(() => void run(autoAction, true), AUTO_DEBOUNCE_MS);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto.active, tab, empty, id]);
+  }, [autoAction, autoAction && auto.on[autoAction], auto.paused, empty, skipSender, id, pending]);
 
   const copyText = async (which: AnalyzeAction, text: string) => {
     let ok = false;
@@ -352,7 +376,15 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       <div hidden={tab !== "summary"} style={show("summary")}>
         <ToolCard
           title={strings.aiSummaryTitle}
-          options={auto.available ? <AutoSummarySwitch auto={auto} /> : undefined}
+          options={
+            auto.available ? (
+              <AutoSwitch
+                auto={auto}
+                action="summarize"
+                alertShown={error?.action === "summarize"}
+              />
+            ) : undefined
+          }
           action={button("summarize", strings.aiSummarize, strings.aiSummarizing, true)}
           error={errorBar("summarize")}
           result={
@@ -395,9 +427,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
                   <>
                     <p className={s.note}>{strings.aiClassNotice}</p>
                     {uncertain && <p className={s.note}>{strings.aiClassUncertain}</p>}
-                    {view.aiTruncated && (
-                      <p className={s.note}>{strings.aiClassTruncated}</p>
-                    )}
+                    {view.aiTruncated && <p className={s.note}>{strings.aiClassTruncated}</p>}
                   </>
                 )}
               </>
@@ -413,14 +443,19 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
         <ToolCard
           title={strings.aiReplyTitle}
           options={
-            <div className={s.row}>
-              {select(strings.replyLanguageLabel, options.language, LANGUAGES, (language) =>
-                onOptions({ ...options, language })
+            <>
+              {auto.available && (
+                <AutoSwitch auto={auto} action="reply" alertShown={error?.action === "reply"} />
               )}
-              {select(strings.replyToneLabel, options.tone, TONES, (tone) =>
-                onOptions({ ...options, tone })
-              )}
-            </div>
+              <div className={s.row}>
+                {select(strings.replyLanguageLabel, options.language, LANGUAGES, (language) =>
+                  onOptions({ ...options, language })
+                )}
+                {select(strings.replyToneLabel, options.tone, TONES, (tone) =>
+                  onOptions({ ...options, tone })
+                )}
+              </div>
+            </>
           }
           action={button("reply", strings.aiSuggestReply, strings.aiReplying, reply === null)}
           error={errorBar("reply")}
@@ -491,9 +526,20 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       <div hidden={tab !== "translate"} style={show("translate")}>
         <ToolCard
           title={strings.aiTranslationTitle}
-          options={select(strings.translateTargetLabel, options.target, TARGETS, (target) =>
-            onOptions({ ...options, target })
-          )}
+          options={
+            <>
+              {auto.available && (
+                <AutoSwitch
+                  auto={auto}
+                  action="translate"
+                  alertShown={error?.action === "translate"}
+                />
+              )}
+              {select(strings.translateTargetLabel, options.target, TARGETS, (target) =>
+                onOptions({ ...options, target })
+              )}
+            </>
+          }
           action={button("translate", strings.aiTranslate, strings.aiTranslating, true)}
           error={errorBar("translate")}
           result={
