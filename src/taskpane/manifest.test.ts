@@ -31,8 +31,8 @@ describe("manifest.xml (AC-2)", () => {
     expect(manifest).not.toMatch(/WebApplicationInfo|ItemSend|ItemInsert/);
   });
 
-  it("supports pinning and has the DIMSCALE MAIL group (F-012)", () => {
-    expect(manifest).toContain('id="GroupLabel" DefaultValue="DIMSCALE MAIL"');
+  it("supports pinning and has the DIMSCALE group (F-012)", () => {
+    expect(manifest).toContain('id="GroupLabel" DefaultValue="DIMSCALE"');
     expect(manifest).not.toContain("CustomTab");
   });
 });
@@ -83,10 +83,10 @@ describe.each(["manifest.xml", "manifest.customtab-test.xml"])(
   }
 );
 
-it("versions: manifest 1.0.2.0, test manifest 1.0.2.1", () => {
-  expect(manifest).toContain("<Version>1.0.2.0</Version>");
+it("versions: manifest 1.0.3.0, test manifest 1.0.3.1", () => {
+  expect(manifest).toContain("<Version>1.0.3.0</Version>");
   expect(readFileSync(resolve(process.cwd(), "manifest.customtab-test.xml"), "utf8")).toContain(
-    "<Version>1.0.2.1</Version>"
+    "<Version>1.0.3.1</Version>"
   );
 });
 

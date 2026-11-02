@@ -4,7 +4,7 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" xsi:type="MailApp">
   <Id>05c2e1c9-3e1d-406e-9a91-e9ac64854143</Id>
-  <Version>1.0.2.0</Version>
+  <Version>1.0.3.0</Version>
   <ProviderName>DIMSCALE</ProviderName>
   <DefaultLocale>pt-PT</DefaultLocale>
   <DisplayName DefaultValue="Assistente IA"/>
@@ -79,7 +79,7 @@
           <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
         </bt:Urls>
         <bt:ShortStrings>
-          <bt:String id="GroupLabel" DefaultValue="DIMSCALE MAIL"/>
+          <bt:String id="GroupLabel" DefaultValue="DIMSCALE"/>
           <bt:String id="IaButton.Label" DefaultValue="DIMSCALE Mail"/>
           <bt:String id="IaButton.Title" DefaultValue="DIMSCALE Mail"/>
         </bt:ShortStrings>

@@ -4,7 +4,7 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" xsi:type="MailApp">
   <Id>82659dcb-0ac6-483b-96b9-1335f1ef8ed2</Id>
-  <Version>1.0.2.1</Version>
+  <Version>1.0.3.1</Version>
   <ProviderName>DIMSCALE</ProviderName>
   <DefaultLocale>pt-PT</DefaultLocale>
   <DisplayName DefaultValue="Assistente IA (teste separador)"/>
@@ -81,7 +81,7 @@
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="CustomTabLabel" DefaultValue="DIMSCALE MAIL"/>
-          <bt:String id="GroupLabel" DefaultValue="DIMSCALE MAIL"/>
+          <bt:String id="GroupLabel" DefaultValue="DIMSCALE"/>
           <bt:String id="IaButton.Label" DefaultValue="DIMSCALE Mail"/>
           <bt:String id="IaButton.Title" DefaultValue="DIMSCALE Mail"/>
         </bt:ShortStrings>

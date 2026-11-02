@@ -473,9 +473,9 @@ describe("manifest ribbon entry (F-012/AC-32, AC-34, AC-26)", () => {
     expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(1);
     expect(all("CustomTab")).toHaveLength(0);
   });
-  it("group label resolves to 'DIMSCALE MAIL' (AC-32)", () => {
+  it("group label resolves to 'DIMSCALE' (AC-32)", () => {
     const groupLabel = all("Group")[0].getElementsByTagName("Label")[0].getAttribute("resid");
-    expect(resolve(groupLabel ?? "")).toBe("DIMSCALE MAIL");
+    expect(resolve(groupLabel ?? "")).toBe("DIMSCALE");
   });
   it("the button label and Supertip title are 'DIMSCALE Mail' (AC-32, AC-48)", () => {
     const btns = all("Control").filter((c) => c.getAttribute("xsi:type") === "Button");
