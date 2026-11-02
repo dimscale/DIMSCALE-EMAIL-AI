@@ -1,8 +1,9 @@
 # Project Status
 
-_Last updated: 2026-10-29 (pane merged to main, refine reply, single ribbon button)_
+_Last updated: 2026-10-30 (dependency bumps verified, backlog review)_
 
 ## Current state
+- **Update 2026-10-30:** the five open Dependabot updates (`@babel/core` 8.0.10, `@fluentui/react-components` 9.75.0, `@types/office-js` 1.0.615, `webpack` 5.112.2, `supabase` CLI 2.122.0) are applied together on local branch `deps/2026-10-30-bumps` (four Dependabot branches were based on an old `main`). Checks on that branch: typecheck 0 errors, lint clean, vitest 38 files / 469 passed + 2 todo, production build OK (3 size warnings, as before), manifest valid, `npm audit --omit=dev` 0 vulnerabilities. Full `npm audit` still lists high advisories in dev-only tooling (`@azure/msal-node` via `@microsoft/m365agentstoolkit-cli`, `adm-zip`), same as on `dev`; nothing shipped. `deno test` not run (Deno not installed on this machine). No product code changed. Everything else open needs the user (live checks), the tenant admin (D14) or the DPO (D5, D15).
 - **Update 2026-10-29 (merged to `main`, live on GitHub Pages):** the Kutools-style pane is built and live-tested by the user in Outlook: tabs Resumo | Resposta | Traduzir | Automático, cards, translate (automatic PT/EN), reply language and tone, and **"Pedir alterações"** (F-003 amendment d: refine the suggestion, "Versão anterior", reviewed by Opus and QA'd, function `analyze-message` redeployed). Manifest 1.0.2.0: `DisplayName` "Assistente IA", **one** ribbon button "DIMSCALE Mail" (the Resumo button was removed on the user's request; `resumo.html` is still built but not linked). Auto mode stays hidden (`AUTO_SUMMARY_AVAILABLE=false`) until D5. Production manifest and pane verified after deploy (no `localhost`, taskpane bundle contains the refine UI).
 - **Not yet done:** live checks at 320 px and 200 % zoom, screen reader, injection with a live model; redeploy of `graph-webhook` and `auto-draft-cron` (shared `stripMarkers` changed, no behaviour change); the custom-tab experiment (F-012 AC-37 to AC-42); the MMSI request (F-013 live) once the user says the add-in is ready; DPO D5 and D15.
 - **Older notes below are partly superseded by this update** (for example "not yet built" for the pane and the two-button manifest).
@@ -46,7 +47,7 @@ Pending with the tenant admin (all in the checklist above):
 | F-003 | Summarize the open message (plus F-004 and the reply-form part of F-005, F-012 "Resumo da conversa"); amended 2026-10-29: auto mode, `translate`, reply language/tone | Active item + AI | F-001, F-002 | Approved 2026-10-29; built, reviewed, backend deployed; live tests pending. Amendment 2026-10-29 awaits the user's confirmation of Q-U10 to Q-U15 |
 | F-004 | Suggest a reply (shown in the panel, copyable) | Active item + AI | F-003, F-013 engine | Merged into F-003 |
 | F-005 | Open a prefilled reply form (`displayReplyFormAsync`; the user sends) | Active item | F-004 | Delivered by F-003 (reply-to-sender only) |
-| F-006 | Refine the suggestion | Active item + AI | F-004 | Fixed tone and language options moved into F-003 (2026-10-29); free-text refinement not started |
+| F-006 | Refine the suggestion | Active item + AI | F-004 | Delivered by F-003: tone and language options, and free-text refinement "Pedir alterações" (amendment d, 2026-10-29) |
 | F-007 | Classification with reasons and an uncertainty notice | Active item + AI | F-003 | Not started |
 | F-008 | ~~Graph list of messages~~ | — | — | Superseded by F-015 (list) and F-013 (sender list) |
 | F-009 | ~~Graph reply draft~~ | — | — | Superseded by F-013 / F-015 |
