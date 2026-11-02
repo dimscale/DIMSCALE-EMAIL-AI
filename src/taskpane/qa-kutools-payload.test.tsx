@@ -95,6 +95,7 @@ describe("summarize payload (F-003/AC-18)", () => {
     });
     expect(sent()).toEqual({
       action: "summarize",
+      output: "classified",
       subject: "Pedido",
       fromName: "Ana Silva",
       fromDomain: "exemplo.pt",
@@ -266,7 +267,7 @@ describe("reply and translate payloads (F-003/AC-35, AC-41)", () => {
 
 describe("no identifiers, identity or recipients in any request body", () => {
   const KEYS: Record<string, string[]> = {
-    summarize: ["action", "body", "fromDomain", "fromName", "subject"],
+    summarize: ["action", "body", "fromDomain", "fromName", "output", "subject"],
     reply: ["action", "body", "fromDomain", "fromName", "language", "subject", "tone"],
     translate: ["action", "body", "fromDomain", "fromName", "subject", "targetLanguage"],
   };

@@ -234,6 +234,33 @@ Deno.test("AC-26: processor logs contain no ids, addresses or content", async ()
   for (const line of out) for (const bad of ["MSG-ID-123", "ana@", "Quote", "SECRET-REPLY", "33333333", "exemplo"]) assertFalse(line.includes(bad), `${bad} in ${line}`);
 });
 
+Deno.test("AC-45/47: auth_failed ends skipped with only the code; header markers never reach logs, DB writes or OpenAI", async () => {
+  const MARK = "HDR-MARKER-9f3a";
+  const headers = { "authentication-results": `mx.${MARK}; dmarc=fail header.from=${MARK}.pt`, "x-custom": MARK };
+  const out: string[] = [];
+  const orig = console.log;
+  console.log = (x: string) => out.push(x);
+  try {
+    const s = setup({ msg: { ok: true, data: { ...okMsg, headers } } });
+    await enqueue(s, "m1");
+    await processClaimed(s.deps);
+    assertEquals([row(s).status, row(s).reason], ["skipped", "auth_failed"]);
+    assertEquals(s.aiCalls.length, 0);
+    assertFalse(s.calls.some((c) => c.startsWith("createReply")));
+    assertFalse(JSON.stringify([s.f.queue, s.f.calls, s.f.usage]).includes(MARK));
+    // the same headers on a message that passes: the OpenAI input carries none of them (clean auth value)
+    const p = setup({ msg: { ok: true, data: { ...okMsg, headers: { "authentication-results": `dmarc=pass ${MARK}`, "x-custom": MARK } } } });
+    await enqueue(p, "m1");
+    await processClaimed(p.deps);
+    assertEquals(p.aiCalls.length, 1);
+    assertFalse(JSON.stringify(p.aiCalls).includes(MARK));
+    assertFalse(JSON.stringify([p.f.queue, p.f.calls, p.f.usage]).includes(MARK));
+  } finally {
+    console.log = orig;
+  }
+  for (const line of out) assertFalse(line.includes(MARK), line);
+});
+
 // ---------- subscriptions ----------
 type SG = Partial<Record<"createSubscription" | "renewSubscription" | "deleteSubscription" | "listInboxIds", (...a: unknown[]) => Promise<GResult<unknown>>>>;
 function subSetup(o: SG = {}) {

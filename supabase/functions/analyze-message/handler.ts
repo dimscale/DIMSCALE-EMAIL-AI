@@ -6,6 +6,7 @@ import { log } from "../_shared/log.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { validateStateful } from "../_shared/stateful.ts";
 import { generateReply, LANGUAGES, type ReplyOpts, type Revise, TONE_OPTIONS } from "./replyOptions.ts";
+import { generateClassified } from "./classified.ts";
 import { generateSummary, hasLink } from "./summary.ts";
 import { generateTranslation, type Target, TARGETS } from "./translate.ts";
 
@@ -34,14 +35,14 @@ async function readCapped(req: Request, max: number): Promise<string | null> {
   return text + dec.decode();
 }
 
-type Payload = DraftInput & ({ action: "summarize" } | { action: "reply"; opts: ReplyOpts; revise?: Revise } | { action: "translate"; target: Target });
+type Payload = DraftInput & ({ action: "summarize"; output?: "summary" | "classified" } | { action: "reply"; opts: ReplyOpts; revise?: Revise } | { action: "translate"; target: Target });
 
 /** Strict payload validation per action (AC-3, AC-35). Returns null when invalid. Lengths are UTF-16 units, like the pane. */
 export function parsePayload(raw: unknown): Payload | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const b = raw as Record<string, unknown>;
   const { action, body, fromDomain, fromName, subject, language, tone, targetLanguage } = b;
-  const extra = action === "reply" ? ["language", "tone", "instruction", "draft"] : action === "translate" ? ["targetLanguage"] : [];
+  const extra = action === "reply" ? ["language", "tone", "instruction", "draft"] : action === "translate" ? ["targetLanguage"] : action === "summarize" ? ["output"] : [];
   const keys = Object.keys(b);
   const base = ["action", "body", "fromDomain", "fromName", "subject"];
   if (!base.every((k) => keys.includes(k)) || keys.some((k) => !base.includes(k) && !extra.includes(k))) return null;
@@ -50,7 +51,10 @@ export function parsePayload(raw: unknown): Payload | null {
   if (subject.length > 200 || fromName.length > 100 || fromDomain.length > 253 || !/^[^\s@<>]*$/.test(fromDomain)) return null;
   if (body.length > 4000 || body.trim() === "") return null;
   const input = { body, fromDomain, fromName, subject };
-  if (action === "summarize") return { action, ...input };
+  if (action === "summarize") {
+    if (!keys.includes("output")) return { action, ...input };
+    return b.output === "summary" || b.output === "classified" ? { action, ...input, output: b.output } : null;
+  }
   if (action === "reply") {
     const l = keys.includes("language") ? language : "match", t = keys.includes("tone") ? tone : "none";
     if (!(LANGUAGES as readonly unknown[]).includes(l) || !(TONE_OPTIONS as readonly unknown[]).includes(t)) return null;
@@ -144,8 +148,8 @@ export async function handle(
     const ai: AiConfig = { apiKey, model, maxOutputTokens: MAX_OUTPUT_TOKENS, reasoningEffort: EFFORT };
     const action = payload.action;
     if (payload.action === "summarize") {
-      const { action: _a, ...input } = payload;
-      const r = await generateSummary(input, ai, fetchFn);
+      const { action: _a, output, ...input } = payload;
+      const r = await (output === "classified" ? generateClassified : generateSummary)(input, ai, fetchFn);
       return r.ok ? json({ ok: true, action, summary: r.summary }, 200) : aiFail(r);
     }
     if (payload.action === "translate") {

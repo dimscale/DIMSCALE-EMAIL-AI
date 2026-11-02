@@ -6,6 +6,7 @@
 - **Plan:** [docs/plans/F-015-manual-batch-drafts.md](../plans/F-015-manual-batch-drafts.md)
 - **Basis:** [research 2026-10-22](../research/2026-10-22-email-selection-and-learning.md), recommendations approved by the user the same day.
 - **User decisions (2026-10-22) that bind this spec:** (1) order is manual first, then assisted, then automatic (F-013); (2) at most **10 emails per batch**; (3) no email content is stored, only the derived profile (F-016); (4) no fine-tuning.
+- **Amendment 2026-11-02 (ADR-0006 accepted, option B staged):** wherever this spec says a `private` schema, `private.usage` or `SUPABASE_DB_URL`, the decision is: **no new table for F-015**; the counter reuses the F-003 `analyze_usage` / `an_take` pattern in `public` (RLS on, no policy, `revoke`, service role RPC); no Postgres client dependency, no database URL secret. The AC wording about "tables in `private`" (if any) means "the same lock as the existing migrations". Status stays **Draft**: this amendment does not approve F-015 for implementation.
 - **Reprioritized 2026-10-23 (user direction):** F-013 with the contact allow-list now comes first. F-015 follows and reuses F-013's draft engine (`generateDraft`) and the shared auth module instead of creating them; its D-2 "engine" and step-3b work shrink accordingly when it is resumed.
 - **Supersedes in the backlog:** the list part of F-008 and the draft part of F-009 (see [Required doc changes](#required-doc-changes)). The sign-in part of F-008 already exists (F-002).
 
@@ -97,7 +98,7 @@ The research flagged the guard as unverified. Proposal, using only documented pr
 ### D-6. Throttling, rate limit, cost
 - **Graph 429:** wait `Retry-After` seconds when present and at most 30 s (backoff 2 s then 4 s when absent), retry that request once. A second 429 in the same run ends the run: the current row fails with `rateLimited`, the rest are `notProcessed`. The user can run again later (the guard prevents duplicates).
 - **Backend 429:** same handling with the function's `Retry-After`.
-- **Per-user rate limit in the function (closes the ADR-0003 open item for this operation):** a counter per `oid` in a private Postgres table (`private.usage(oid, bucket_start, count)`, no content). Proposal: 30 `draft-reply` calls per hour and 100 per day per user (Q7). Exceeding returns 429.
+- **Per-user rate limit in the function (closes the ADR-0003 open item for this operation):** [amended 2026-11-02, ADR-0006] reuse the F-003 counter pattern (`analyze_usage` / `an_take` in `public`, RLS on, no policy, service role only) with new keys; **no new table** and no `private` schema. The exact `an_take` contract (key and window) is verified at implementation. The text that follows describes the counter's content and limits, which are unchanged: a counter per `oid` (pseudonymised as in F-003), no content. Proposal: 30 `draft-reply` calls per hour and 100 per day per user (Q7). Exceeding returns 429.
 - **Cost bound:** at most 10 calls per batch from the UI, 4,000 characters in, `max output` capped (about 600 tokens), plus the rate limit. The OpenAI price of the chosen model is not looked up here (Q8).
 
 ### D-7. What the pane keeps
@@ -173,7 +174,7 @@ Responder tab, top to bottom: heading and one-line explanation; the external-AI 
 | F-015/AC-25 | Optional "Abrir rascunho" on a `created` row: shown only when `isSetSupported("Mailbox","1.9")`; it calls `Office.context.mailbox.convertToEwsId(draftId, "v1.0")` then `displayMessageFormAsync(ewsId)` and never sends. If the live test shows it does not open the draft in a usable window, the button is removed by a spec amendment and the row text keeps "em Rascunhos". | Mocks (call order, gating), Live (outcome) |
 | F-015/AC-26 | All strings come from `strings.ts` (PT-PT, European wording). No `console.*` in new code, no browser storage, no `innerHTML`, `dangerouslySetInnerHTML` or `href` built from email content. The external-AI notice and the F-012 assurance line are visible in the Responder tab. | Mocks, grep |
 | F-015/AC-27 | Accessibility (F-012/AC-19 to AC-21 apply): the list is keyboard operable (Tab, Space), every checkbox has an accessible name from sender and subject, status is text plus icon of different shapes, no state by color alone, the run area is `aria-busy` while running, and errors use `role="alert"`. | Mocks (`getByRole`), Live (Narrator, recorded) |
-| F-015/AC-28 | `manifest.xml` is unchanged by F-015 and `dist/manifest.xml` still has `ReadItem` as its only add-in permission. No new add-in dependency is added except what the plan lists; the function adds only the Postgres client the plan names, at an exact version. | Diff, command output |
+| F-015/AC-28 | `manifest.xml` is unchanged by F-015 and `dist/manifest.xml` still has `ReadItem` as its only add-in permission. No new add-in dependency is added except what the plan lists; the function adds **no** Postgres client (amended 2026-11-02, ADR-0006: the counter uses the existing service-role RPC pattern). | Diff, command output |
 | F-015/AC-29 | Reusability for F-013: `generateDraft` is a pure module with no `Deno.serve`, HTTP, Graph or pane import, unit-tested with a fake AI client and a fake profile; the handler is the only caller that touches HTTP and the database. | Local (import graph check or test) |
 | F-015/AC-30 | Typecheck, lint, tests, build and `npm run validate` pass for the add-in; `deno test` passes for the functions; the root tooling does not compile the Deno code. | Command output |
 
@@ -220,7 +221,7 @@ Responder tab, top to bottom: heading and one-line explanation; the external-AI 
 - **Least privilege:** `Mail.ReadBasic` for the list, `Mail.Read` and `Mail.ReadWrite` only on the first batch click. No application permissions, no `Mail.Send`.
 - **Third parties:** the correspondents' text reaches OpenAI (D5 applies). OpenAI keeps abuse-monitoring logs up to 30 days; Chat Completions keeps no application state. Nothing about them is stored by DIMSCALE.
 - **Logs:** metadata only (CLAUDE.md rule 5); reports and screenshots must not contain real email content.
-- **Stateful backend:** the function now reaches Postgres (`SUPABASE_DB_URL`, a Supabase-provided environment value; treat as a secret). The tables sit in a `private` schema with RLS enabled and no policy, so the Data API roles cannot read them; the function acts with a privileged role and is the only gate, so every query is parameterized and keyed by the `oid` from the validated token (see F-016 for the profile table).
+- **Stateful backend (amended 2026-11-02, [ADR-0006](../decisions/0006-stateful-backend-for-batch-and-style.md) accepted, option B staged):** F-015 adds **no table**. Its only server state is the per-user request counter, reusing the F-003 `analyze_usage` / `an_take` pattern (tables in `public`, RLS enabled with no policy, `revoke all` from `anon` and `authenticated`, access only by the Edge Function with the service role through RPC functions granted to `service_role`). No `private` schema, no `SUPABASE_DB_URL`, no new Postgres client. Every call is keyed by the `oid` from the validated token. The profile table belongs to F-016 only.
 
 ## Required doc changes
 These are **proposals**, nothing below has been applied. They belong to plan step 1, after the user approves the spec.
@@ -237,14 +238,14 @@ These are **proposals**, nothing below has been applied. They belong to plan ste
 1. Authentication and authorization, "Graph" bullet: replace with `Graph: delegated scopes only, requested incrementally by the feature that needs them: Mail.ReadBasic (list messages, F-015/F-016), Mail.Read (read the selected messages, F-015/F-016), Mail.ReadWrite (create reply drafts, F-015). Mail.Send is never requested. The Graph token stays in the task pane and is never sent to the backend. No application (app-only) permissions until ADR-0005 is accepted.`
 2. Same section, CORS line: add that each function has its own method list (`whoami`: GET, OPTIONS; `draft-reply` and `style-profile`: POST/PUT/DELETE as the spec says, always an exact origin allow-list).
 3. Same section, "Data" line: replace with `F-015 and F-016 send selected message text to the backend (see Email content handling). The backend stores no email content. It stores only the per-user style profile and a request counter (see Stored data).`
-4. Add a section **Stored data (backend no longer stateless)**: tables, schema `private`, RLS enabled with no policy, no Data API exposure, keyed by the Entra `oid` from the validated token, region eu-west-1, retention and deletion rules from F-016, backups persist until their expiry (plan dependent, not verified), the database URL is a secret, and email bodies, subjects, addresses and message ids are never stored.
+4. Add a section **Stored data (backend no longer stateless)** (amended 2026-11-02: the section already exists from F-013; add only the counter reuse for F-015, tables in `public` with RLS and `revoke`, no `private` schema): tables, RLS enabled with no policy, no Data API exposure, keyed by the Entra `oid` from the validated token, region eu-west-1, retention and deletion rules from F-016, backups persist until their expiry (plan dependent, not verified), the database URL is a secret, and email bodies, subjects, addresses and message ids are never stored.
 5. Add a section **Batch actions**: at most 10 messages, sequential, no `Mail.Send`, no `/send`, `/reply`, `/replyAll`, `/forward`, no delete or move, drafts only, the guard against duplicates, per-user rate limit.
 6. Add a section **Learning data**: no fine-tuning; no stored email text without an approved DPIA; the style profile is validated, user-reviewed before saving and used only as style guidance.
-7. Secrets: add `OPENAI_API_KEY`, `OPENAI_MODEL` (not secret) and `SUPABASE_DB_URL` (secret) to the function secret store list.
+7. Secrets: add `OPENAI_API_KEY` and `OPENAI_MODEL` (not secret) to the function secret store list (amended 2026-11-02: no `SUPABASE_DB_URL`; ADR-0006 drops it).
 8. Third-party processing (OpenAI): add that selected message text and style samples are sent per action and that chat completions are used with no application state.
 
 ### `docs/architecture/overview.md`
-- Backend responsibilities: replace `Stateless. Stores no email content, and F-002 receives none.` with `Stores no email content. It keeps only the user's style profile and a request counter in Supabase Postgres (private schema).`
+- Backend responsibilities: replace `Stateless. Stores no email content, and F-002 receives none.` with `Stores no email content. It keeps only the request counters and, from F-016, the user's style profile in Supabase Postgres (public schema, RLS enabled, service role only; ADR-0006).`
 - Capability table: add `Mail.ReadBasic` to the "List and select other messages" row (replacing `Mail.Read`) and add a row "Read the selected message body: delegated `Mail.Read`".
 - Diagram: add `draft-reply` under the Supabase function box.
 
@@ -302,7 +303,7 @@ These are **proposals**, nothing below has been applied. They belong to plan ste
 ## Open questions
 **User**
 - **Q1.** Approve amending `requirements.md` as in "Required doc changes" (R8, R9, the narrowed "bulk actions" exclusion)?
-- **Q2.** Approve the ADR for a stateful backend (profile and counters in Supabase Postgres), needed by F-016 and by the F-015 rate limit?
+- **Q2 (answered 2026-11-02: ADR-0006 accepted, option B staged).** Approve the ADR for a stateful backend (profile and counters in Supabase Postgres), needed by F-016 and by the F-015 rate limit?
 - **Q3.** The OpenAI account, model and budget (D5): which model, and a monthly cost cap?
 - **Q4.** List scope: Inbox only, last 7 days, 25 per page, up to 100 rows. Focused only by default? Include other folders later?
 - **Q5.** Is a list without preview text acceptable? A preview needs `Mail.Read` for the list as well.

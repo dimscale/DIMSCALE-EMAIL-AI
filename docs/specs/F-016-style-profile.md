@@ -1,8 +1,9 @@
 # F-016: Per-user style profile (learn from the user's own sent replies, store only the profile)
 
 - **Status:** Draft (2026-10-22). Not approved. Decisions that need the user, the tenant admin or the DPO are in [Open questions](#open-questions).
+- **Amendment 2026-11-02 (ADR-0006 accepted, option B staged):** the storage text below that says `private.style_profiles`, schema `private`, or the database reached through `SUPABASE_DB_URL` is replaced by the ADR's decision: table **`public.style_profiles`**, RLS enabled with no policy, `revoke all` from `anon` and `authenticated`, read and written **only through RPC functions granted to `service_role`** called by the Edge Function (same convention as `analyze_usage` / `an_take` and the F-013 tables), keyed by the `oid` from the validated token. No `private` schema, no `SUPABASE_DB_URL`, no Postgres client. The table is created **only after the DPO answers D15** for the profile (backup persistence, 365-day unused retention, user deletion, offboarding). If the DPO refuses, fall back to ADR-0006 option A (profile in `roamingSettings`, F-013 keeps the default style). Where an AC says "tables live in `private`" (AC-18), read it as "the table is in `public` with RLS on, no policy, no grant to `anon` or `authenticated`, reachable only by `service_role` RPC". Status stays **Draft**: this amendment does not approve F-016 for implementation.
 - **Tier:** Mailbox (Graph, delegated: Sent Items) + Backend (AI and Postgres). No new Office.js member and no manifest change.
-- **Depends on:** F-002 (Done), F-015 (shares the consent flow, the shared auth module, the private database schema and the rate-limit counter; F-016 can start after F-015 steps 3 and 4 of its plan), F-012 (pane UI). Accepted ADR for the stateful backend (D13, see [Required doc changes](#required-doc-changes)): **no code that creates the table before it is accepted**.
+- **Depends on:** F-002 (Done), F-015 (shares the consent flow, the shared auth module and the rate-limit counter; F-016 can start after F-015 steps 3 and 4 of its plan; amended 2026-11-02: no private schema, see ADR-0006), F-012 (pane UI). Accepted ADR for the stateful backend (D13, see [Required doc changes](#required-doc-changes)): **no code that creates the table before it is accepted**.
 - **Plan:** [docs/plans/F-016-style-profile.md](../plans/F-016-style-profile.md)
 - **Basis:** [research 2026-10-22](../research/2026-10-22-email-selection-and-learning.md) section 6 option (i), approved by the user the same day.
 - **User decisions (2026-10-22) that bind this spec:** (3) "learning" is a per-user style profile; the AI may read the selected emails once, at the time of the action; **no email content is stored**, only the derived profile, which the user reviews, edits and can delete; (4) fine-tuning is out.
@@ -64,14 +65,14 @@ Same auth as F-015 (shared module, plus a GUID `oid` and the configured `tid`). 
 - `last_used_at` is updated when `draft-reply` applies the profile (at most once per day to limit writes).
 
 ### D-4. Storage
-- Table `private.style_profiles(oid uuid primary key, tid uuid not null, profile jsonb not null, schema_version smallint not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), last_used_at timestamptz)`.
-- Schema `private`, **RLS enabled with no policy**, no grants to `anon` or `authenticated`. The Data API therefore cannot reach it; the function connects through `SUPABASE_DB_URL` with the privileged database role, which does not apply RLS. So the function is the only gate: this is the "RLS-equivalent server enforcement" the user asked for. Every statement is parameterized and filtered by `oid`, covered by tests with two users.
+- (Amended 2026-11-02, ADR-0006: `public.style_profiles`, was `private.style_profiles`.) Table `public.style_profiles(oid uuid primary key, tid uuid not null, profile jsonb not null, schema_version smallint not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), last_used_at timestamptz)`.
+- [Amended 2026-11-02, ADR-0006] Schema `public`, **RLS enabled with no policy**, `revoke all` from `anon` and `authenticated`, access only through RPC functions granted to `service_role` (get, upsert, delete, touch `last_used_at`, purge). The Data API therefore cannot reach the table; the function calls the RPCs with the service role, which bypasses RLS. No `SUPABASE_DB_URL`. So the function is the only gate: this is the "RLS-equivalent server enforcement" the user asked for. Every statement is parameterized and filtered by `oid`, covered by tests with two users.
 - Region: the project is in eu-west-1 (D11). Encrypted at rest by default (Supabase). No field-level encryption: the profile holds no email content.
 
 ### D-5. Retention, deletion and GDPR (for the DPO, D5 items)
 - **Kept until** the user deletes it, or until it is unused for 365 days (`last_used_at`, else `updated_at`), whichever comes first. The scheduled purge needs Supabase Cron or pg_cron; if it cannot be enabled, the purge is a documented monthly admin SQL (Q9).
 - **User deletion:** "Apagar perfil" (confirmed) deletes the row. Idempotent.
-- **Leavers:** when a person leaves, an admin deletes the row by `oid` (`delete from private.style_profiles where oid = '<oid>'`) as part of offboarding; the 365-day purge is the safety net. Who triggers it is Q8 (DPO P6 in the research doc). Removing someone from the Entra group does **not** delete data by itself.
+- **Leavers:** when a person leaves, an admin deletes the row by `oid` (`delete from public.style_profiles where oid = '<oid>'`) as part of offboarding; the 365-day purge is the safety net. Who triggers it is Q8 (DPO P6 in the research doc). Removing someone from the Entra group does **not** delete data by itself.
 - **Backups:** a deleted profile may persist in backups until they expire (7 days on Pro, 14 on Team; the plan is not known here and the behavior is not stated by Supabase). Needs DPO acceptance.
 - **Access and export on request:** the user can see the whole record in the pane (it is the profile) and "Copiar como JSON" puts the exact stored record on the clipboard. A request through the DPO is answered by `select` on the row by `oid`.
 - **Lawful basis and notice:** the derived profile is personal data about the user. The build step transiently processes the sample text, including correspondents' names and details, at OpenAI (D5). The pane shows a notice before the build (strings table). Legal basis and notice wording are for the DPO.
@@ -133,7 +134,7 @@ Inside the Responder tab, a section "Perfil de estilo" (the F-012 note that "no 
 | F-016/AC-15 | Use: with a saved valid profile `draft-reply` includes it in a separate delimited block and returns `styleApplied:true`; a stored profile that fails D-2 (edited in the database) is ignored (`styleApplied:false`, no failure). Style text appears only in that block, never in the system prompt text. (Shared AC with F-015/AC-20.) | Local (mocked OpenAI) |
 | F-016/AC-16 | Rate limit: the (N+1)th build by one `oid` in the window returns 429 with `Retry-After`; other users are not affected; the counter holds no content. | Local |
 | F-016/AC-17 | No email content stored or logged: the only tables written are `style_profiles` (save and purge) and the counter. Marker strings placed in the samples appear in no log line and no table after build, save and delete. Logs hold request id, status, reason code, duration and token counts only (no profile text either). | Local |
-| F-016/AC-18 | Data API exposure: the tables live in `private`, have RLS enabled and no policy, and no grant to `anon` or `authenticated`. A request to the project's Data API (`/rest/v1/`) with the publishable key cannot read or write them. | Local (SQL catalog check), Live (a real request) |
+| F-016/AC-18 | Data API exposure: the table lives in `public` (amended 2026-11-02, ADR-0006), has RLS enabled and no policy, and no grant to `anon` or `authenticated`; only `service_role` RPC functions reach it. A request to the project's Data API (`/rest/v1/`) with the publishable key cannot read or write them. | Local (SQL catalog check), Live (a real request) |
 | F-016/AC-19 | Purge: a scheduled job (or the documented admin SQL, Q9) deletes profiles unused for 365 days and counter buckets older than 7 days; a test inserts old rows and checks that exactly those are removed. | Local (run the purge statement) |
 | F-016/AC-20 | The OpenAI key and model are read from the function environment only. The function adds only the Postgres client the plan names, at an exact version. No fine-tuning, embedding or file-upload call exists anywhere (grep for `fine_tuning`, `embeddings`, `/files`). | Grep, review |
 
@@ -174,7 +175,7 @@ Inside the Responder tab, a section "Perfil de estilo" (the F-012 note that "no 
 - **What leaves Microsoft 365:** at most 10 x 1,500 characters of the user's own reply text per build, which can contain correspondents' names and details. It is read at the time of the action, sent once, and never stored by DIMSCALE; OpenAI keeps abuse logs up to 30 days.
 - **What DIMSCALE stores:** the profile (derived, user-reviewed), `oid`, `tid`, timestamps, and the request counter. Nothing else.
 - **Prompt injection:** the samples and, later, the profile text are untrusted/low-trust. They sit in delimited blocks, the model has no tools, the output is a strict schema, free text is pattern-filtered and capped, and the user approves it before it is saved. A stored profile can only change style text in later prompts; it can never trigger an action.
-- **Access control:** Entra group (F-002/AC-21) for sign-in, token validation in the function, `oid` from the token as the only key, RLS-enabled private tables unreachable by the Data API, parameterized queries, two-user isolation tests.
+- **Access control:** Entra group (F-002/AC-21) for sign-in, token validation in the function, `oid` from the token as the only key, RLS-enabled tables (service role RPC only, ADR-0006) unreachable by the Data API, parameterized queries, two-user isolation tests.
 - **Secrets:** the database URL is a secret held in the function environment, never in the repo or the client.
 - **Logging:** none of the profile or sample text; metadata only.
 
@@ -186,7 +187,7 @@ Proposals, nothing applied. Edits shared with F-015 (requirements R8 and the nar
 - Out of scope: add `fine-tuning of models, stored example emails and embeddings of email content (need a DPIA)`.
 
 ### `docs/architecture/security.md`
-- Under **Stored data** (added by F-015) list the table `private.style_profiles` with its columns, the retention rule (user deletion; 365 days unused), the leaver path, the backup caveat and the export path.
+- Under **Stored data** (added by F-015) list the table `public.style_profiles` (RLS, no policy, service role RPC only; ADR-0006) with its columns, the retention rule (user deletion; 365 days unused), the leaver path, the backup caveat and the export path.
 - Under **Learning data**: the profile schema, the pattern rejection, user review before saving, and the rule that style text is never part of the system prompt.
 - Under **Email content handling**: add `style samples (a user's own sent replies) are processed like email content: untrusted, delimited, never stored`.
 
@@ -223,7 +224,7 @@ Proposals, nothing applied. Edits shared with F-015 (requirements R8 and the nar
 3. A text `uniqueBody` on real sent replies, and how much of a signature or quoted text it still contains.
 4. Whether deleted rows persist in backups and for how long, and the backup region (Supabase does not state it).
 5. How to enable Supabase Cron or pg_cron from the dashboard or a migration (the pg_cron page read does not say).
-6. Connection mode for the function (direct `SUPABASE_DB_URL` or the pooler) and connection limits under Edge Function concurrency.
+6. ~~Connection mode (`SUPABASE_DB_URL` or the pooler)~~: moot since 2026-11-02 (ADR-0006: no direct Postgres connection; the function uses the service role through RPC).
 7. Quality: whether 3 to 10 samples give a useful profile in Portuguese (a manual check, not a gate).
 
 ## Open questions

@@ -20,6 +20,7 @@ export interface MessageView {
   aiFromName: string;
   fromDomain: string;
   aiText: string;
+  aiTruncated: boolean; // the trimmed body is longer than AI_TEXT_LIMIT (before the cut)
   itemId: string; // in-memory dedupe key only (auto mode); never sent
 }
 
@@ -73,6 +74,7 @@ export function toMessageView(item: Office.MessageRead, bodyText: string): Messa
     aiFromName: cut(item.from?.displayName ?? "", 100),
     fromDomain: fromDomain(item.from?.emailAddress),
     aiText: cut(text.trim(), AI_TEXT_LIMIT),
+    aiTruncated: text.trim().length > AI_TEXT_LIMIT,
     itemId: typeof item.itemId === "string" ? item.itemId : "",
   };
 }

@@ -49,13 +49,17 @@ Deno.test("settings: defaults, valid values, invalid values fall back and are re
   const d = readSettings(() => undefined);
   assertEquals(d.settings.maxAgeHours, 24);
   assertEquals([d.settings.dailyCapPerUser, d.settings.dailyCapGlobal, d.settings.internalSenders, d.settings.openaiMaxOutputTokens], [30, 200, "allow", 800]);
-  assert(d.settings.filterAutoResponseSuppress && d.settings.filterFocusedOther);
+  assert(d.settings.filterAutoResponseSuppress && d.settings.filterAuthFailed);
+  assertFalse(d.settings.filterFocusedOther); // AC-44/AC-48: default off
+  assert(d.defaulted.includes("FILTER_AUTH_FAILED") && d.defaulted.includes("FILTER_FOCUSED_OTHER"));
+  assertFalse(readSettings((k) => (k === "FILTER_AUTH_FAILED" ? "false" : undefined)).settings.filterAuthFailed);
+  assert(readSettings((k) => (k === "FILTER_AUTH_FAILED" ? "maybe" : undefined)).settings.filterAuthFailed); // invalid: default
   assert(d.defaulted.includes("MAX_AGE_HOURS"));
-  const env: Record<string, string> = { MAX_AGE_HOURS: "6", SKIP_SENDER_DOMAINS: " A.com, b.com ", INTERNAL_SENDERS: "skip", INTERNAL_DOMAINS: "dimscale.com", DAILY_CAP_PER_USER: "5", DAILY_CAP_GLOBAL: "9", FILTER_FOCUSED_OTHER: "false", OPENAI_MODEL: "m" };
+  const env: Record<string, string> = { MAX_AGE_HOURS: "6", SKIP_SENDER_DOMAINS: " A.com, b.com ", INTERNAL_SENDERS: "skip", INTERNAL_DOMAINS: "dimscale.com", DAILY_CAP_PER_USER: "5", DAILY_CAP_GLOBAL: "9", FILTER_FOCUSED_OTHER: "true", OPENAI_MODEL: "m" };
   const v = readSettings((k) => env[k]).settings;
-  assertEquals([v.maxAgeHours, v.skipSenderDomains, v.internalSenders, v.internalDomains, v.dailyCapPerUser, v.dailyCapGlobal, v.filterFocusedOther, v.openaiModel], [6, ["a.com", "b.com"], "skip", ["dimscale.com"], 5, 9, false, "m"]);
+  assertEquals([v.maxAgeHours, v.skipSenderDomains, v.internalSenders, v.internalDomains, v.dailyCapPerUser, v.dailyCapGlobal, v.filterFocusedOther, v.openaiModel], [6, ["a.com", "b.com"], "skip", ["dimscale.com"], 5, 9, true, "m"]);
   const bad = readSettings((k) => ({ MAX_AGE_HOURS: "-1", DAILY_CAP_PER_USER: "abc", INTERNAL_SENDERS: "maybe", FILTER_FOCUSED_OTHER: "no" } as Record<string, string>)[k]);
-  assertEquals([bad.settings.maxAgeHours, bad.settings.dailyCapPerUser, bad.settings.internalSenders, bad.settings.filterFocusedOther], [24, 30, "allow", true]);
+  assertEquals([bad.settings.maxAgeHours, bad.settings.dailyCapPerUser, bad.settings.internalSenders, bad.settings.filterFocusedOther], [24, 30, "allow", false]);
   for (const k of ["MAX_AGE_HOURS", "DAILY_CAP_PER_USER", "INTERNAL_SENDERS", "FILTER_FOCUSED_OTHER"]) assert(bad.defaulted.includes(k));
 });
 
@@ -153,7 +157,9 @@ Deno.test("filters 3 to 17: one fixture each, own code", async () => {
     ["mailing_list", msg({ headers: { "list-id": "<l.x>" } })],
     ["noreply_sender", msg({ fromAddress: "No-Reply@exemplo.pt" })],
     ["noreply_sender", msg({ fromAddress: "postmaster@exemplo.pt" })],
-    ["focused_other", msg({ inference: "other" })],
+    ["focused_other", msg({ inference: "other" }), {}, { filterFocusedOther: true }],
+    ["auth_failed", msg({ headers: { "authentication-results": "spf=pass; dmarc=fail action=none" } })],
+    ["not_direct_recipient", msg({ toAddresses: [] })],
     ["too_old", msg({ receivedDateTime: "2026-10-22T11:00:00Z" })],
     ["too_old", msg({ receivedDateTime: "garbage" })],
     ["empty_body", msg({ body: " \n " })],
@@ -169,9 +175,28 @@ Deno.test("filters: toggles and non-triggers", async () => {
   assertEquals(await evaluate(msg({ headers: { "auto-submitted": "no" } }), ctx(), settings), { pass: true });
   assertEquals(await evaluate(msg({ headers: { precedence: "first-class" } }), ctx(), settings), { pass: true });
   assertEquals(await evaluate(msg({ headers: { "x-auto-response-suppress": "All" } }), ctx(), { ...settings, filterAutoResponseSuppress: false }), { pass: true });
-  assertEquals(await evaluate(msg({ inference: "other" }), ctx(), { ...settings, filterFocusedOther: false }), { pass: true });
+  assertEquals(await evaluate(msg({ inference: "other" }), ctx(), settings), { pass: true }); // filter 12 default off (AC-44)
+  // filter 6: owner among several To addresses, any case, passes; CC-only means not in toAddresses
+  assertEquals(await evaluate(msg({ toAddresses: ["x@y.com", "OWNER@Dimscale.com"] }), ctx(), settings), { pass: true });
+  assertEquals(await evaluate(msg({ headers: { "authentication-results": "dmarc=fail" } }), ctx(), { ...settings, filterAuthFailed: false }), { pass: true });
   assertEquals(await evaluate(msg(), ctx(), { ...settings, internalSenders: "allow", internalDomains: ["exemplo.pt"] }), { pass: true });
   assertEquals(await evaluate(msg({ receivedDateTime: "2026-10-22T11:00:00Z" }), ctx(), { ...settings, maxAgeHours: 48 }), { pass: true });
+});
+
+Deno.test("AC-45/46: filter 18 skips only on an explicit dmarc=fail or compauth=fail, fails open otherwise", async () => {
+  const run = async (ar: string | undefined) => await evaluate(msg({ headers: ar === undefined ? {} : { "authentication-results": ar } }), ctx(), settings);
+  const skip = [
+    "spf=pass; dmarc=fail action=none header.from=x.pt", "compauth=fail reason=000", "DMARC=FAIL", "dkim=pass; DmArC=Fail (p=reject)",
+    "dmarc=pass\ncompauth=fail reason=001", // second header, joined
+    "mx.example.com;\r\n\tspf=pass smtp.mailfrom=x.pt;\r\n\tdkim=pass header.d=x.pt;\r\n\tdmarc=fail(p=none) header.from=x.pt", "dmarc=fail",
+  ];
+  for (const v of skip) assertEquals(await run(v), { skip: "auth_failed" }, v);
+  const pass = [
+    undefined, "", "   ", "random text", "dmar", "dmarc=", "dmarc=fai", "dmarc=pass", "dmarc=bestguesspass", "dmarc=none", "compauth=pass", "compauth=softpass", "compauth=none",
+    "dmarc=temperror", "dmarc=permerror", "spf=fail", "dkim=fail", "dmarc=failx", "xdmarc=fail", "x-dmarc=fail", "dmarc=fail_",
+  ];
+  for (const v of pass) assertEquals(await run(v), { pass: true }, String(v));
+  assertEquals(await evaluate(msg(), ctx(), settings), { pass: true }); // no internetMessageHeaders at all
 });
 
 // ---------- ai (AC-15, AC-16, AC-17, AC-22) ----------

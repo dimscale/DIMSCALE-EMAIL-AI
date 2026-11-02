@@ -10,7 +10,7 @@ export type TargetLanguage = "auto" | "pt" | "en";
 
 type Base = { subject: string; fromName: string; fromDomain: string; body: string };
 export type AnalyzePayload =
-  | (Base & { action: "summarize" })
+  | (Base & { action: "summarize"; output?: "classified" }) // F-007: the pane always sends "classified"
   | (Base & {
       action: "reply";
       language: ReplyLanguage;
@@ -23,13 +23,29 @@ export type AnalyzePayload =
 
 export type Translation = { subject: string; body: string };
 
+// F-007: advisory only. These values pick label strings and the notice, never an action.
+export const CATEGORIES = [
+  "action_required",
+  "information",
+  "meeting",
+  "invoice_document",
+  "marketing",
+  "automated_notice",
+  "other",
+] as const;
+export const CONFIDENCES = ["high", "medium", "low"] as const;
+export type Category = (typeof CATEGORIES)[number];
+export type Confidence = (typeof CONFIDENCES)[number];
+export type Classification = { category: Category; confidence: Confidence; reason: string };
+
 export type Summary = {
   points: string[];
-  type: string;
+  type: string; // "" in the classified shape
   priority: string;
   tone: string;
   deadline: string | null;
   requestedAction: string | null;
+  classification?: Classification; // absent for an old function's F-003 shape
 };
 
 export type AnalyzeErrorCode =
@@ -52,6 +68,18 @@ export type AnalyzeResult =
 export const RETRYABLE: AnalyzeErrorCode[] = ["unavailable", "invalid", "other"];
 
 const str = (v: unknown) => (typeof v === "string" ? v : null);
+const oneOf = <T extends string>(list: readonly T[], v: unknown): T | null =>
+  typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null;
+
+// Unknown or missing category/confidence/reason: degrade to the plain summary (no classification block).
+function parseClassification(s: any): Classification | undefined {
+  const category = oneOf(CATEGORIES, s?.category);
+  const confidence = oneOf(CONFIDENCES, s?.confidence);
+  const reason = str(s?.reason);
+  return category && confidence && reason !== null && reason.trim() !== ""
+    ? { category, confidence, reason }
+    : undefined;
+}
 
 export async function analyze(
   token: string,
@@ -101,6 +129,7 @@ export async function analyze(
     )
       return { kind: "translation", translation: { subject: tr.subject, body: tr.body } };
     const s = body?.summary;
+    const classification = parseClassification(s);
     if (
       body?.ok === true &&
       body.action === "summarize" &&
@@ -116,6 +145,7 @@ export async function analyze(
           tone: str(s.tone) ?? "",
           deadline: str(s.deadline),
           requestedAction: str(s.requestedAction),
+          ...(classification ? { classification } : {}),
         },
       };
     return { kind: "error", code: "other" };

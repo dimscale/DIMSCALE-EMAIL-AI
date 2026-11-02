@@ -13,7 +13,7 @@ const ORIGIN = "https://localhost:3000";
 const cfg: Config = { tenantId: T, clientId: C, allowedOrigins: [ORIGIN] };
 const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
 const keySet = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] });
-async function mint(): Promise<string> {
+function mint(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({ ver: "2.0", azp: C, scp: "access_as_user", oid: OID, tid: T })
     .setProtectedHeader({ alg: "RS256", kid: "k1" }).setIssuer(`https://login.microsoftonline.com/${T}/v2.0`).setAudience(C)

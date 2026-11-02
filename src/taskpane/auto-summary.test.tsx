@@ -238,6 +238,7 @@ describe("when it runs (F-003/AC-43)", () => {
     expect(fetchMock.mock.calls[1][1].body).toBe(auto);
     expect(JSON.parse(auto)).toEqual({
       action: "summarize",
+      output: "classified",
       subject: "Assunto",
       fromName: "Ana",
       fromDomain: "exemplo.pt",

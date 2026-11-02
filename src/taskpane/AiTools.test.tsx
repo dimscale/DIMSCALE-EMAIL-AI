@@ -156,10 +156,12 @@ describe("AiTools request (F-003/AC-17, AC-18)", () => {
       "body",
       "fromDomain",
       "fromName",
+      "output",
       "subject",
     ]);
     expect(sent).toMatchObject({
       action: "summarize",
+      output: "classified",
       subject: "Assunto",
       fromName: "Ana",
       fromDomain: "exemplo.pt",

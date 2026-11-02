@@ -111,6 +111,8 @@ Deno.test("AC-37: invalid PUT bodies are 422 payload_invalid and nothing is writ
       { ...good, extra: 1 }, { ...good, oid: OTHER }, { enabled: true, contacts: [] }, { ...good, enabled: "yes" }, { ...good, enabled: 1 },
       { ...good, contacts: many }, { ...good, contacts: ["a".repeat(250) + "@x.com"] }, { ...good, contacts: ["nope"] }, { ...good, contacts: ["a b@x.com"] },
       { ...good, contacts: ["a@x"] }, { ...good, contacts: ["a@x.com", " A@X.COM"] }, { ...good, contacts: ["owner@dimscale.com"] },
+      // F-013/AC-49: no-reply local parts, any case
+      ...["noreply", "No-Reply", "donotreply", "DO-NOT-REPLY", "mailer-daemon", "Postmaster"].map((l) => ({ ...good, contacts: ["ok@x.com", `${l}@x.com`] })),
       { ...good, contacts: [5] }, { ...good, contacts: "a@x.com" }, { ...good, ownAddress: "bad" }, { ...good, ownAddress: 3 }, [], "str", null,
     ];
     for (const b of bad) {

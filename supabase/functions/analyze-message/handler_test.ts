@@ -541,3 +541,120 @@ Deno.test("AC-53/AC-55/AC-57/AC-58: reply revision (instruction + draft)", async
     loud();
   }
 });
+
+// ---- F-007: summarize variant output "classified" ----
+const cls = { ...good, output: "classified" };
+const clsJson = { points: ["a", "b", "c"], category: "information", priority: "low", tone: "neutral", reason: "Mensagem informativa.", confidence: "high", deadline: null, requested_action: "Pagar" };
+const clsAi = (o: unknown = clsJson) => () => new Response(JSON.stringify(wrap(JSON.stringify(o))));
+
+Deno.test("F-007/AC-1: output payload validation, 422 with no DB and no OpenAI call", async () => {
+  const s = setup();
+  quiet();
+  try {
+    const t = await mint();
+    const bads: unknown[] = [
+      { ...good, output: "Classified" }, { ...good, output: "classify" }, { ...good, output: "" }, { ...good, output: null }, { ...good, output: true }, { ...good, output: 1 },
+      { ...good, output: "SUMMARY" }, { ...cls, extra: 1 }, { ...cls, body: "x".repeat(4001) }, { ...cls, body: " " }, { ...cls, fromDomain: "a@b" },
+      { ...replyPayload, output: "classified" }, { ...replyPayload, output: "summary" }, { ...trPayload, output: "classified" }, { ...trPayload, output: "summary" },
+    ];
+    for (const b of bads) {
+      const res = await s.call(t, b);
+      assertEquals([res.status, await res.json()], [422, { ok: false, error: "payload_invalid" }]);
+    }
+    untouched(s);
+    assertEquals((await s.call(t, { ...good, output: "summary" })).status, 200);
+    assertEquals((await setup({}, clsAi()).call(t, cls)).status, 200);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-007/AC-2: no output and output summary give the same F-003 request and response", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    const bodies: string[] = [], resp: unknown[] = [];
+    for (const p of [good, { ...good, output: "summary" }]) {
+      const s = setup();
+      const r = await s.call(t, p);
+      bodies.push(s.requests[0].init.body as string);
+      resp.push([r.status, await r.json()]);
+    }
+    assertEquals(bodies[0], bodies[1]);
+    assertEquals(resp[0], resp[1]);
+    assertEquals((resp[0] as [number, { summary: Record<string, unknown> }])[1].summary.type, "request");
+    assertFalse("reason" in (resp[0] as [number, { summary: object }])[1].summary);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-007/AC-3/AC-5: classified request shares the default input, 200 shape has no type", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    const d = setup(), s = setup({}, clsAi());
+    await d.call(t, good);
+    const r = await s.call(t, cls);
+    const bd = JSON.parse(d.requests[0].init.body as string), bc = JSON.parse(s.requests[0].init.body as string);
+    assertEquals(bc.input, bd.input);
+    assertEquals(bc.text.format.name, "email_classification");
+    assertEquals(bc.text.format.schema.required.includes("category"), true);
+    assertEquals([r.status, await r.json()], [200, { ok: true, action: "summarize", summary: { points: ["a", "b", "c"], category: "information", priority: "low", tone: "neutral", reason: "Mensagem informativa.", confidence: "high", deadline: null, requestedAction: "Pagar" } }]);
+    // old F-003 shape or an address/link in reason is a 502, nothing partial
+    for (const bad of [summaryJson, { ...clsJson, reason: "Escreva a ana@exemplo.pt" }, { ...clsJson, reason: "ver https://exemplo.pt/pay" }]) {
+      const e = await setup({}, clsAi(bad)).call(t, { ...cls, body: "Pague em https://exemplo.pt/pay ou ana@exemplo.pt" });
+      assertEquals([e.status, await e.json()], [502, { ok: false, error: "ai_output_invalid" }]);
+    }
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-007/AC-6: classified takes one slot first, same gates and error codes", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    let s = setup({ ANALYZE_DAILY_CAP_PER_USER: "1" }, clsAi());
+    assertEquals((await s.call(t, cls)).status, 200);
+    assertEquals(s.f.calls, ["analyzeTake"]);
+    const c = await s.call(t, cls);
+    assertEquals([c.status, await c.json(), s.requests.length], [429, { ok: false, error: "cap_reached" }, 1]);
+    s = setup({ ANALYZE_DISABLED: "true" });
+    assertEquals([(await s.call(t, cls)).status, s.f.calls, s.requests.length], [503, [], 0]);
+    s = setup({ OPENAI_API_KEY: "" });
+    assertEquals([(await s.call(t, cls)).status, s.f.calls, s.requests.length], [503, [], 0]);
+    s = setup();
+    assertEquals([(await s.call(null, cls)).status, s.f.calls], [401, []]);
+    s = setup({}, () => new Response("x", { status: 503 }));
+    const u = await s.call(t, cls);
+    assertEquals([u.status, await u.json(), s.requests.length], [503, { ok: false, error: "ai_unavailable", retryable: true }, 1]);
+    s = setup({}, () => new Response("x", { status: 401 }));
+    assertEquals(await (await s.call(t, cls)).json(), { ok: false, error: "ai_unavailable", retryable: false });
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-007/AC-7: classified logs and storage carry no content, only the counter is written", async () => {
+  const M = { subj: "MARK_SUBJ", name: "MARK_NAME", dom: "mark-dom.example", body: "MARK_BODY", err: "MARK_OPENAI_ERR", out: "MARK_AI_REASON" };
+  const lines = quiet();
+  try {
+    const t = await mint();
+    const payload = { ...cls, subject: M.subj, fromName: M.name, fromDomain: M.dom, body: M.body };
+    await setup({}, () => new Response(M.err, { status: 500 })).call(t, payload);
+    const bad = await setup({}, clsAi({ ...clsJson, reason: `${M.out} <b>` })).call(t, payload);
+    assertEquals(await bad.json(), { ok: false, error: "ai_output_invalid" });
+    const s = setup({}, clsAi({ ...clsJson, reason: M.out }));
+    const ok = await s.call(t, payload);
+    assertEquals(ok.status, 200);
+    assertEquals(s.f.calls, ["analyzeTake"]);
+    assertEquals([s.f.users.size, s.f.queue.length], [0, 0]);
+    assertEquals(lines.length, 3);
+    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => !["fn", "id", "method", "status", "reason", "ms"].includes(k)), []);
+    const all = lines.join("\n");
+    for (const v of [...Object.values(M), OID, "sk-test-KEY"]) assertFalse(all.includes(v), v);
+  } finally {
+    loud();
+  }
+});

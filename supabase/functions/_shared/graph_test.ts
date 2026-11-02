@@ -47,6 +47,17 @@ Deno.test("AC-11: readFrom is exactly $select=from, then readMessage uses the ex
   assertEquals([m.data.body, m.data.toAddresses, m.data.isDraft, m.data.fromName], ["body", ["o@d.com"], false, "Ana"]);
 });
 
+Deno.test("AC-45/50: several Authentication-Results headers are all kept; still one GET with the same select list", async () => {
+  const { graph, calls } = setup([j({ isDraft: false, internetMessageHeaders: [
+    { name: "Authentication-Results", value: "dmarc=pass" }, { name: "X-Other", value: "a" }, { name: "authentication-results", value: "compauth=fail reason=000" }, { name: "x-other", value: "b" },
+  ] })]);
+  const m = await graph.readMessage(OID, "i");
+  assert(m.ok);
+  assertEquals(m.data.headers, { "authentication-results": "dmarc=pass\ncompauth=fail reason=000", "x-other": "a" });
+  assertEquals(calls.length, 1);
+  assert(calls[0].url.endsWith("?$select=subject,from,toRecipients,isDraft,inferenceClassification,receivedDateTime,internetMessageHeaders,uniqueBody,parentFolderId"));
+});
+
 Deno.test("readMessage fails closed: missing isDraft means draft", async () => {
   const { graph } = setup([j({})]);
   const m = await graph.readMessage(OID, "i");

@@ -24,6 +24,7 @@ import {
   saveSettings,
   ServerStatus,
 } from "./settingsClient";
+import { isNoReplyLocalPart } from "./noReply";
 import { strings } from "./strings";
 
 /* global Office */
@@ -179,7 +180,8 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
         if (settingsRes.kind === "ok") {
           setEnabled(settingsRes.data.enabled);
           setServerStatus(settingsRes.data.status);
-          setSelectedContacts(settingsRes.data.contacts);
+          // F-013 amendment: a list stored before AC-49 may hold no-reply contacts; drop them so saving is not refused
+          setSelectedContacts(settingsRes.data.contacts.filter((c) => !isNoReplyLocalPart(c)));
           setLoadSettingsError(false);
         } else {
           setLoadSettingsError(true);
@@ -292,6 +294,10 @@ export const ResponderPanel: React.FC<ResponderPanelProps> = ({ active = true })
     const raw = manualAddress.trim().toLowerCase();
     if (!raw || !EMAIL_REGEX.test(raw) || raw.length > 254) {
       setNotice({ intent: "error", text: strings.invalidEmail });
+      return;
+    }
+    if (isNoReplyLocalPart(raw)) {
+      setNotice({ intent: "error", text: strings.noReplyNotAllowed });
       return;
     }
     const own = getOwnAddress();

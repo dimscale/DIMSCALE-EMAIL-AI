@@ -136,6 +136,34 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     expect(screen.getByLabelText("novo@contacto.pt")).toBeTruthy();
   });
 
+  it("refuses no-reply manual addresses, case-insensitively (F-013/AC-49)", async () => {
+    render(<ResponderPanel />);
+    await screen.findByText("Contactos a responder (1)");
+
+    const input = screen.getByRole("textbox", { name: "Adicionar endereço" });
+    const addButton = screen.getByRole("button", { name: "Adicionar" });
+    const msg = "Não pode adicionar um endereço de não-resposta (por exemplo noreply).";
+
+    for (const a of [
+      "noreply@x.pt",
+      "No-Reply@x.pt",
+      "DONOTREPLY@x.pt",
+      "do-not-reply@x.pt",
+      "Mailer-Daemon@x.pt",
+      "postmaster@x.pt",
+    ]) {
+      fireEvent.change(input, { target: { value: a } });
+      fireEvent.click(addButton);
+      expect(screen.getByText(msg)).toBeTruthy();
+      expect(screen.getByText("Contactos a responder (1)")).toBeTruthy();
+    }
+
+    // Not an exact match: allowed
+    fireEvent.change(input, { target: { value: "noreply.team@x.pt" } });
+    fireEvent.click(addButton);
+    expect(screen.getByText("Contactos a responder (2)")).toBeTruthy();
+  });
+
   it("disables unticked checkboxes when cap of 50 is reached", async () => {
     const fiftyContacts = Array.from({ length: 50 }, (_, i) => `user${i}@exemplo.pt`);
     (fetchSettings as any).mockResolvedValueOnce({
@@ -166,6 +194,29 @@ describe("ResponderPanel (F-013/AC-32 to AC-35)", () => {
     fireEvent.click(allowBtn);
     await waitFor(() => {
       expect(requestGraphConsent).toHaveBeenCalled();
+    });
+  });
+
+  it("drops stored no-reply contacts on load so saving never sends one (F-013 amendment, L5)", async () => {
+    (fetchSettings as any).mockResolvedValueOnce({
+      kind: "ok",
+      data: { enabled: true, status: "active", contacts: ["noreply@x.com", "ana@cliente.pt"] },
+    });
+    (saveSettings as any).mockResolvedValue({
+      kind: "ok",
+      data: { enabled: true, status: "pending", contacts: ["ana@cliente.pt"] },
+    });
+
+    render(<ResponderPanel />);
+    await screen.findByText("Contactos a responder (1)");
+    expect(screen.queryByLabelText(/noreply@x\.com/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => {
+      expect(saveSettings).toHaveBeenCalledWith(
+        "mock_backend_token",
+        expect.objectContaining({ contacts: ["ana@cliente.pt"] })
+      );
     });
   });
 

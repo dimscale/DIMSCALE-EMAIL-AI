@@ -169,7 +169,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       };
       const payload: AnalyzePayload =
         action === "summarize"
-          ? { action, ...base }
+          ? { action, output: "classified", ...base }
           : action === "reply"
             ? {
                 action,
@@ -302,7 +302,12 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
     </>
   );
 
-  const typeLabel = summary && label(strings.aiTypeLabels, summary.type);
+  // F-007: category, priority and confidence only choose label strings and the notice; never an action.
+  const cls = summary?.classification;
+  const typeLabel = summary && !cls && label(strings.aiTypeLabels, summary.type);
+  const categoryLabel = cls && label(strings.aiCategoryLabels, cls.category);
+  const confidenceLabel = cls && label(strings.aiConfidenceLabels, cls.confidence);
+  const uncertain = !!cls && (cls.confidence === "low" || cls.category === "other");
   const priorityLabel = summary && label(strings.aiPriorityLabels, summary.priority);
   const toneLabel = summary && label(strings.aiToneLabels, summary.tone);
 
@@ -345,9 +350,20 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
                 </ul>
                 <div className={s.row}>
                   {typeLabel && <Badge appearance="outline">{typeLabel}</Badge>}
+                  {categoryLabel && <Badge appearance="outline">{categoryLabel}</Badge>}
                   {priorityLabel && <Badge appearance="outline">{priorityLabel}</Badge>}
                   {toneLabel && <Badge appearance="outline">{toneLabel}</Badge>}
                 </div>
+                {cls && (
+                  <>
+                    <p className={s.text} dir="auto">
+                      {strings.aiReason(cls.reason)}
+                    </p>
+                    {confidenceLabel && (
+                      <p className={s.text}>{strings.aiConfidence(confidenceLabel)}</p>
+                    )}
+                  </>
+                )}
                 {summary.deadline && (
                   <p className={s.text} dir="auto">
                     {strings.aiDeadline(summary.deadline)}
@@ -357,6 +373,15 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
                   <p className={s.text} dir="auto">
                     {strings.aiRequestedAction(summary.requestedAction)}
                   </p>
+                )}
+                {cls && (
+                  <>
+                    <p className={s.note}>{strings.aiClassNotice}</p>
+                    {uncertain && <p className={s.note}>{strings.aiClassUncertain}</p>}
+                    {view.aiTruncated && (
+                      <p className={s.note}>{strings.aiClassTruncated}</p>
+                    )}
+                  </>
                 )}
               </>
             )

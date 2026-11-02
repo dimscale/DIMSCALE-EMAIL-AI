@@ -1,9 +1,10 @@
 # F-007: Classification of the open email with reasons and an uncertainty notice
 
-- **Status:** Draft (2026-11-02, requirements-architect). Not approved: only the user sets `Approved`. Items marked **(architect proposal)** are choices made while writing this draft and are listed in "Open questions".
+- **Status:** **Approved (2026-11-02), by the user's delegation.** The user said on 2026-11-02 ("pode implementar essas decisões, eu estou à espera do MMSI") to apply the recommendations of the last decision list; the orchestrator records the approval and the decisions below. Written by the requirements-architect.
+- **Approved decisions (2026-11-02):** option A (`summarize` variant, optional `output: "classified"`); the seven PT-PT categories with "Urgente" expressed only as priority Alta; no "Possível fraude" value; the confidence label stays; the quality bar is 80 % agreement on 20 test emails; **test emails only until D5**, as for F-003; the PT-PT label and notice wording is the architect's proposal and **stays reviewable by the user after the first live test** (a wording change is a `strings.ts` edit, not a spec change). Items marked **(architect proposal)** below are now accepted except where this line says reviewable.
 - **Tier:** **Active item** (Office.js, manifest permission `ReadItem`, no Graph) + **AI backend** (the existing `analyze-message` function). **No manifest change, no new permission, no Graph scope, no new tab, no new ribbon button, no new table, no new secret.**
 - **Depends on:** [F-003](F-003-analyze-summary-and-reply.md) (the `summarize` action, strict schema, validators, caps, auto mode, the Resumo card), [F-012](F-012-taskpane-design.md) (card layout, PT-PT strings, 320 px), [F-002](F-002-authenticated-backend.md) (token validation).
-- **Plan:** not written yet (the user asks for it after approving this spec).
+- **Plan:** [docs/plans/F-007-classification.md](../plans/F-007-classification.md)
 - **Product source:** [requirements.md](../product/requirements.md) R5 ("important, normal, advertising or potentially suspicious, with an explanation and a 'may be wrong' notice") and "Classification safety" in [security.md](../architecture/security.md).
 
 ## Goal
@@ -200,7 +201,21 @@ F-003's `summarize` already returns three advisory enums: `type` (`request`, `in
 | R8 | Cost: output tokens per call grow. | Estimate +$0.05 per 1,000 summaries on Luna; measured in AC-18; the caps bound the worst case. |
 
 ## Open questions
-### For the user
+### Resolved 2026-11-02 (user delegation, see Status)
+| Q | Answer |
+|---|---|
+| Q-1 | The seven values as proposed. "Urgente" = priority Alta, not a category. No "Cliente" or "Interno" class. |
+| Q-2 | No "Possível fraude" or any suspicious value. |
+| Q-3 | **A** (variant of `summarize`, one request). |
+| Q-4 | Keep "Confiança alta/média/baixa" (uncalibrated model estimate, never a percentage). AC-19 still records disagreements; if the model says `high` and the user disagrees often, the user may drop the label later (spec change). |
+| Q-5 | 80 % agreement on category and priority over 20 test emails (AC-18). |
+| Q-6 | The wording in this spec is used as written; the user may review it after the first live test. |
+| Q-7 | Implied by A: no ribbon button and no in-card button; classification appears whenever the user summarises, including auto mode. The architect did not get an explicit "yes" to this sentence, so the user can still object after the first live test. |
+| Q-8 | Test emails only until D5, as F-003. |
+
+The original questions are kept below for the record.
+
+### For the user (answered, see above)
 - **Q-1. Category list.** Proposed seven values (Requer ação, Para informação, Reunião/convite, Fatura/documento, Publicidade/newsletter, Notificação automática, Outro) with **"Urgente" expressed only as priority Alta**. Do you want "Urgente" as a category as in your example, or any other class (for example "Cliente", "Interno")?
 - **Q-2. "Suspeito/phishing".** Excluded from v1 (the function has no headers or links to judge from, and a wrong label is costly). Include an advisory "Possível fraude" value anyway, accepting weak evidence, or keep it out?
 - **Q-3. Option A vs B.** Recommended A (variant of `summarize`: one request, no new button). Choose B only if you want classification on demand, separate from the summary, accepting a second request, a second cap slot and a trigger inside the card. Confirm A.
@@ -223,3 +238,9 @@ F-003's `summarize` already returns three advisory enums: `type` (`request`, `in
 - https://developers.openai.com/api/docs/guides/your-data
 - https://developers.openai.com/api/docs/models/gpt-6-luna
 - [F-003 spec](F-003-analyze-summary-and-reply.md) (schema, validators, caps, auto mode, Resumo card), [F-012 spec](F-012-taskpane-design.md), [security](../architecture/security.md), [requirements](../product/requirements.md)
+
+## Amendment 2026-11-03: review and QA decisions (user delegated, 2026-11-02)
+- **No safety claims (review M2):** the classify instruction adds: never state or imply that the email or the sender is safe, legitimate, verified or trustworthy; the reason describes the content only. This completes the "no claim of safe" rule of the Security section; decision 7's fixed text is extended by this one sentence.
+- **`reason` characters (review L2, QA D1/D2):** the function also rejects line and paragraph separators (U+2028, U+2029) and all Unicode format characters (`\p{Cf}`: zero-width, BOM, bidi controls), in addition to `\p{Cc}`.
+- **Truncation line (review L1, QA D4):** the pane shows it when the trimmed body is longer than the 4,000-unit limit (a `MessageView.aiTruncated` flag), not by comparing the cut text length.
+- **Deploy order:** the function is deployed before the pane reaches `main` (the pane always sends `output: "classified"`; an old function answers 422).

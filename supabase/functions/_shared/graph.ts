@@ -105,7 +105,11 @@ export function makeGraph(d: GraphDeps) {
         const headers: Record<string, string> = {};
         if (Array.isArray(m.internetMessageHeaders)) {
           for (const h of m.internetMessageHeaders) {
-            if (isRec(h) && typeof h.name === "string" && !(h.name.toLowerCase() in headers)) headers[h.name.toLowerCase()] = str(h.value);
+            if (!isRec(h) || typeof h.name !== "string") continue;
+            const k = h.name.toLowerCase();
+            // Several Authentication-Results headers are normal: keep them all (newline-joined) for filter 18; others keep the first.
+            if (k === "authentication-results" && k in headers) headers[k] += `\n${str(h.value)}`;
+            else if (!(k in headers)) headers[k] = str(h.value);
           }
         }
         return {

@@ -19,7 +19,7 @@ Option A, one stateless function per AI operation (or one function with an opera
 2. Validate and truncate the input.
 3. Call OpenAI with a fixed system prompt and the email in a delimited user message, asking for structured JSON output.
 4. Validate the output schema and return it.
-5. Store nothing and log metadata only.
+5. Store nothing and log metadata only. _(Superseded in part, 2026-11-02: the backend now stores minimal metadata, see [ADR-0005](0005-server-side-mail-processing.md) and [ADR-0006](0006-stateful-backend-for-batch-and-style.md); still no email content.)_
 
 ## Open
 - ~~Vendor~~: Supabase (accepted 2026-10-22).

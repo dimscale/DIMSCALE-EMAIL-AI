@@ -373,4 +373,5 @@ The AI behaviour inside the cards (requests, auto mode, options, errors) is test
 ## Amendment 2026-11-02: single ribbon button (user decision)
 - **Supersedes AC-48 to AC-54 where they mention two buttons:** the ribbon has **one** button, label and title "DIMSCALE Mail", in the group "DIMSCALE MAIL", opening `taskpane.html`. The "Resumo" button, `resumo.html`, the `resumo-*.png` icons and `icon-resumo-master.svg` were removed. Add-in `DisplayName` is "Assistente IA".
 - **Why:** the user did not see the point of two buttons (2026-10-29). The Resumo tab inside the pane is unchanged.
+- **Custom tab dropped (user decision, recorded 2026-11-02):** AC-37 to AC-42 (the "DIMSCALE MAIL" own-tab experiment in classic Windows, new Outlook and Mac) are **no longer pursued**. `manifest.customtab-test.xml` stays in the repo as a test manifest and is never published. The group label on the ribbon is "DIMSCALE".
 - **Consequence:** F-003 AC-50 (reload check) and F-012 AC-52/AC-53 (second-button live checks) no longer apply. Manifest version stays 1.0.2.0 (never sent to the tenant admin yet).

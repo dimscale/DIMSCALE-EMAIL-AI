@@ -9,6 +9,7 @@ export type Settings = {
   dailyCapGlobal: number;
   filterAutoResponseSuppress: boolean;
   filterFocusedOther: boolean;
+  filterAuthFailed: boolean;
   openaiModel: string;
   openaiMaxOutputTokens: number;
 };
@@ -39,7 +40,8 @@ export function readSettings(get: Get): { settings: Settings; defaulted: string[
     dailyCapPerUser: pick("DAILY_CAP_PER_USER", posInt, 30),
     dailyCapGlobal: pick("DAILY_CAP_GLOBAL", posInt, 200),
     filterAutoResponseSuppress: pick("FILTER_AUTO_RESPONSE_SUPPRESS", bool, true),
-    filterFocusedOther: pick("FILTER_FOCUSED_OTHER", bool, true),
+    filterFocusedOther: pick("FILTER_FOCUSED_OTHER", bool, false), // default off since 2026-11-02 (F-013/AC-44)
+    filterAuthFailed: pick("FILTER_AUTH_FAILED", bool, true),
     // No default model: D5 decides. An empty model makes the AI step fail closed (config_missing).
     openaiModel: get("OPENAI_MODEL")?.trim() ?? "",
     openaiMaxOutputTokens: pick("OPENAI_MAX_OUTPUT_TOKENS", posInt, 800),

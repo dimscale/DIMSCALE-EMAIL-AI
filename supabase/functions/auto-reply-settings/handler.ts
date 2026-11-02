@@ -1,6 +1,7 @@
 import type { JWTVerifyGetKey } from "jose";
 import type { Db } from "../_shared/db.ts";
 import type { Config } from "../_shared/entra.ts";
+import { isNoReplyLocalPart } from "../_shared/filters.ts";
 import { log } from "../_shared/log.ts";
 import { normalizeAddress, sha256Hex } from "../_shared/safe.ts";
 import { validateStateful } from "../_shared/stateful.ts";
@@ -25,7 +26,7 @@ export function parsePut(body: unknown): Parsed | null {
   for (const c of b.contacts) {
     if (typeof c !== "string") return null;
     const n = normalizeAddress(c);
-    if (!valid(n) || n === own || seen.has(n)) return null;
+    if (!valid(n) || n === own || seen.has(n) || isNoReplyLocalPart(n)) return null; // F-013/AC-49
     seen.add(n);
   }
   return { enabled: b.enabled, ownAddress: own, contacts: [...seen] };

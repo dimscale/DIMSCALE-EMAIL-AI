@@ -124,12 +124,13 @@ _Note 2026-10-29: the tab is renamed **"Automático"** in the F-012 Kutools-styl
   | 9 | The `Precedence` header is `bulk`, `list` or `junk` | `bulk_precedence` | on |
   | 10 | A `List-Id` or `List-Unsubscribe` header is present | `mailing_list` | on |
   | 11 | The sender's local part matches `noreply`, `no-reply`, `donotreply`, `do-not-reply`, `mailer-daemon` or `postmaster` (case-insensitive) | `noreply_sender` | on |
-  | 12 | `inferenceClassification = other` (Focused Inbox "Other") | `focused_other` | on |
+  | 12 | `inferenceClassification = other` (Focused Inbox "Other") | `focused_other` | **off** (amended 2026-11-02, Q-C3) |
   | 13 | `receivedDateTime` is more than `MAX_AGE_HOURS` old | `too_old` | 24 h |
   | 14 | `uniqueBody` text is empty after trimming | `empty_body` | on |
   | 15 | The sender's domain is in `SKIP_SENDER_DOMAINS` (comma-separated) | `sender_domain_skipped` | empty |
   | 16 | `INTERNAL_SENDERS` = `skip` and the sender's domain is in `INTERNAL_DOMAINS` | `internal_sender` | `allow` (open question 1) |
   | 17 | The user's drafts today ≥ `DAILY_CAP_PER_USER`, or all drafts today ≥ `DAILY_CAP_GLOBAL` | `cap_reached` | 30 / 200 |
+| 18 | `Authentication-Results` has an explicit `dmarc=fail` or `compauth=fail` (added 2026-11-02, Q-C4; see the amendment) | `auth_failed` | on, fail-open |
 
   Junk mail is excluded by construction, because the subscription covers the Inbox only. "Already replied" isn't checked: a message that just arrived can't have been answered yet. The age limit covers catch-up of old mail.
 - **Data sent to OpenAI (minimum):**
@@ -243,7 +244,7 @@ _Note 2026-10-29: the tab is renamed **"Automático"** in the F-012 Kutools-styl
 | F-013/AC-42 | Live on Mac: record the Outlook version and UI (classic or new), `isSetSupported("NestedAppAuth","1.1")`, whether the F-002 sign-in and the `Mail.ReadBasic` silent request and consent popup work, and whether the `fetch` to `auto-reply-settings` passes CORS (origin `https://dimscale.github.io`). Docs: new Mac UI (16.38.506 or later) lists NestedAppAuth 1.1 and the classic Mac UI also lists it, but Mac behaviour of `acquireTokenPopup` for a second scope is not documented. If it fails on a client, the Responder tab shows the "unsupported" notice and the server side keeps working for already saved lists. | Live (user) |
 
 ## Edge cases
-- **Spoofed `From`:** an outsider can forge a listed contact's address. The result is at most an unsent draft and an OpenAI call (cost, and the forged text reaches OpenAI). Checking `Authentication-Results` headers is a later hardening (Q-C4).
+- **Spoofed `From`:** an outsider can forge a listed contact's address. The result is at most an unsent draft and an OpenAI call (cost, and the forged text reaches OpenAI). Since 2026-11-02 filter 18 (`auth_failed`) skips the common case (explicit `dmarc=fail` or `compauth=fail`); a spoof that passes DMARC, or mail with no such header, is still possible (residual risk R10).
 - **A contact writes from a second address:** not on the list, so no draft. The user adds it.
 - **A contact is removed while a message is queued:** the sender check runs at processing time, so the row ends `sender_not_allowed`.
 - **The user's own address added by hand:** rejected (AC-34, AC-37).
@@ -364,6 +365,7 @@ New flows:
 ## Open questions
 
 ### For the user
+- **Q-C1, Q-C3, Q-C4: answered 2026-11-02, see "Amendment 2026-11-02" at the end of this spec.** The original wording is kept below for the record.
 - **Q-C1. Candidate source:** v1 = recent Inbox senders (last 30 days, `Mail.ReadBasic`) + manual entry. Add Outlook contacts later (`Contacts.Read`, one more admin consent)?
 - **Q-C2. Limit: answered 2026-10-23, the user confirmed 50 contacts per user.** Closed.
 - **Q-C3. Filters for listed contacts:** with an explicit list, should filters 6 (only CC'd) and 12 (Focused "Other") stay on? Recommendation: keep 6, turn 12 off (a chosen contact landing in "Other" should still be answered).
@@ -404,3 +406,55 @@ The consolidated checklist is [docs/admin/2026-10-23-mmsi-request.md](../admin/2
 - **V5.** Are categories sent to recipients when the user sends the draft?
 - **V6.** What `uniqueBody` contains for S/MIME, IRM and calendar items.
 - **V7.** Does a base64 single-line private key in a Supabase secret import correctly with `jose` `importPKCS8`?
+- **V8 (added 2026-11-02).** Does `GET /users/{oid}/messages/{id}?$select=...,internetMessageHeaders` return the headers under the RBAC-scoped `Application Mail.Read` role, and what does `Authentication-Results` contain for an external test mail and for a mail sent from inside the tenant (several such headers? none?). Record header names and the `dmarc` / `compauth` tokens only, never addresses or content.
+
+## Amendment 2026-11-02 (user decisions on Q-C1, Q-C3, Q-C4)
+
+- **Status of this amendment:** the user said on 2026-11-02 ("pode implementar essas decisões, eu estou à espera do MMSI") to apply the recommendations of [the open-questions research](../research/2026-11-02-f013-open-questions.md). The orchestrator records them as **user-approved on 2026-11-02**. The spec `Status` line above is unchanged (set by the user).
+- **Decisions:**
+  - **Q-C1 = recent Inbox senders + manual entry.** No `Contacts.Read`, no People API, no Sent Items. The only delegated Graph scope in the pane stays `Mail.ReadBasic`. Nothing changes in "Pane: Responder tab".
+  - **Q-C3 = keep filter 6, turn filter 12 OFF.**
+    - Filter 6 meaning (exact): skip with `not_direct_recipient` unless the mailbox owner's address is one of the addresses in `toRecipients` (compared lower-cased; the owner address is held only as `mail_sha256`, so the filter hashes each `toRecipients` address the same way as filter 5). The owner only in CC or BCC, or in neither (for example reached through a distribution list or an alias that is not the stored address), is skipped. `ccRecipients` and `bccRecipients` are still not requested.
+    - Filter 12 (`focused_other`) default becomes **off**: an allow-listed sender whose message Outlook put in "Other" is still answered. The filter and its reason code stay in the code behind the existing on/off configuration value (AC-13), so it can be turned back on without a change.
+  - **Q-C4 = new filter 18 `auth_failed`.**
+    - Skip (`skipped` / `auth_failed`, no OpenAI call, no `createReply`) only when at least one `Authentication-Results` header of the message contains the token `dmarc=fail` or `compauth=fail` (header name and token compared case-insensitively; the token must start at the beginning of the value or after whitespace or `;` and must be followed by whitespace, `;`, `(` or the end, so `dmarc=failx` or `xdmarc=fail` do not match).
+    - **Fail-open (never block on absence).** No `Authentication-Results` header, an empty or unparsable value, any other result (`dmarc=pass|bestguesspass|none|temperror|permerror`, `compauth=pass|softpass|none`), and `spf=fail` or `dkim=fail` alone, all pass the filter.
+    - **Fetch:** no extra Graph call. `internetMessageHeaders` is already in the second read's `$select` (Design decisions, "Message fetch"; filters 7 to 10 use it). If a run ever has to re-read, it must still be one `GET` with `$select=internetMessageHeaders`. A non-2xx answer is handled by the existing rules (AC-21: retry, `message_gone`, `graph_forbidden`); it is never treated as "pass", because nothing else would be read either. A **successful** answer without headers is the fail-open case. Default on, configurable like filters 8, 12 and 16.
+    - **Documentation status:** Microsoft documents `$select=internetMessageHeaders` on Get message (example 2) with application `Mail.ReadBasic.All` or `Mail.Read`; this app uses `Mail.Read` through the RBAC role. Microsoft does not say what `Authentication-Results` contains for mail sent from inside the tenant, and says a message that fails `compauth` may still be delivered. Hence fail-open, and a live check (AC-52, V8).
+  - Sources checked 2026-11-02: https://learn.microsoft.com/graph/api/message-get?view=graph-rest-1.0 (permissions table and example 2), https://learn.microsoft.com/graph/api/resources/message?view=graph-rest-1.0 (`internetMessageHeaders`: "Requires `$select` to retrieve"), https://learn.microsoft.com/defender-office-365/message-headers-eop-mdo (`dmarc` and `compauth` values), https://www.rfc-editor.org/rfc/rfc3834.
+
+### Amended acceptance criteria
+Amends AC-12 (filter 12 is not in the default "each filter skips" loop, see AC-44), AC-13 (adds the filter 18 toggle) and the AC-37 validation list (AC-46). Numbering continues. "Unit", "Local", "Live" as above.
+
+| ID | Criterion | Verify by |
+|---|---|---|
+| F-013/AC-43 | **No contacts scope.** The candidate source is only the AC-32 request. The strings `Contacts.Read`, `/me/contacts`, `/me/people` and `MailboxSettings` appear nowhere in `src/`, `manifest*.xml` or the MMSI request except as "not used". Without `Mail.ReadBasic` consent the tab degrades to manual entry (AC-32). | Grep; Mocks |
+| F-013/AC-44 | **Filter 12 off, filter 6 as defined.** With defaults: an allow-listed fixture with `inferenceClassification = other` and every other filter passing reaches the OpenAI call and `createReply`. With filter 12 switched on by its configuration value, the same fixture ends `skipped` / `focused_other`. Filter 6: the owner's address in `toRecipients` among several recipients (any case) passes; the owner only in CC (not in `toRecipients`) ends `skipped` / `not_direct_recipient` with no OpenAI call; an empty `toRecipients` ends the same way. | Unit |
+| F-013/AC-45 | **Filter 18 skips on explicit failure.** An allow-listed fixture whose `internetMessageHeaders` holds `Authentication-Results: ... dmarc=fail ...` ends `skipped` / `auth_failed` with no OpenAI call and no `createReply`. Same for `compauth=fail`, for a second `Authentication-Results` header (the first being clean), for upper-case `DMARC=FAIL`, and for a failing token inside a long multi-line header value. The filter runs after filters 3 to 10 and before filters 13 to 17 (order recorded in the plan; each filter still gives its own code when it is the only one triggered). | Unit |
+| F-013/AC-46 | **Filter 18 fails open.** Each of these allow-listed fixtures reaches the OpenAI call (no `auth_failed`): no `Authentication-Results` header; no `internetMessageHeaders` at all; an empty header value; an unparsable value (random text, a truncated token); `dmarc=pass`, `dmarc=bestguesspass`, `dmarc=none`, `compauth=pass`, `compauth=softpass`, `compauth=none`; `spf=fail` alone; `dkim=fail` alone; the look-alikes `dmarc=failx` and `xdmarc=fail`. A non-2xx Graph answer follows AC-21 and never reaches OpenAI. | Unit |
+| F-013/AC-47 | **Headers stay inside the function.** A fixture whose `Authentication-Results` and other header values carry unique marker strings: the markers appear in none of the OpenAI request body (AC-15 still holds, no header is sent), the `console` output, any error body, or any DB write. The row stores only the reason code `auth_failed`. No header value is stored. | Unit (inspect request, captured logs, DB mock) |
+| F-013/AC-48 | **Configuration.** Filter 18 is on by default and has an on/off configuration value that follows AC-13 (missing or invalid value: default and `config_default` log). Filter 12's default is off with the same rules. | Unit |
+| F-013/AC-49 | **Manual entry rejects no-reply addresses.** The pane's manual entry and the `PUT` validation reject an address whose local part is `noreply`, `no-reply`, `donotreply`, `do-not-reply`, `mailer-daemon` or `postmaster` (case-insensitive) with a text message (pane) or 422 `payload_invalid` (function); nothing is written. Candidates keep the same exclusion (AC-33). | Mocks; Unit |
+| F-013/AC-50 | **Request shape unchanged.** The second message read still uses exactly the `$select` list and both `Prefer` headers of "Design decisions" (AC-11); filter 18 adds no Graph call. | Unit (assert URLs in order) |
+| F-013/AC-51 | **Never sends, still.** No code path added for filter 18 calls any method in AC-19's list; the grep of step 11 stays clean. | Grep and review |
+| F-013/AC-52 | **Live header check (user, with the orchestrator).** On the pilot mailbox record, for one external test mail and one internal test mail: whether `internetMessageHeaders` is returned under the RBAC role, how many `Authentication-Results` headers there are, and the `dmarc` / `compauth` tokens (header names and tokens only, no addresses or content). If the user can send a forged-sender test from an external account that the tenant delivers to the Inbox, record whether it ends `auth_failed`. If Microsoft 365 quarantines it first, record that. If headers are missing for internal mail, the fail-open design stands unchanged. | Live (user), recorded in the plan Evidence |
+
+## Out of scope for this amendment
+- `Contacts.Read`, the People or Search API, Sent Items recipients as candidates (Q-C1 closed for v1; revisit only if the user finds the list not useful after live use).
+- Strict authentication (skip unless `dmarc=pass`), and skipping on SPF or DKIM alone (false skips for forwarded mail and lists).
+- Treating `from` versus `sender` as an anti-forgery check (not one, per the `message` resource page).
+- Any Authentication-Results parsing beyond the two tokens, scoring, quarantine or reporting a message, or telling the user why a message was skipped in the pane.
+- Making filter 6 configurable (the research offered `REQUIRE_DIRECT_RECIPIENT` as an option; not chosen).
+- A fallback that reads headers with a second request or with `$value` (MIME).
+- Changing the 4,000-character, subject or sender-domain limits of what goes to OpenAI.
+
+## Security note for this amendment
+- **Data flow does not change, so `docs/architecture/security.md` is not edited for it.** Headers are already read in the same `GET` (spec "Message fetch") for filters 7 to 10, are used only inside the function to pick a reason code, and are never logged, stored or sent to OpenAI (AC-47, AC-15). The "forged `From`" residual risk in security.md ("Stored data", residual risks) stays true; the orchestrator may add at its next docs pass: "filter 18 skips explicit `dmarc=fail` / `compauth=fail`, fail-open otherwise".
+- Residual risks: R10 remains (a spoof that passes DMARC, or no header). New: a **false skip** if a legitimate listed contact's mail carries `dmarc=fail` (misconfigured domain, forwarding); the user sees no draft and answers by hand. Accepted. Filter 12 off means mail from the Focused "Other" bucket from a listed sender can get a draft (intended).
+- Open points for the user: none new. Unverified and covered by V8: header content for internal mail and under the RBAC role.
+
+## Amendment 2026-11-03: review and QA decisions (user delegated, 2026-11-02)
+- **No-reply match (QA D5):** `isNoReplyLocalPart` (server) and its pane copy normalise the local part before matching: NFKC, remove default-ignorable and zero-width characters, lower-case, trim, and drop everything from the first `+` (plus-addressing), so `noreply+x@` and fullwidth or zero-width variants count as no-reply. Look-alikes from other alphabets (Cyrillic) are not handled (accepted limit). Server and pane keep one identical rule (parity test).
+- **Filter 18 comments (QA D6):** parenthesised comments are removed from the `Authentication-Results` value before looking for `dmarc=fail` or `compauth=fail`, so text inside a comment never causes a skip. This only reduces skips (fail-open direction).
+- **Stored contacts (review L5):** the pane drops no-reply contacts when it loads the stored list, so a list saved before AC-49 can still be saved again.
+- **Accepted as is:** TLD list limit of the shared link detector (QA D3) and case-sensitive `true`/`false` for boolean settings (QA D7).

@@ -1,6 +1,6 @@
 # ADR-0006: Stateful backend for the manual batch (F-015) and the style profile (F-016)
 
-- **Status:** Proposed (2026-11-02). Only the user accepts it (decision D13). No F-015 or F-016 code that stores data starts before then.
+- **Status:** **Accepted (2026-11-02), option B staged**, by the user's delegation ("pode implementar essas decisões", 2026-11-02; recorded by the orchestrator). Decision D13 is resolved. Staging stays: F-015 first with no new table; F-016's `style_profiles` only after the DPO answers D15. F-015 and F-016 remain Draft (not approved for implementation). The ADR-0003 pointer was added 2026-11-02. `overview.md` "Stateless" wording is to be aligned when F-015 starts.
 - **Date:** 2026-11-02
 - **Features:** [F-015 manual batch drafts](../specs/F-015-manual-batch-drafts.md), [F-016 style profile](../specs/F-016-style-profile.md)
 - **Related:** [ADR-0003](0003-ai-backend.md) (says "stateless", "store nothing"), [ADR-0005](0005-server-side-mail-processing.md) (F-013 tables, already accepted)

@@ -9,9 +9,26 @@ export const isAllowedSender = (from: string | null | undefined, allowList: stri
   return f !== "" && allowList.some((a) => normalizeAddress(a) === f);
 };
 
-const NOREPLY = /^(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster)$/i;
-export const isNoReplyLocalPart = (address: string) => NOREPLY.test(address.split("@")[0] ?? "");
+// F-013/AC-49 + amendment 2026-11-03: NFKC, drop ignorable/format characters, lower-case, trim, cut at the first "+". Mirrored in src/taskpane/noReply.ts.
+const NOREPLY = /^(noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster)$/;
+export const isNoReplyLocalPart = (address: string) => {
+  const local = (address.split("@")[0] ?? "").normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}\p{Cf}]/gu, "").toLowerCase().trim();
+  return NOREPLY.test(local.split("+")[0]);
+};
 export const domainOf = (address: string) => normalizeAddress(address).split("@")[1] ?? "";
+
+/** Filter 18: true only on an explicit dmarc=fail or compauth=fail token; anything missing or odd passes (fail-open). */
+const AUTH_FAIL = /(?:^|[\s;])(?:dmarc|compauth)=fail(?=[\s;(]|$)/i;
+// Parenthesised comments (nested, one linear pass) are removed first; an unclosed one drops the rest (fewer skips, fail-open).
+const stripComments = (v: string) => {
+  let depth = 0, out = "";
+  for (const ch of v) {
+    if (ch === "(") depth++;
+    else if (ch === ")" && depth > 0) { depth--; if (depth === 0) out += " "; } else if (depth === 0) out += ch;
+  }
+  return out;
+};
+export const authFailed = (value: string | undefined) => value !== undefined && AUTH_FAIL.test(stripComments(value));
 
 export type FilterCtx = {
   mailSha256: string; // SHA-256 of the owner's lower-cased address
@@ -36,6 +53,7 @@ export async function evaluate(m: Msg, c: FilterCtx, s: Settings): Promise<Filte
   if (h["list-id"] !== undefined || h["list-unsubscribe"] !== undefined) return { skip: "mailing_list" };
   if (isNoReplyLocalPart(m.fromAddress)) return { skip: "noreply_sender" };
   if (s.filterFocusedOther && m.inference.toLowerCase() === "other") return { skip: "focused_other" };
+  if (s.filterAuthFailed && authFailed(h["authentication-results"])) return { skip: "auth_failed" };
   const received = Date.parse(m.receivedDateTime);
   if (!Number.isFinite(received) || c.nowMs - received > s.maxAgeHours * 3_600_000) return { skip: "too_old" };
   if (m.body.trim() === "") return { skip: "empty_body" };

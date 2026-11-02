@@ -1,5 +1,6 @@
 /* global fetch, Response, URL, AbortController, setTimeout, clearTimeout */
 import { getApp } from "./auth";
+import { isNoReplyLocalPart } from "./noReply";
 
 export const GRAPH_SCOPES = ["https://graph.microsoft.com/Mail.ReadBasic"];
 
@@ -11,20 +12,9 @@ export type CandidateContact = {
   name: string;
 };
 
-const NO_REPLY_LOCAL_PARTS = new Set([
-  "noreply",
-  "no-reply",
-  "donotreply",
-  "do-not-reply",
-  "mailer-daemon",
-  "postmaster",
-]);
-
 export function isNoReplySender(address: string): boolean {
-  const atIndex = address.indexOf("@");
-  if (atIndex <= 0) return true;
-  const localPart = address.slice(0, atIndex).toLowerCase();
-  return NO_REPLY_LOCAL_PARTS.has(localPart);
+  if (address.indexOf("@") <= 0) return true;
+  return isNoReplyLocalPart(address);
 }
 
 export function filterRecentSenders(

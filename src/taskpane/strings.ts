@@ -122,6 +122,26 @@ export const strings = {
     normal: "Prioridade normal",
     low: "Prioridade baixa",
   } as Record<string, string>,
+  // F-007: classification (labels are display only)
+  aiCategoryLabels: {
+    action_required: "Requer ação",
+    information: "Para informação",
+    meeting: "Reunião/convite",
+    invoice_document: "Fatura/documento",
+    marketing: "Publicidade/newsletter",
+    automated_notice: "Notificação automática",
+    other: "Outro",
+  } as Record<string, string>,
+  aiConfidenceLabels: {
+    high: "alta",
+    medium: "média",
+    low: "baixa",
+  } as Record<string, string>,
+  aiReason: (x: string) => `Motivo: ${x}`,
+  aiConfidence: (x: string) => `Confiança: ${x}`,
+  aiClassNotice: "Classificação gerada por IA, pode estar errada. Confirme no e-mail.",
+  aiClassUncertain: "A IA não tem certeza. Não confie nesta classificação.",
+  aiClassTruncated: "Só foram analisados os primeiros 4 000 caracteres.",
   aiToneLabels: {
     positive: "Tom positivo",
     neutral: "Tom neutro",
@@ -157,6 +177,7 @@ export const strings = {
   needAtLeastOneContact: "Escolha pelo menos um contacto.",
   invalidEmail: "Endereço de email inválido.",
   ownAddressNotAllowed: "Não pode adicionar o seu próprio endereço.",
+  noReplyNotAllowed: "Não pode adicionar um endereço de não-resposta (por exemplo noreply).",
   contactAlreadyAdded: "Este endereço já está na lista.",
   responderAssurance:
     "Só é criado um rascunho. Nada é enviado. O texto destes e-mails é processado por um serviço de IA externo.",
