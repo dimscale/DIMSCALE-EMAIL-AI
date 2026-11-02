@@ -48,11 +48,41 @@ const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+|(?<![:\w\/])\/\/[a-z0-9][^\
 const MAIL_RE = /[^\s@<>"'()\[\]]+@[^\s@<>"'()\[\]]+\.[^\s@<>"'()\[\]]+/g;
 const trimEnd = (s: string) => s.replace(/[.,;:!?]+$/, "").toLowerCase();
 
-// shortcut: bare domains without a scheme (evil.com) are not detected; upgrade if the review asks for it.
-/** The reply may not contain a URL or address that the email did not contain. */
+// Bare domains (evil.com, www.x.pt, mail.evil.co.uk) and IPv4. Conservative: label(s) + "." + a known TLD, not followed by a letter/digit/hyphen.
+// Choice: a file name ending in a TLD (report.pt, notes.me) IS flagged (ambiguous with a domain). "Bom dia.Obrigado", v1.2, 9.30, etc., ex.: and Sr.Silva pass (no TLD).
+// Known false positive: a sentence missing the space before a word that is a TLD ("Ok.It"). Any 4 dotted numbers (1.2.3.4) count as IPv4.
+// Domain branch also takes an optional path (evil.com/steal) so a path is compared as part of the token.
+// TLDS is deliberately a short list (common + frequently abused), not the IANA list; any punycode label xn--... counts as a TLD. Extend here only.
+const TLDS = [
+  "com|net|org|pt|es|fr|de|uk|eu|io|co|app|dev|info|biz|me|ai|xyz|online|site|link|ly|to|gl|be|nl|it|br|us|ru|cn|in|gov|edu|ch|at|ie|ca|au|jp|tv|cc|top|club|shop|store|cloud|tech|live|pro|mobi|name|ws|su|tk|ml|ga|cf|gq|zip|mov",
+  "click|icu|pw|sh|gg|pl|ao|mz|cv|lat|work|win|bid|loan|download|stream|review|party|trade|date|men|rest|fit|host|space|website|wiki|bond|cam|vip|rocks|ninja|guru|life|world|today|news|email|center|company|solutions|services|support|network|systems|digital|agency|direct|finance|money|bank|legal|school|university|global|group|ltd|inc|gmbh",
+  "xn--[a-z0-9-]+",
+].join("|");
+const BARE_RE = new RegExp(`(?:[\\p{L}\\p{N}_-]+\\.)+(?:${TLDS})(?![\\p{L}\\p{N}_-])(?:[/?#][^\\s<>"')\\]]*)?|(?<![\\d.])\\d{1,3}(?:\\.\\d{1,3}){3}(?![\\d])`, "giu");
+/** Defeats lookalike dots (U+3002 FF0E 2024 FE52 FF61) and invisible characters (default-ignorable code points, bidi controls, U+061C) used to hide a domain. */
+const normalizeLinkText = (s: string) => s.normalize("NFKC").replace(/[\p{Default_Ignorable_Code_Point}‪-‮⁦-⁩؜]/gu, "").replace(/[。．․﹒｡]/g, ".");
+
+const LINK_RE = /https?:\/\/|www\.|\/\/[a-z0-9]|[^\s@]+@[^\s@]+/i;
+/** The single link/address detector for AI output: scheme, www., //host, anything with @, bare domain, IPv4. */
+export function hasLink(s: string): boolean {
+  const n = normalizeLinkText(s);
+  return LINK_RE.test(n) || new RegExp(BARE_RE.source, "iu").test(n);
+}
+
+const tokens = (n: string) => [...(n.match(URL_RE) ?? []), ...(n.match(MAIL_RE) ?? []), ...(n.match(BARE_RE) ?? [])].map(trimEnd);
+const canon = (t: string) => t.replace(/^(?:https?:)?\/\//, "").replace(/^www\./, "");
+const hostOf = (t: string) => t.match(/^[^\/?#]*/)![0];
+
+/** The reply may not contain a URL, address or bare domain token that the email did not contain (token compare, not substring). */
 export function introducesNewLinks(reply: string, input: string): boolean {
-  const hay = input.toLowerCase();
-  return [...(reply.match(URL_RE) ?? []), ...(reply.match(MAIL_RE) ?? [])].some((x) => !hay.includes(trimEnd(x)));
+  const known = tokens(normalizeLinkText(input)).map(canon);
+  const set = new Set(known);
+  const hosts = known.filter((t) => !t.includes("@")).map(hostOf);
+  return tokens(normalizeLinkText(reply)).map(canon).some((x) => {
+    if (set.has(x)) return false;
+    if (x.includes("@") || x !== hostOf(x)) return true; // address or path: exact token only
+    return !hosts.some((h) => x === h || x.endsWith("." + h) || h.endsWith("." + x)); // dot-boundary sub/parent domain
+  });
 }
 
 type Out = { type?: unknown; text?: unknown };

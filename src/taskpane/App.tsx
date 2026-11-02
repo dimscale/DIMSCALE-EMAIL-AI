@@ -73,8 +73,7 @@ const useStyles = makeStyles({
   },
 });
 
-// summaryEntry: the pane was opened from the "Resumo" ribbon button (resumo.html): one summary, as if clicked.
-const App: React.FC<{ summaryEntry?: boolean }> = ({ summaryEntry = false }) => {
+const App: React.FC = () => {
   const s = useStyles();
   const auto = useAutoSummary();
   const [options, setOptions] = React.useState<ToolOptions>(DEFAULT_OPTIONS);
@@ -131,7 +130,6 @@ const App: React.FC<{ summaryEntry?: boolean }> = ({ summaryEntry = false }) => 
                   options={options}
                   onOptions={setOptions}
                   auto={auto}
-                  entryRun={summaryEntry && ctx.itemKey === 0}
                 />
               )
             }

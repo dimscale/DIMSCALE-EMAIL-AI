@@ -106,10 +106,9 @@ type Props = {
   options: ToolOptions;
   onOptions: (o: ToolOptions) => void;
   auto: AutoSummary;
-  entryRun?: boolean; // resumo.html opened on this item: one summary, counted as a click (F-012 AC-50)
 };
 
-const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto, entryRun }) => {
+const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto }) => {
   const s = useStyles();
   const [pending, setPending] = React.useState<AnalyzeAction | null>(null);
   const [summary, setSummary] = React.useState<Summary | null>(null);
@@ -211,12 +210,6 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       }
     }
   };
-
-  // Entry page resumo.html: one summary for the item loaded at start-up, as if clicked.
-  React.useEffect(() => {
-    if (entryRun) void run("summarize");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Switching auto mode off aborts an in-flight auto request at once.
   React.useEffect(() => {

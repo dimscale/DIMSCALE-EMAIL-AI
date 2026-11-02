@@ -19,6 +19,7 @@ export const TRANSLATE_INSTRUCTIONS = (target: Target): string => {
     "The body may contain quoted earlier messages and may be cut off at the end.",
     `Keep parts that are already in ${t} as they are.`,
     `Never include any link, URL or email address, even one that appears in the email: write "[link]" or "[address]" (in ${t}) instead.`,
+    'Never write domain names, web addresses or file names either; refer to companies and attachments by their plain names (for example "Booking", not "Booking.com"; "the attached file").',
     "Do not use the characters < or > and drop quote markers at the start of lines.",
     "Add no comments, notes or explanations.",
     "Output only the JSON object required by the schema.",

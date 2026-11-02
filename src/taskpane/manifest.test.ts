@@ -91,13 +91,14 @@ it("versions: manifest 1.0.2.0, test manifest 1.0.2.1", () => {
 });
 
 describe("production build (F-012/AC-48)", () => {
-  it("emits taskpane.html and resumo.html with the same hashed assets and rewritten URLs", () => {
+  it("emits taskpane.html with hashed assets and rewritten URLs, and no resumo.html", () => {
     const out = mkdtempSync(join(tmpdir(), "dmai-build-"));
     execSync(`npx webpack --mode production --output-path "${out}"`, {
       cwd: process.cwd(),
       stdio: "pipe",
     });
-    expect(readdirSync(out)).toEqual(expect.arrayContaining(["taskpane.html", "resumo.html"]));
+    expect(readdirSync(out)).toContain("taskpane.html");
+    expect(readdirSync(out)).not.toContain("resumo.html"); // the Resumo ribbon button was removed (user, 2026-10-29)
     const assets = (f: string) =>
       [...readFileSync(join(out, f), "utf8").matchAll(/(?:src|href)="([^"]+\.js)"/g)]
         .map((x) => x[1])
@@ -106,10 +107,9 @@ describe("production build (F-012/AC-48)", () => {
     const a = assets("taskpane.html");
     expect(a.length).toBeGreaterThan(0);
     expect(a.every((x) => /\.[0-9a-f]{20}\.js$/.test(x))).toBe(true);
-    expect(assets("resumo.html")).toEqual(a);
     const prod = readFileSync(join(out, "manifest.xml"), "utf8");
     expect(prod).toContain("/taskpane.html");
-    expect(prod).not.toContain("resumo.html"); // the Resumo button was removed (user, 2026-10-29); the page stays built but is not linked
+    expect(prod).not.toContain("resumo.html");
     expect(prod).not.toContain("localhost:3000");
     expect(readdirSync(out)).not.toContain("manifest.customtab-test.xml"); // AC-49: test manifest is not published
   }, 240000);

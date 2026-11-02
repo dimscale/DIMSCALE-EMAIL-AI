@@ -1,5 +1,5 @@
 // F-003 summary action. Reuses the F-013 engine (input building, HTTP call, single-output extraction, link rule).
-import { type AiConfig, type AiFail, buildInput, type DraftInput, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
+import { type AiConfig, type AiFail, buildInput, type DraftInput, hasLink, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
 
 export const SUMMARY_INSTRUCTIONS = [
   "Summarise the email or email thread between the markers <<<EMAIL and EMAIL>>> for the mailbox owner, in European Portuguese (pt-PT).",
@@ -9,6 +9,7 @@ export const SUMMARY_INSTRUCTIONS = [
   "Set deadline only if the text states one, otherwise null. Set requested_action only if the sender asks the owner to do something, otherwise null.",
   "Choose type, priority and tone from the allowed values.",
   "Never include links, email addresses, payment requests or credential requests that are not already in the email.",
+  'Never write domain names, web addresses, e-mail addresses or file names; refer to companies and attachments by their plain names (for example "a reserva no Booking", not "Booking.com"; "o ficheiro em anexo").',
   "Do not use the characters < or >.",
   "Output only the JSON object required by the schema.",
 ].join(" ");
@@ -44,8 +45,7 @@ export type SummaryResult = { ok: true; summary: Summary } | AiFail;
 const bad: SummaryResult = { ok: false, reason: "ai_output_invalid", retryable: false };
 
 // Orchestrator decision: analyze output has no link or address at all, even when the email had one.
-const LINK_RE = /https?:\/\/|www\.|\/\/[a-z0-9]|[^\s@]+@[^\s@]+/i;
-export const hasLink = (s: string): boolean => LINK_RE.test(s);
+export { hasLink }; // the one shared detector lives in _shared/ai.ts
 
 /** Strict validation (the schema is not trusted): exact keys, 3 points, enums, lengths, no markup, no links or addresses. */
 export function parseSummary(res: unknown, input: string): SummaryResult {

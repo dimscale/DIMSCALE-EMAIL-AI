@@ -369,3 +369,8 @@ The AI behaviour inside the cards (requests, auto mode, options, errors) is test
 - **Q-K4.** If "Resumo Resposta Traduzir Automático" doesn't fit at 320 px, which shorter label: "Auto" for "Automático"?
 - **Q-K5.** Reply/translate options are not remembered between pane sessions. Remember them too (same `roamingSettings` mechanism as auto mode, a few lines)?
 - **Q-K6.** The test manifest in the repo is variant A ("DIMSCALE Mail AI (teste separador)", `CustomTab` only), not the variant B / "DIMSCALE MAIL (teste)" of AC-37. Was the custom-tab experiment (AC-38) run, and with which variant? Its result decides whether the final manifest has the own tab, so it should be settled before AC-53.
+
+## Amendment 2026-11-02: single ribbon button (user decision)
+- **Supersedes AC-48 to AC-54 where they mention two buttons:** the ribbon has **one** button, label and title "DIMSCALE Mail", in the group "DIMSCALE MAIL", opening `taskpane.html`. The "Resumo" button, `resumo.html`, the `resumo-*.png` icons and `icon-resumo-master.svg` were removed. Add-in `DisplayName` is "Assistente IA".
+- **Why:** the user did not see the point of two buttons (2026-10-29). The Resumo tab inside the pane is unchanged.
+- **Consequence:** F-003 AC-50 (reload check) and F-012 AC-52/AC-53 (second-button live checks) no longer apply. Manifest version stays 1.0.2.0 (never sent to the tenant admin yet).

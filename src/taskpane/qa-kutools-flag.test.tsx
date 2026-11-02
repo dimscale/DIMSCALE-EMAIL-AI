@@ -124,16 +124,4 @@ describe("auto mode flag off, real config (F-003/AC-42, AC-17)", () => {
     expect(rs.get).not.toHaveBeenCalled();
   });
 
-  it("entry page with the flag off and stored true: exactly one request (the entry counts as a click), none after item changes", async () => {
-    vi.useFakeTimers();
-    setup(makeItem("A"));
-    render(<App summaryEntry />);
-    await advance(0);
-    expect(analyzeCalls()).toHaveLength(1);
-    expect(JSON.parse(analyzeCalls()[0][1].body).action).toBe("summarize");
-    await change(makeItem("B"));
-    await advance(5000);
-    expect(analyzeCalls()).toHaveLength(1);
-    expect(rs.get).not.toHaveBeenCalled();
-  });
 });

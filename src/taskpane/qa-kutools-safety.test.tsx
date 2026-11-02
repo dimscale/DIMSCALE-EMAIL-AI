@@ -293,14 +293,7 @@ describe("static guards over every pane source file (F-003/AC-25, F-012/AC-3, AC
     expect(text(join(ROOT, "analyzeClient.ts"))).toMatch(/fetchFn\(ANALYZE_URL/);
   });
 
-  it("the entry decision reads only location.pathname (index.tsx)", () => {
-    const idx = text(join(ROOT, "index.tsx"));
-    expect(idx.match(/location\.[a-z]+/g)).toEqual(["location.pathname"]);
-  });
-
-  it("the resumo entry page is generated from the same template as taskpane.html (no inline script in the template)", () => {
-    const wp = readFileSync(join(process.cwd(), "webpack.config.js"), "utf8");
-    expect(wp).toMatch(/filename: "resumo\.html",\s*template: "\.\/src\/taskpane\/taskpane\.html"/);
+  it("the taskpane.html template has no inline script", () => {
     const tpl = text(join(ROOT, "taskpane.html"));
     expect(tpl).not.toMatch(/<script(?![^>]*\bsrc=)/);
   });

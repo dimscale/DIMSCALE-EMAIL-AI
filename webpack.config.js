@@ -91,12 +91,6 @@ module.exports = async (env, options) => {
         template: "./src/taskpane/taskpane.html",
         chunks: ["polyfill", "taskpane", "react"],
       }),
-      // Second ribbon button page (same bundle; the pane reads location.pathname), F-012/AC-48
-      new HtmlWebpackPlugin({
-        filename: "resumo.html",
-        template: "./src/taskpane/taskpane.html",
-        chunks: ["polyfill", "taskpane", "react"],
-      }),
       ]),
       new CopyWebpackPlugin({
         patterns: [

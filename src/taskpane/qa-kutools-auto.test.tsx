@@ -286,17 +286,6 @@ describe("tab and entry interplay (F-003/AC-43, F-012/AC-50)", () => {
     expect(sentBodies()).toEqual(["C"]);
   });
 
-  it("entry page with auto on: the loaded item gets exactly one request (the entry), not a second one after 800 ms; the next item gets one auto request", async () => {
-    setup(makeItem("A"), true);
-    render(<App summaryEntry />);
-    await advance(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    await advance(5000);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    await change(makeItem("B"));
-    await advance(800);
-    expect(sentBodies()).toEqual(["A", "B"]);
-  });
 });
 
 describe("at most one request in flight (F-003/AC-44), measured", () => {

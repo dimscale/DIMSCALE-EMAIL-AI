@@ -1,8 +1,6 @@
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div> }));
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
@@ -331,61 +329,5 @@ describe("auto mode with the flag off (F-003/AC-42, hidden in production)", () =
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe("entry page resumo.html (F-012/AC-50)", () => {
-  it("summaryEntry sends exactly one summarize request for the first item, none for later items", async () => {
-    setup(makeItem("corpo"));
-    fetchMock.mockResolvedValue(summaryOk());
-    render(<App summaryEntry />);
-    await act(async () => undefined);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(sent().action).toBe("summarize");
-    expect(screen.getByRole("tab", { name: "Resumo" }).getAttribute("aria-selected")).toBe("true");
-    office.context.mailbox.item = makeItem("segundo");
-    act(() => handler?.());
-    await act(async () => undefined);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-  it("sends nothing for an empty body, a null item or a token that needs interaction", async () => {
-    setup(makeItem("   "));
-    const r = render(<App summaryEntry />);
-    await act(async () => undefined);
-    r.unmount();
-    setup(null);
-    const r2 = render(<App summaryEntry />);
-    await act(async () => undefined);
-    r2.unmount();
-    setup(makeItem("corpo"));
-    (getTokenSilent as any).mockResolvedValue({ kind: "interaction" });
-    render(<App summaryEntry />);
-    await act(async () => undefined);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert").textContent).toContain("Inicie sessão");
-  });
-  it("without summaryEntry nothing starts", async () => {
-    setup(makeItem("corpo"));
-    render(<App />);
-    await act(async () => undefined);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-  it("index.tsx derives it from location.pathname only; location.search and hash are never read", async () => {
-    for (const f of ["App.tsx", "index.tsx", "AiTools.tsx", "MessagePanel.tsx", "auth.ts"])
-      expect(readFileSync(join(process.cwd(), "src/taskpane", f), "utf8")).not.toMatch(
-        /location\.(search|hash)/
-      );
-    window.history.pushState({}, "", "/resumo.html");
-    document.body.innerHTML = '<div id="container"></div>';
-    setup(makeItem("corpo"));
-    let ready: (() => void) | undefined;
-    office.onReady = vi.fn((cb: () => void) => (ready = cb));
-    fetchMock.mockResolvedValue(summaryOk());
-    vi.resetModules();
-    await import("./index");
-    await act(async () => ready?.());
-    await act(async () => undefined);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    window.history.pushState({}, "", "/");
   });
 });

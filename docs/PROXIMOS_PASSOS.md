@@ -1,58 +1,21 @@
-# DIMSCALE Mail AI — Resumo de Estado e Próximos Passos (2026-10-26)
+# Next steps (summary, 2026-11-02)
 
-## 1. Estado Atual
-- **Add-in no Outlook:**
-  - O separador **"Responder"** está operacional.
-  - A adição manual de contactos funciona perfeitamente (o contacto `carla@dimscale.com` já está selecionado).
-  - O bloqueio ao clicar em *"Autorizar acesso"* deve-se à política de segurança do tenant da DIMSCALE (exige autorização do administrador para a permissão `Mail.ReadBasic`).
-- **Testes de Código:**
-  - Suite de testes com **200/200 testes aprovados** (17 ficheiros de teste verdes).
+Source of truth: [docs/status.md](status.md). This page is a short reading guide.
 
----
+## What works
+- The pane is live on GitHub Pages and tested by the user in Outlook: tabs Resumo, Resposta, Traduzir and Automático; summary, suggested reply (language and tone, "Pedir alterações"), translate.
+- The manifest is 1.0.2.0: "Assistente IA", one ribbon button "DIMSCALE Mail", `ReadItem` only.
+- The Automático tab accepts contacts by hand; the F-013 backend is built. Nothing is sent automatically.
+- Auto summary mode stays hidden until the DPO answers D5.
 
-## 2. Porque ainda não foram criadas respostas automáticas?
-1. **Interruptor desligado no ecrã:** No topo do painel, o botão *"Respostas automáticas"* estava na posição desligada (`Estado: Desligado`).
-2. **Apenas para novos e-mails futuros:** O sistema foi desenhado para atuar quando chega um **novo** e-mail vindo daquele remetente (não cria rascunhos sobre e-mails que já estavam na caixa de correio no passado).
-3. **Dependência do Servidor (Backend):** Para o servidor processar e-mails em segundo plano (mesmo com o Outlook fechado no teu computador), o administrador precisa de configurar a autorização da aplicação no Microsoft 365.
+## What needs the user
+- Live checks: 320 px and 200 % zoom, screen reader, injection with a live model.
+- Answers to F-013 Q-C1, Q-C3, Q-C4 (see [research 2026-11-02](research/2026-11-02-f013-open-questions.md)).
+- Decide D13 ([ADR-0006](decisions/0006-stateful-backend-for-batch-and-style.md), proposed) before F-015 and F-016.
+- Confirm the pending amendments (D19).
+- Tell the architect when the add-in is ready, then send the MMSI request.
 
----
-
-## 3. Mensagem Pronta a Enviar ao Administrador / MMSI
-*(Podes copiar e colar diretamente para enviar ao suporte/administrador de TI)*
-
-> **Assunto:** DIMSCALE Mail AI: Consentimento de Administrador para a aplicação (Entra ID)
-> 
-> Olá,
-> 
-> Não preciso de permissões de administrador na minha conta de utilizador. O que é necessário é apenas conceder autorização à própria aplicação a nível do tenant da DIMSCALE, para que os utilizadores não fiquem bloqueados com pedidos de aprovação individuais.
-> 
-> Podem, por favor, efetuar os seguintes passos no **Microsoft Entra admin center**?
-> 
-> 1. Aceder a **Entra ID > App registrations > All applications >** procurar por **`DIMSCALE AI Email Assistant`** (Client ID: `d157a20c-8820-43ad-8dbf-174a5cade5ea`).
-> 2. Entrar em **API permissions**:
->    - Confirmar/Adicionar a permissão delegada: **Microsoft Graph > `Mail.ReadBasic`** (usada apenas para ler a lista de remetentes recentes, sem ler corpo nem anexos dos e-mails).
-> 3. Na mesma página de **API permissions**, clicar no botão:  
->    👉 **"Grant admin consent for DIMSCALE"** (Conceder consentimento de administrador para DIMSCALE).
-> 4. *(Opcional / Recomendado)* Em **Enterprise apps > "DIMSCALE AI Email Assistant" > Properties**, definir **Assignment required? = Yes** e associar o grupo de utilizadores da DIMSCALE que terão acesso.
-> 
-> *(O checklist técnico completo com as configurações de Exchange para o servidor encontra-se arquivado em `docs/admin/2026-10-23-mmsi-request.md`)*.
-> 
-> Mais tarde, quando o add-in estiver finalizado, enviarei o ficheiro `manifest.xml` final para fazerem a publicação centralizada (deploy) no Microsoft 365 Admin Center para todos os utilizadores.
-> 
-> Podem confirmar assim que o consentimento estiver concedido?
-> 
-> Obrigado!
-
----
-
-## 4. O que fazer quando retomaares o trabalho
-1. **No Add-in do Outlook:**
-   - Clicar no interruptor **"Respostas automáticas"** para ficar **Ligado** (`Estado: Ativo`);
-   - Clicar em **Guardar**.
-2. **Enviar o e-mail acima ao administrador:**
-   - Assim que o admin clicar em *"Grant admin consent"*, o botão *"Autorizar acesso"* no Outlook passa a carregar os remetentes recentes automaticamente sem abrir janelas de erro.
-3. **Testar com a Carla:**
-   - Pedir à Carla (`carla@dimscale.com`) para enviar um e-mail novo de teste;
-   - Verificar a criação do rascunho de resposta automática na pasta **Rascunhos (Drafts)**.
-4. **Deploy final:**
-   - Gerar e enviar o `manifest.xml` para a TI publicar centralmente.
+## What needs MMSI or the DPO
+- MMSI: [docs/admin/2026-10-23-mmsi-request.md](admin/2026-10-23-mmsi-request.md). A reply "Permissões atualizadas" arrived on 2026-10-29, but what was done is unconfirmed; the request has a box to tick the done items first.
+- DPO: D5 (OpenAI) and D15 (stored contact list and, if accepted, style profile).
+- F-013 live needs both, plus the returned values (`GRAPH_APP_CLIENT_ID` and the rest).
