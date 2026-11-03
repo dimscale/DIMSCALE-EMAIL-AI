@@ -107,3 +107,7 @@ Today the project is on the Free plan (not verified in the dashboard, Q-8). On h
 
 ## Out of scope
 Changing the backend (Supabase stays, ADR-0003); the manifest content (separate feature work); Cloudflare Access/WAF; moving the DNS zone; custom headers/CSP (can be added later with `_headers`, https://developers.cloudflare.com/pages/configuration/serving-pages/); n8n, VPS or Azure.
+
+## Note 2026-11-03: Cloudflare labels Pages "legacy"
+- While creating the project the Cloudflare dashboard offered Workers first and called Pages the "legacy Pages workflow". Pages was chosen anyway because Workers custom domains need the whole zone on Cloudflare nameservers, while Pages accepts a single CNAME. Risk: Pages may be retired later. Mitigation: the manifest points only to `mailai.dimscale.com`, so moving to another host (Workers with the zone on Cloudflare, Netlify, GitHub Team) is a DNS change plus a build change, never a new MMSI upload.
+- Project created 2026-11-03: `dimscale-mail-ai` (expected `dimscale-mail-ai.pages.dev`), production branch `main`. The first deployment "failed to start" (Cloudflare message); retried by the user.
