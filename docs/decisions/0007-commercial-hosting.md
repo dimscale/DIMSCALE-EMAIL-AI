@@ -1,6 +1,6 @@
 # ADR-0007: Hosting for the task pane (private repo, stable domain, internal use)
 
-- **Status:** Proposed (2026-11-03). Only the user accepts. Supersedes ADR-0004 once accepted (ADR-0004 stays as history).
+- **Status:** Accepted (2026-11-03) by the user ("aprovo adr-0007"). Earlier: Proposed (2026-11-03). Supersedes ADR-0004 once accepted (ADR-0004 stays as history).
 - **Date:** 2026-11-03
 - **Deciders:** the user. Inputs: orchestrator, tenant admin (MMSI) for the DNS record and the manifest upload.
 

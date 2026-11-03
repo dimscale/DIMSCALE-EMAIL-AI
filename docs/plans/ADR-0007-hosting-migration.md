@@ -9,7 +9,7 @@ Steps 1 to 8 need **no** DNS access and **no** MMSI. DNS is first needed at step
 
 | # | Step | Owner | Notes / evidence to record |
 |---|---|---|---|
-| 0 | Accept ADR-0007 (or choose another option). Answer Q-1 (card?), Q-2 (terms read), Q-9 (was any manifest already sent to MMSI?). | user | Without acceptance nothing else starts (CLAUDE.md rule 8). |
+| 0 | **Done 2026-11-03: ADR-0007 accepted by the user.** Q-9 answered: no manifest has been sent to MMSI yet (user, 2026-11-02). Accept ADR-0007 (or choose another option). Answer Q-1 (card?), Q-2 (terms read), Q-9 (was any manifest already sent to MMSI?). | user | Without acceptance nothing else starts (CLAUDE.md rule 8). |
 | 1 | Create the Cloudflare account (no network or DNS change). Stop if a card is demanded (Q-1) and report. | user | Account owner and recovery email should be a DIMSCALE mailbox, not a personal one. |
 | 2 | Create a Pages project from the private GitHub repo: install the "Cloudflare Workers and Pages" GitHub App on the `dimscale` org for this repo only ("Only select repositories"). Needs org owner or GitHub Apps Manager role. Proposed project name `dimscale-mail-ai` (so `dimscale-mail-ai.pages.dev`; availability not verified). The repo may be made private first or later (step 14); the connection works for both. | user (org owner) | https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/ |
 | 3 | Build settings: production branch `main`; build command runs the same gates as `pages.yml`: `npm ci --ignore-scripts && npm run typecheck && npm run lint && npm run test && npm run build && npx office-addin-manifest validate dist/manifest.xml`; output directory `dist`; env var `NODE_VERSION` (Q-5: 24 if supported, else 22 and run the checks). Preview branches: include `dev`, exclude `dependabot/*`. | user (dashboard) with orchestrator giving the exact values | https://developers.cloudflare.com/pages/configuration/build-image/ , https://developers.cloudflare.com/pages/configuration/branch-build-controls/ |
@@ -63,7 +63,7 @@ Obrigado.
 
 ## Order of the user's next actions given the DNS situation (2026-11-03)
 1. Today, without DNS: accept the ADR (step 0), create the Cloudflare account (1), connect the repo (2), settings (3). The coder can do step 4 in parallel; steps 5 to 7 give a working dev test at a `pages.dev` address.
-2. When the user gets DNS access (later today), he can add the record himself; **if he must ask MMSI, send the text above** (it asks for one record only). If the same person at MMSI will also receive the manifest, send the manifest request (step 12) together, but only after step 9 passes.
+2. When the user gets DNS access (later today), the user can add the record directly; **if the user must ask MMSI, send the text above** (it asks for one record only). If the same person at MMSI will also receive the manifest, send the manifest request (step 12) together, but only after step 9 passes.
 
 ## Sources
 Same as ADR-0007, plus: Microsoft Learn on updates https://learn.microsoft.com/en-us/microsoft-365/admin/manage/manage-deployment-of-add-ins and https://learn.microsoft.com/en-us/office/dev/add-ins/publish/publish ; GitHub Pages creation rule https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site ; Cloudflare pages above.
