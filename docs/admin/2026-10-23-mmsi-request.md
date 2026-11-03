@@ -1,6 +1,6 @@
 # Pedido ao administrador do tenant (MMSI), versão final de 2026-11-02
 
-- **SUPERADO (2026-11-03):** a versão final a enviar é `envio-mmsi/PEDIDO-MMSI.md`. Este ficheiro fica só como histórico.
+- **SUPERADO (2026-11-03):** a versão final a enviar é `envio-mmsi/PEDIDO-MMSI-1-agora.md (Entra, Drafts app, security; sent now because MMSI does not manage the dimscale.com DNS) and envio-mmsi/PEDIDO-MMSI-2-depois-do-dns.md (manifest upload, after mailai.dimscale.com is live)`. Este ficheiro fica só como histórico.
 - **Estado:** pronto a enviar pelo utilizador quando disser que o add-in está pronto. Atualizado em 2026-11-02 (ficheiro original de 2026-10-23). Substitui todos os pedidos anteriores.
 - **Fontes Microsoft:** no fim de cada secção. Nomes dos menus em inglês, como aparecem nos portais.
 - **Nada aqui é secreto.** Nenhuma chave, segredo ou chave privada passa por este documento ou por e-mail. Só o ficheiro público `drafts.crt` é enviado.
