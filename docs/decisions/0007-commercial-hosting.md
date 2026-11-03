@@ -1,4 +1,4 @@
-# ADR-0007: Commercial hosting for the task pane (private repo, stable domain)
+# ADR-0007: Hosting for the task pane (private repo, stable domain, internal use)
 
 - **Status:** Proposed (2026-11-03). Only the user accepts. Supersedes ADR-0004 once accepted (ADR-0004 stays as history).
 - **Date:** 2026-11-03
@@ -6,7 +6,7 @@
 
 ## Context
 ADR-0004 chose GitHub Pages from a **public** repo (`dimscale/DIMSCALE-EMAIL-AI`) because free Pages needs a public repo and Azure needed a card. The user's goals now (2026-11-03):
-1. Make the product **commercial**.
+1. ~~Make the product commercial.~~ **Corrected by the user (2026-11-03): internal use at DIMSCALE only, not sold to other companies.** The commercial-use terms below are kept as background; the decisive reasons are now goals 2 to 4 (private repo, free, no dependency on the user's PC, no new MMSI upload for updates). No multi-tenant work, AppSource listing or customer DPA is in scope.
 2. The repo must **not** be public.
 3. Nothing may depend on the user's PC (`npm start` is for development only).
 4. After the tenant admin (MMSI) installs the manifest once, **updates must not require sending anything to MMSI again**.
