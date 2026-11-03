@@ -110,9 +110,35 @@ describe("production build (F-012/AC-48)", () => {
     expect(a.length).toBeGreaterThan(0);
     expect(a.every((x) => /\.[0-9a-f]{20}\.js$/.test(x))).toBe(true);
     const prod = readFileSync(join(out, "manifest.xml"), "utf8");
-    expect(prod).toContain("/taskpane.html");
+    // ADR-0007: default host stays GitHub Pages; the page is referenced without .html (Cloudflare redirects *.html)
+    expect(prod).toContain('DefaultValue="https://dimscale.github.io/DIMSCALE-EMAIL-AI/taskpane"');
+    expect(prod).not.toContain("taskpane.html");
+    expect(prod).toContain("<Id>05c2e1c9-3e1d-406e-9a91-e9ac64854143</Id>");
     expect(prod).not.toContain("resumo.html");
     expect(prod).not.toContain("localhost:3000");
     expect(readdirSync(out)).not.toContain("manifest.customtab-test.xml"); // AC-49: test manifest is not published
+  }, 240000);
+
+  const build = (env: Record<string, string>) => {
+    const out = mkdtempSync(join(tmpdir(), "dmai-build-"));
+    execSync(`npx webpack --mode production --output-path "${out}"`, {
+      cwd: process.cwd(),
+      stdio: "pipe",
+      env: { ...process.env, ...env },
+    });
+    return readFileSync(join(out, "manifest.xml"), "utf8");
+  };
+
+  it("ADR-0007: PANE_BASE_URL outside the closed list blocks the build", () => {
+    expect(() => build({ PANE_BASE_URL: "https://evil.example/" })).toThrow();
+  }, 240000);
+
+  it("ADR-0007: PANE_TEST preview build gets its own Id, name and host", () => {
+    const m = build({ PANE_BASE_URL: "https://dev.dimscale-mail-ai.pages.dev/", PANE_TEST: "1" });
+    expect(m).toContain("<Id>926a7aa2-46e8-4187-9111-c9873e1fdec5</Id>");
+    expect(m).not.toContain("05c2e1c9-3e1d-406e-9a91-e9ac64854143");
+    expect(m).toContain('<DisplayName DefaultValue="DIMSCALE Mail (teste)"/>');
+    expect(m).toContain('DefaultValue="https://dev.dimscale-mail-ai.pages.dev/taskpane"');
+    expect(m).not.toContain("dimscale.github.io");
   }, 240000);
 });

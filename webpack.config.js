@@ -6,7 +6,18 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://dimscale.github.io/DIMSCALE-EMAIL-AI/"; // GitHub Pages, see ADR-0004
+// ADR-0007: the host comes from PANE_BASE_URL (closed list); the default keeps GitHub Pages until the cut-over.
+const PROD_URLS = [
+  "https://dimscale.github.io/DIMSCALE-EMAIL-AI/",
+  "https://dimscale-mail-ai.pages.dev/",
+  "https://dev.dimscale-mail-ai.pages.dev/",
+  "https://mailai.dimscale.com/",
+];
+const urlProd = process.env.PANE_BASE_URL || PROD_URLS[0];
+// PANE_TEST=1 (Cloudflare preview builds) gives the manifest its own Id and name, so it can sit next to the production add-in.
+const paneTest = process.env.PANE_TEST === "1";
+const PROD_ID = "05c2e1c9-3e1d-406e-9a91-e9ac64854143";
+const TEST_ID = "926a7aa2-46e8-4187-9111-c9873e1fdec5";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -16,11 +27,8 @@ async function getHttpsOptions() {
 module.exports = async (env, options) => {
   const dev = options.mode === "development";
   const prototype = dev && env.prototype === "true";
-  if (!dev && urlProd.includes("contoso.com")) {
-    throw new Error("Production build blocked: set urlProd in webpack.config.js to the real hosting URL (it is still contoso.com).");
-  }
-  if (!dev && (!urlProd.startsWith("https://") || !urlProd.endsWith("/"))) {
-    throw new Error("Production build blocked: urlProd must start with https:// and end with /.");
+  if (!dev && !PROD_URLS.includes(urlProd)) {
+    throw new Error(`Production build blocked: PANE_BASE_URL must be one of ${PROD_URLS.join(", ")}.`);
   }
   if (!dev) {
     const cfgText = require("fs").readFileSync(require("path").join(__dirname, "src/taskpane/config.ts"), "utf8");
@@ -105,7 +113,13 @@ module.exports = async (env, options) => {
               if (dev) {
                 return content;
               } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
+                // Cloudflare Pages redirects *.html to the extensionless path; GitHub Pages serves both, so use /taskpane.
+                let m = content.toString().replace(new RegExp(urlDev, "g"), urlProd).replace(/taskpane\.html/g, "taskpane");
+                if (paneTest) {
+                  m = m.replace(PROD_ID, TEST_ID).replace('<DisplayName DefaultValue="DIMSCALE Mail"/>', '<DisplayName DefaultValue="DIMSCALE Mail (teste)"/>');
+                  if (!m.includes(TEST_ID) || !m.includes("(teste)")) throw new Error("PANE_TEST build: manifest Id or name was not replaced.");
+                }
+                return m;
               }
             },
           },
