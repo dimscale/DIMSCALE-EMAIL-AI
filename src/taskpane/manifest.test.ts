@@ -98,6 +98,8 @@ describe("production build (F-012/AC-48)", () => {
     execSync(`npx webpack --mode production --output-path "${out}"`, {
       cwd: process.cwd(),
       stdio: "pipe",
+      // the default build must not inherit the Cloudflare build environment (this suite also runs there)
+      env: { ...process.env, CF_PAGES_BRANCH: "", PANE_BASE_URL: "", PANE_TEST: "" },
     });
     expect(readdirSync(out)).toContain("taskpane.html");
     expect(readdirSync(out)).not.toContain("resumo.html"); // the Resumo ribbon button was removed (user, 2026-10-29)
@@ -131,6 +133,15 @@ describe("production build (F-012/AC-48)", () => {
 
   it("ADR-0007: PANE_BASE_URL outside the closed list blocks the build", () => {
     expect(() => build({ PANE_BASE_URL: "https://evil.example/" })).toThrow();
+  }, 240000);
+
+  it("ADR-0007: a Cloudflare build of the dev branch is the test add-in without manual variables", () => {
+    const m = build({ CF_PAGES_BRANCH: "dev", PANE_BASE_URL: "", PANE_TEST: "" });
+    expect(m).toContain("<Id>926a7aa2-46e8-4187-9111-c9873e1fdec5</Id>");
+    expect(m).toContain('DefaultValue="https://dev.dimscale-mail-ai.pages.dev/taskpane"');
+    const main = build({ CF_PAGES_BRANCH: "main", PANE_BASE_URL: "", PANE_TEST: "" });
+    expect(main).toContain("<Id>05c2e1c9-3e1d-406e-9a91-e9ac64854143</Id>");
+    expect(main).not.toContain("(teste)");
   }, 240000);
 
   it("ADR-0007: PANE_TEST preview build gets its own Id, name and host", () => {

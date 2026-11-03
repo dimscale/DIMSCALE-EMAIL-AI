@@ -13,9 +13,11 @@ const PROD_URLS = [
   "https://dev.dimscale-mail-ai.pages.dev/",
   "https://mailai.dimscale.com/",
 ];
-const urlProd = process.env.PANE_BASE_URL || PROD_URLS[0];
-// PANE_TEST=1 (Cloudflare preview builds) gives the manifest its own Id and name, so it can sit next to the production add-in.
-const paneTest = process.env.PANE_TEST === "1";
+// Cloudflare Pages sets CF_PAGES_BRANCH during its builds: the dev branch always becomes the test add-in.
+const cfDev = process.env.CF_PAGES_BRANCH === "dev";
+const urlProd = process.env.PANE_BASE_URL || (cfDev ? PROD_URLS[2] : PROD_URLS[0]);
+// A test build gives the manifest its own Id and name, so it can sit next to the production add-in.
+const paneTest = process.env.PANE_TEST === "1" || cfDev;
 const PROD_ID = "05c2e1c9-3e1d-406e-9a91-e9ac64854143";
 const TEST_ID = "926a7aa2-46e8-4187-9111-c9873e1fdec5";
 
@@ -30,6 +32,7 @@ module.exports = async (env, options) => {
   if (!dev && !PROD_URLS.includes(urlProd)) {
     throw new Error(`Production build blocked: PANE_BASE_URL must be one of ${PROD_URLS.join(", ")}.`);
   }
+  if (!dev) console.log(`[manifest] host ${urlProd}, test add-in: ${paneTest}`); // shows in the Cloudflare build log
   if (!dev) {
     const cfgText = require("fs").readFileSync(require("path").join(__dirname, "src/taskpane/config.ts"), "utf8");
     if (cfgText.includes("00000000-0000-0000-0000-000000000000") || cfgText.includes("//PROJECT-REF.")) {
