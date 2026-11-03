@@ -15,7 +15,8 @@ const PROD_URLS = [
 ];
 // Cloudflare Pages sets CF_PAGES_BRANCH during its builds: the dev branch always becomes the test add-in.
 const cfDev = process.env.CF_PAGES_BRANCH === "dev";
-const urlProd = process.env.PANE_BASE_URL || (cfDev ? PROD_URLS[2] : PROD_URLS[0]);
+const cfMain = process.env.CF_PAGES_BRANCH === "main"; // Cloudflare production serves mailai.dimscale.com (ADR-0007)
+const urlProd = process.env.PANE_BASE_URL || (cfDev ? PROD_URLS[2] : cfMain ? PROD_URLS[3] : PROD_URLS[0]);
 // A test build gives the manifest its own Id and name, so it can sit next to the production add-in.
 const paneTest = process.env.PANE_TEST === "1" || cfDev;
 const PROD_ID = "05c2e1c9-3e1d-406e-9a91-e9ac64854143";

@@ -14,3 +14,11 @@ coverage/
 # local brand source files (brandbook, .ai): never publish
 Modelo_DIMSCALE/
 Thumbs.db
+*.pfx
+*.p12
+*.cer
+*.b64
+*secret*.txt
+
+# package prepared for the tenant admin (manifest, public certificate, request text): sent by email, never committed
+envio-mmsi/

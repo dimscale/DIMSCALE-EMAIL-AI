@@ -142,6 +142,7 @@ describe("production build (F-012/AC-48)", () => {
     const main = build({ CF_PAGES_BRANCH: "main", PANE_BASE_URL: "", PANE_TEST: "" });
     expect(main).toContain("<Id>05c2e1c9-3e1d-406e-9a91-e9ac64854143</Id>");
     expect(main).not.toContain("(teste)");
+    expect(main).toContain('DefaultValue="https://mailai.dimscale.com/taskpane"'); // Cloudflare production
   }, 240000);
 
   it("ADR-0007: PANE_TEST preview build gets its own Id, name and host", () => {
