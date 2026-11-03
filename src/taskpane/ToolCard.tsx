@@ -32,7 +32,7 @@ const useStyles = makeStyles({
     overflowWrap: "anywhere",
     ":focus-visible": { outline: `2px solid ${tokens.colorStrokeFocus2}`, outlineOffset: "1px" },
   },
-  collapsed: { maxHeight: "240px", overflowY: "auto" },
+  collapsed: { maxHeight: "420px", overflowY: "auto" }, // user 2026-11-03: bigger result box
 });
 
 type Props = {

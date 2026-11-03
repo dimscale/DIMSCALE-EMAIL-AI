@@ -302,7 +302,7 @@ describe("ToolCard (F-012/AC-46)", () => {
     expect(screen.getByRole("button", { name: "Reduzir" }).getAttribute("aria-expanded")).toBe(
       "true"
     );
-    expect(region.className).not.toBe(collapsedClass); // the 240 px max-height class is gone
+    expect(region.className).not.toBe(collapsedClass); // the 420 px max-height class is gone
   });
   it("keeps each card's result when switching tabs", async () => {
     setup(makeItem("corpo"));
