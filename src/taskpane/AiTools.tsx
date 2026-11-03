@@ -126,9 +126,13 @@ const TAB_ACTION: Record<ToolTab, AnalyzeAction> = {
 const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto }) => {
   const s = useStyles();
   const [pending, setPending] = React.useState<AnalyzeAction | null>(null);
-  const [summary, setSummary] = React.useState<Summary | null>(null);
-  const [reply, setReply] = React.useState<string | null>(null);
-  const [translation, setTranslation] = React.useState<Translation | null>(null);
+  const id = view.itemId || `k${itemKey}`;
+  const prior = auto.kept.get(id); // results kept while the pane was open (memory only)
+  const [summary, setSummary] = React.useState<Summary | null>(prior?.summary ?? null);
+  const [reply, setReply] = React.useState<string | null>(prior?.reply?.text ?? null);
+  const [translation, setTranslation] = React.useState<Translation | null>(
+    prior?.translate?.translation ?? null
+  );
   const [error, setError] = React.useState<Err | null>(null);
   const [copy, setCopy] = React.useState<CopyState>(null);
   const [openFailed, setOpenFailed] = React.useState(false);
@@ -142,11 +146,11 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const autoCtl = React.useRef<{ ctl: AbortController; action: AnalyzeAction } | null>(null); // auto run only
   const optionsRef = React.useRef(options); // auto reads the options current when its timer fires
   optionsRef.current = options;
-  const id = view.itemId || `k${itemKey}`;
   const empty = view.aiText.trim() === "";
 
   // The pane remounts this component (new key) on ItemChanged, so results and late responses never cross emails.
   React.useEffect(() => {
+    // A kept result is shown as is; the Idioma/Tom/target the user picked stay unchanged (review 2026-11-03).
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -202,16 +206,21 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
             : translatePayload(view, opts.target);
       const res = await analyze(token.token, payload, undefined, ctl.signal);
       if (!mounted.current || res.kind === "aborted") return;
-      if (res.kind === "summary") setSummary(res.summary);
-      else if (res.kind === "reply") {
+      if (res.kind === "summary") {
+        setSummary(res.summary);
+        auto.kept.set(id, { summary: res.summary });
+      } else if (res.kind === "reply") {
         if (refine !== undefined && reply !== null) {
           setHistory((h) => [...h, reply].slice(-MAX_HISTORY));
           setInstruction("");
           setRevised(true);
         } else setHistory([]);
         setReply(res.reply);
-      } else if (res.kind === "translation") setTranslation(res.translation);
-      else if (res.kind === "error") {
+        auto.kept.set(id, { reply: { text: res.reply, language: opts.language, tone: opts.tone } });
+      } else if (res.kind === "translation") {
+        setTranslation(res.translation);
+        auto.kept.set(id, { translate: { translation: res.translation, target: opts.target } });
+      } else if (res.kind === "error") {
         let text =
           refine !== undefined && res.code === "invalid"
             ? strings.aiRefineInvalid
@@ -257,7 +266,8 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
       empty ||
       skipSender ||
       pending !== null ||
-      auto.attempted.has(`${autoAction}:${id}`)
+      auto.attempted.has(`${autoAction}:${id}`) ||
+      auto.kept.has(autoAction, id)
     )
       return undefined;
     const t = setTimeout(() => void run(autoAction, true), AUTO_DEBOUNCE_MS);
@@ -293,7 +303,10 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const prevVersion = () => {
     if (history.length === 0 || pending !== null) return;
     if (history.length === 1) inputRef.current?.focus(); // the button disappears with the last step
-    setReply(history[history.length - 1]);
+    const prev = history[history.length - 1];
+    setReply(prev);
+    const k = auto.kept.get(id)?.reply;
+    if (k) auto.kept.set(id, { reply: { ...k, text: prev } }); // kept = the version shown
     setHistory(history.slice(0, -1));
     setCopy(null);
   };

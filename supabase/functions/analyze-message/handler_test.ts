@@ -337,7 +337,7 @@ Deno.test("AC-12: one log line with fixed fields, no content", async () => {
     await setup().call("not-a-jwt" + M.tok, payload);
     assertEquals(lines.length, 5);
     for (const l of lines) {
-      assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => !["fn", "id", "method", "status", "reason", "ms"].includes(k)), []);
+      assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => !["fn", "id", "method", "status", "reason", "ms", "action"].includes(k)), []);
       assertEquals(JSON.parse(l).fn, "analyze-message");
     }
     const all = lines.join("\n");
@@ -390,7 +390,7 @@ Deno.test("manual reply naming a domain: 502 with log reason ai_output_link and 
     const bad = await setup({}, () => new Response(JSON.stringify(wrap('{"reply":"Obrigado, contactei appmyedenred.pt."}')))).call(t, edenred);
     assertEquals([bad.status, await bad.json()], [502, { ok: false, error: "ai_output_invalid", why: "link" }]);
     const last = JSON.parse(lines[lines.length - 1]);
-    assertEquals([last.reason, Object.keys(last).sort()], ["ai_output_link", ["fn", "id", "method", "ms", "reason", "status"]]);
+    assertEquals([last.reason, Object.keys(last).sort()], ["ai_output_link", ["action", "fn", "id", "method", "ms", "reason", "status"]]);
     const all = lines.join(" ");
     assertFalse(all.includes("appmyedenred") || all.includes("MARK_BODY"));
     const s = setup({}, () => new Response(JSON.stringify(wrap('{"reply":"Obrigado, confirmo o email da MyEdenred."}'))));
@@ -489,7 +489,7 @@ Deno.test("AC-39: log line for translate and reply options has only fixed fields
     await setup({}, () => new Response(JSON.stringify(wrap('{"reply":"MARK_AI_OUT"}')))).call(t, rp);
     await setup().call(t, { ...tp, tone: "MARK_TONE" });
     assertEquals(lines.length, 4);
-    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort(), ["fn", "id", "method", "ms", "reason", "status"]);
+    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => k !== "action"), ["fn", "id", "method", "ms", "reason", "status"]); // action absent on the 422
     const all = lines.join("\n");
     for (const v of ["MARK_SUBJ", "MARK_NAME", "mark-dom.example", "MARK_BODY", "MARKTOKEN", "MARK_OPENAI_ERR", "MARK_AI_OUT", "MARK_TONE", OID, "sk-test-KEY"]) assertFalse(all.includes(v), v);
   } finally {
@@ -556,7 +556,7 @@ Deno.test("AC-53/AC-55/AC-57/AC-58: reply revision (instruction + draft)", async
     await setup({}, replyAi).call(t, { ...replyPayload, instruction: "MARK_INSTR", draft: "MARK_DRAFT" });
     await setup({}, () => new Response("x", { status: 500 })).call(t, { ...replyPayload, instruction: "MARK_INSTR", draft: "MARK_DRAFT" });
     assertEquals(lines.length, 2);
-    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort(), ["fn", "id", "method", "ms", "reason", "status"]);
+    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort(), ["action", "fn", "id", "method", "ms", "reason", "status"]);
     assertFalse(lines.join("\n").includes("MARK_"));
   } finally {
     loud();
@@ -672,7 +672,7 @@ Deno.test("F-007/AC-7: classified logs and storage carry no content, only the co
     assertEquals(s.f.calls, ["analyzeTake"]);
     assertEquals([s.f.users.size, s.f.queue.length], [0, 0]);
     assertEquals(lines.length, 3);
-    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => !["fn", "id", "method", "status", "reason", "ms"].includes(k)), []);
+    for (const l of lines) assertEquals(Object.keys(JSON.parse(l)).sort().filter((k) => !["fn", "id", "method", "status", "reason", "ms", "action"].includes(k)), []);
     const all = lines.join("\n");
     for (const v of [...Object.values(M), OID, "sk-test-KEY"]) assertFalse(all.includes(v), v);
   } finally {
@@ -702,7 +702,7 @@ Deno.test("reply rejections carry a fixed why code: body and log reason, no cont
       const res = await setup({}, ai).call(t, p);
       assertEquals([res.status, await res.json()], [502, { ok: false, error: "ai_output_invalid", why }]);
       const last = JSON.parse(lines[lines.length - 1]);
-      assertEquals([last.reason, Object.keys(last).sort()], [`ai_output_${why}`, ["fn", "id", "method", "ms", "reason", "status"]]);
+      assertEquals([last.reason, Object.keys(last).sort()], [`ai_output_${why}`, ["action", "fn", "id", "method", "ms", "reason", "status"]]);
     }
     const all = lines.join(" ");
     assertFalse(all.includes("MARK_") || all.includes("exemplo") || all.includes("evil"));
@@ -745,11 +745,73 @@ Deno.test("F-003 (g): every transport failure has the frozen status, body and lo
         assertEquals([res.status, await res.json(), s.requests.length], [status, body, 1], label);
         assertEquals(lines.length, 1, label);
         const l = JSON.parse(lines[0]);
-        assertEquals([l.status, l.reason, Object.keys(l).sort()], [status, logReason, ["fn", "id", "method", "ms", "reason", "status"]], label);
+        assertEquals([l.status, l.reason, Object.keys(l).sort()], [status, logReason, ["action", "fn", "id", "method", "ms", "reason", "status"]], label);
         for (const v of ["MARK_", OID, "sk-test-KEY"]) assertFalse(lines[0].includes(v), `${label}: ${v}`);
         assertEquals(s.f.calls, ["analyzeTake"], label); // the slot is taken, nothing else is written
       }
     }
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003(j): preflight Max-Age only for an allowed origin", async () => {
+  const s = setup();
+  quiet();
+  try {
+    assertEquals((await s.call(null, "", { method: "OPTIONS" })).headers.get("Access-Control-Max-Age"), "7200");
+    const evil = await s.call(null, "", { method: "OPTIONS", headers: { Origin: "https://evil.example" } });
+    assertEquals([evil.headers.get("Access-Control-Allow-Origin"), evil.headers.get("Access-Control-Max-Age")], [null, null]);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003(j): log line carries action and rt (numbers/enums only), absent when unknown", async () => {
+  const t = await mint();
+  const withUsage = () => new Response(JSON.stringify({ ...wrap(JSON.stringify(summaryJson)), usage: { output_tokens_details: { reasoning_tokens: 42 } } }));
+  for (const [ai, rt] of [[withUsage, 42], [undefined, undefined]] as const) {
+    const out = quiet();
+    try {
+      await setup({}, ai).call(t);
+      const line = JSON.parse(out[0]);
+      assertEquals(Object.keys(line).sort(), ["action", "fn", "id", "method", "ms", "reason", "rt", "status"].filter((k) => rt !== undefined || k !== "rt"));
+      assertEquals([line.action, line.rt, line.status], ["summarize", rt, 200]);
+      assertFalse(out[0].includes("Fatura") || out[0].includes("exemplo.pt") || out[0].includes("Ana"));
+    } finally {
+      loud();
+    }
+  }
+  for (const [action, extra] of [["reply", {}], ["translate", { targetLanguage: "pt" }]] as const) {
+    const out = quiet();
+    try {
+      const body = action === "translate" ? { ...good, action, fromName: "", fromDomain: "", ...extra } : { ...good, action };
+      await setup({}, () => new Response("{}")).call(t, body);
+      assertEquals(JSON.parse(out[0]).action, action);
+    } finally {
+      loud();
+    }
+  }
+  const out = quiet();
+  try {
+    await setup().call(t, { ...good, action: "send" });
+    assertEquals(JSON.parse(out[0]).action, undefined); // before the payload is parsed: absent
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003(j): service_tier only for the exact trimmed value fast", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    const sent = async (env: Record<string, string>) => { const s = setup(env); await s.call(t); return JSON.parse(String(s.requests[0].init.body)); };
+    const base = await sent({});
+    assertFalse("service_tier" in base);
+    for (const v of ["Fast", "FAST", "flex", "", "true"]) assertEquals(await sent({ OPENAI_SERVICE_TIER: v }), base);
+    assertEquals((await sent({ OPENAI_SERVICE_TIER: " fast " })).service_tier, "fast");
+    const { service_tier: _s, ...rest } = await sent({ OPENAI_SERVICE_TIER: "fast" });
+    assertEquals(rest, base);
   } finally {
     loud();
   }

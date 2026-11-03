@@ -9,8 +9,10 @@ export type LogFields = {
   attempt?: number;
   count?: number;
   ms?: number;
+  action?: "summarize" | "reply" | "translate";
+  rt?: number;
 };
-const KEYS = ["fn", "id", "method", "status", "reason", "user_id", "attempt", "count", "ms"] as const;
+const KEYS = ["fn", "id", "method", "status", "reason", "user_id", "attempt", "count", "ms", "action", "rt"] as const;
 
 export function log(f: LogFields): void {
   const out: Record<string, unknown> = {};

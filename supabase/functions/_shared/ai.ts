@@ -21,7 +21,7 @@ export const SCHEMA = {
 } as const;
 
 export type DraftInput = { subject: string; fromName: string; fromDomain: string; body: string };
-export type AiConfig = { apiKey: string; model: string; maxOutputTokens: number; reasoningEffort?: string };
+export type AiConfig = { apiKey: string; model: string; maxOutputTokens: number; reasoningEffort?: string; serviceTier?: "fast"; onReasoningTokens?: (n: number) => void };
 export type AiResult =
   | { ok: true; reply: string }
   | { ok: false; reason: "ai_output_invalid" | "ai_unavailable"; retryable: boolean; why?: Why };
@@ -156,6 +156,7 @@ export async function requestResponses(
         store: false,
         max_output_tokens: cfg.maxOutputTokens,
         ...(cfg.reasoningEffort ? { reasoning: { effort: cfg.reasoningEffort } } : {}),
+        ...(cfg.serviceTier ? { service_tier: cfg.serviceTier } : {}),
         text: { format: { type: "json_schema", name, strict: true, schema } },
       }),
       signal: AbortSignal.timeout(30_000),
@@ -165,13 +166,18 @@ export async function requestResponses(
   }
   if (res.status === 429 || res.status >= 500) return unavailable(true, `http_${res.status}`);
   if (!res.ok) return unavailable(false, `http_${res.status}`);
+  let json: unknown;
   try {
-    return { ok: true, json: await res.json() };
+    json = await res.json();
   } catch (e) {
     // The 30 s signal also covers reading the body: a timeout there is retryable, anything else is an unreadable body.
     // retryBodyTimeout=false (F-013 drafts only) keeps their pre-F-003(g) result for a body-read timeout: failed ai_output_invalid, never re-queued.
     return timedOut(e) && retryBodyTimeout ? unavailable(true, "timeout") : { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" };
   }
+  // Outside the body-read try: a callback failure can never be misreported as a body timeout.
+  const rt = (json as { usage?: { output_tokens_details?: { reasoning_tokens?: unknown } } } | null)?.usage?.output_tokens_details?.reasoning_tokens;
+  if (typeof rt === "number" && Number.isFinite(rt)) cfg.onReasoningTokens?.(rt); // a number only, never content
+  return { ok: true, json };
 }
 
 export async function generateDraft(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<AiResult> {

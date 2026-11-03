@@ -180,7 +180,7 @@ Deno.test("AC-57 (QA): revision on 200, 422, 503 disabled, 429 cap, 502 invalid 
     const reasons: unknown[] = [];
     for (const l of lines) {
       const o = JSON.parse(l);
-      assertEquals(Object.keys(o).sort(), ["fn", "id", "method", "ms", "reason", "status"]);
+      assertEquals(Object.keys(o).sort().filter((k) => k !== "action"), ["fn", "id", "method", "ms", "reason", "status"]); // action: F-003 (j), absent on 422
       reasons.push(o.reason);
     }
     assertEquals(reasons, ["ok", "payload_invalid", "disabled", "ok", "cap_reached", "ai_output_markup"]);

@@ -22,3 +22,10 @@ Deno.test("AC-8: reasoningEffort adds only reasoning.effort", async () => {
   assertEquals(b.reasoning, { effort: "low" });
   assertEquals(Object.keys(b).sort(), ["input", "instructions", "max_output_tokens", "model", "reasoning", "store", "text"]);
 });
+
+Deno.test("F-003(j): serviceTier adds only service_tier; the F-013 config (no tier) stays byte-identical", async () => {
+  const b = JSON.parse(await capture({ apiKey: "K", model: "m1", maxOutputTokens: 321, serviceTier: "fast" }));
+  assertEquals(b.service_tier, "fast");
+  assertEquals(Object.keys(b).sort(), ["input", "instructions", "max_output_tokens", "model", "service_tier", "store", "text"]);
+  assertEquals(await capture({ apiKey: "K", model: "m1", maxOutputTokens: 321, onReasoningTokens: () => {} }), SNAPSHOT);
+});

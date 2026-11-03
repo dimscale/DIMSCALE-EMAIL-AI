@@ -195,3 +195,15 @@ Deno.test("parsePut unit", () => {
   assertEquals(parsePut(good), { enabled: true, ownAddress: "owner@dimscale.com", contacts: ["ana@exemplo.pt", "rui@cliente.pt"] });
   assertEquals(parsePut({ ...good, contacts: [] })?.contacts, []);
 });
+
+Deno.test("F-003(j): OPTIONS Max-Age only for an allowed origin", async () => {
+  const s = setup();
+  quiet();
+  try {
+    assertEquals((await s.call(null, { method: "OPTIONS" })).headers.get("Access-Control-Max-Age"), "7200");
+    const evil = await s.call(null, { method: "OPTIONS", headers: { Origin: "https://evil.example" } });
+    assertEquals([evil.headers.get("Access-Control-Allow-Origin"), evil.headers.get("Access-Control-Max-Age")], [null, null]);
+  } finally {
+    loud();
+  }
+});

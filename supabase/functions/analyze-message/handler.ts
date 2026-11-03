@@ -2,7 +2,7 @@ import type { JWTVerifyGetKey } from "jose";
 import { type AiConfig, type AiFail, type DraftInput } from "../_shared/ai.ts";
 import type { Db } from "../_shared/db.ts";
 import type { Config } from "../_shared/entra.ts";
-import { log } from "../_shared/log.ts";
+import { log, type LogFields } from "../_shared/log.ts";
 import { sha256Hex } from "../_shared/safe.ts";
 import { validateStateful } from "../_shared/stateful.ts";
 import { generateReply, LANGUAGES, type ReplyOpts, type Revise, TONE_OPTIONS } from "./replyOptions.ts";
@@ -82,7 +82,7 @@ export async function handle(
   env: (k: string) => string | undefined = () => undefined, fetchFn: typeof fetch = fetch,
 ): Promise<Response> {
   const t0 = Date.now(), id = crypto.randomUUID();
-  let reason = "ok";
+  let reason = "ok", logAction: LogFields["action"], rt: number | undefined;
   const origin = req.headers.get("Origin");
   const cors: Record<string, string> = { Vary: "Origin" };
   if (cfg && origin && cfg.allowedOrigins.includes(origin)) cors["Access-Control-Allow-Origin"] = origin;
@@ -104,7 +104,7 @@ export async function handle(
     }
     if (req.method === "OPTIONS") {
       reason = "preflight";
-      return new Response(null, { status: 204, headers: { ...cors, "Access-Control-Allow-Headers": "authorization, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" } });
+      return new Response(null, { status: 204, headers: { ...cors, "Access-Control-Allow-Headers": "authorization, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", ...(cors["Access-Control-Allow-Origin"] ? { "Access-Control-Max-Age": "7200" } : {}) } });
     }
     if (req.method !== "POST") {
       reason = "method";
@@ -129,6 +129,7 @@ export async function handle(
       reason = "payload_invalid";
       return json({ ok: false, error: "payload_invalid" }, 422);
     }
+    logAction = payload.action;
     if (env("ANALYZE_DISABLED")?.trim() === "true") {
       reason = "disabled";
       return json({ ok: false, error: "disabled" }, 503);
@@ -149,7 +150,11 @@ export async function handle(
       reason = "cap_reached";
       return json({ ok: false, error: "cap_reached" }, 429);
     }
-    const ai: AiConfig = { apiKey, model, maxOutputTokens: MAX_OUTPUT_TOKENS, reasoningEffort: EFFORT };
+    const ai: AiConfig = {
+      apiKey, model, maxOutputTokens: MAX_OUTPUT_TOKENS, reasoningEffort: EFFORT,
+      ...(env("OPENAI_SERVICE_TIER")?.trim() === "fast" ? { serviceTier: "fast" as const } : {}),
+      onReasoningTokens: (n) => { rt = n; },
+    };
     const action = payload.action;
     if (payload.action === "summarize") {
       const { action: _a, output, ...input } = payload;
@@ -169,6 +174,6 @@ export async function handle(
     }
     return r.ok ? json({ ok: true, action, reply: r.reply }, 200) : aiFail(r);
   })();
-  log({ fn: FN, id, method: req.method, status: res.status, reason, ms: Date.now() - t0 });
+  log({ fn: FN, id, method: req.method, status: res.status, reason, ms: Date.now() - t0, action: logAction, rt });
   return res;
 }

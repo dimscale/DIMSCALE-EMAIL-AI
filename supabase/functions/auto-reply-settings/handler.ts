@@ -49,7 +49,7 @@ export async function handle(req: Request, cfg: Config | null, keySet: JWTVerify
       reason = "preflight";
       return new Response(null, {
         status: 204,
-        headers: { ...cors, "Access-Control-Allow-Headers": "authorization, content-type", "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS" },
+        headers: { ...cors, "Access-Control-Allow-Headers": "authorization, content-type", "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS", ...(cors["Access-Control-Allow-Origin"] ? { "Access-Control-Max-Age": "7200" } : {}) },
       });
     }
     if (req.method !== "GET" && req.method !== "PUT" && req.method !== "DELETE") {

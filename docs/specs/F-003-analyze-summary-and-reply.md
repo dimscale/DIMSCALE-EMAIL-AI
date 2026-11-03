@@ -594,3 +594,11 @@ The dialogs say exactly what is sent per action: summary and reply send subject 
 - **Q-U21:** wording kept as proposed (the user did not ask for changes).
 - **Q-U22:** an existing `autoSummary=true` keeps the summary switch on and counts as given consent (backward compatible).
 - **Q-U23:** one shared pause per pane session, as proposed.
+
+## Amendment 2026-11-03 (j): speed (APPROVED by the user 2026-11-03: "deixa low, o restante pode avançar")
+- **Reasoning effort stays `low`** for every action (user decision; `none` was not adopted).
+- **Preflight cache:** `analyze-message` (and `auto-reply-settings`) answer OPTIONS with `Access-Control-Max-Age: 7200`, only for allowed origins, so browsers stop repeating the preflight on almost every click. No change to the allow-list.
+- **Suggestion kept per email while the pane is open:** the pane keeps, in memory only (never storage), the last successful result per action and email (summary, reply incl. its Idioma/Tom, translation incl. its target). Coming back to an email shows it immediately with no request; a new click on the button still makes a new request (one request per click). Cleared when the pane closes. Auto mode does not re-run for an email that already has a kept result. Refine history stays as today (reset on email change).
+- **Measurement (no content):** the function log line gains two fixed, content-free fields: `action` (summarize | reply | translate) and `rt` (OpenAI `usage.output_tokens_details.reasoning_tokens`, a number, or absent). `security.md` logging section updated.
+- **Optional Fast mode, off by default:** a new optional secret `OPENAI_SERVICE_TIER`; only the exact value `fast` adds `service_tier: "fast"` to the OpenAI request (any other value or absent = today's request, byte-identical). For a live test by the user on test emails; if OpenAI rejects it the pane shows the existing "recusou o pedido" error with its code and the secret is removed. Applies to the pane actions (`analyze-message`) only, not to F-013 drafts.
+- **Out of scope:** streaming to the pane (would display text before the output checks, CLAUDE.md rule 3), trimming the body or instructions, prompt-cache padding, warming the function, server-side caching of results.
