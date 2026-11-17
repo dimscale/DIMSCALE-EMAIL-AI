@@ -120,7 +120,8 @@ module.exports = async (env, options) => {
                 // Cloudflare Pages redirects *.html to the extensionless path; GitHub Pages serves both, so use /taskpane.
                 let m = content.toString().replace(new RegExp(urlDev, "g"), urlProd).replace(/taskpane\.html/g, "taskpane");
                 if (paneTest) {
-                  m = m.replace(PROD_ID, TEST_ID).replace('<DisplayName DefaultValue="DIMSCALE Mail"/>', '<DisplayName DefaultValue="DIMSCALE Mail (teste)"/>');
+                  m = m.replace(PROD_ID, TEST_ID).replace('<DisplayName DefaultValue="DIMSCALE Mail"/>', '<DisplayName DefaultValue="DIMSCALE Mail (teste)"/>')
+                    .replace('id="IaButton.Label" DefaultValue="DIMSCALE Mail"', 'id="IaButton.Label" DefaultValue="DIMSCALE Mail (teste)"');
                   if (!m.includes(TEST_ID) || !m.includes("(teste)")) throw new Error("PANE_TEST build: manifest Id or name was not replaced.");
                 }
                 return m;

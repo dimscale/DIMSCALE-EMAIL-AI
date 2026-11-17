@@ -150,6 +150,7 @@ describe("production build (F-012/AC-48)", () => {
     expect(m).toContain("<Id>926a7aa2-46e8-4187-9111-c9873e1fdec5</Id>");
     expect(m).not.toContain("05c2e1c9-3e1d-406e-9a91-e9ac64854143");
     expect(m).toContain('<DisplayName DefaultValue="DIMSCALE Mail (teste)"/>');
+    expect(m).toContain('id="IaButton.Label" DefaultValue="DIMSCALE Mail (teste)"'); // the ribbon button is told apart too
     expect(m).toContain('DefaultValue="https://dev.dimscale-mail-ai.pages.dev/taskpane"');
     expect(m).not.toContain("dimscale.github.io");
   }, 240000);
