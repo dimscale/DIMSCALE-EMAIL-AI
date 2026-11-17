@@ -73,7 +73,7 @@ describe.each(["manifest.xml", "manifest.customtab-test.xml"])(
       expect(m).not.toContain("<AppDomains");
     });
 
-    it("uses the green D icons", () => {
+    it("uses the brand icons (DIMSCALE Λ since 2026-11-17)", () => {
       for (const n of [16, 32, 80]) {
         expect(m).toContain(
           `id="Icon.Ia.${n}x${n}" DefaultValue="https://localhost:3000/assets/icon-${n}.png"`

@@ -397,3 +397,6 @@ The AI behaviour inside the cards (requests, auto mode, options, errors) is test
 - **Tests to update:** every test that asserts the tab name "Automático" (`App.test.tsx`, `kutools-pane.test.tsx`, `qa-kutools-tabs.test.tsx`, `qa-f013-lazy.test.tsx`, `auto-summary.test.tsx`, `qa-kutools-auto.test.tsx`, `qa-kutools-flag.test.tsx`, `AiTools.test.tsx`, found by grep on 2026-11-02) changes to "Lista" or to the per-tab switch label as appropriate; assertions are replaced, not removed.
 
 - **Amendment (c) APPROVED by the user on 2026-11-02** (tab "Automático" renamed "Lista", AC-55 and AC-56).
+
+## Amendment 2026-11-17: ribbon icon (user decision)
+- The add-in icon is the DIMSCALE "Λ" glyph (from the wordmark) in brand black #231F20 on a white tile, replacing the green "D". Same file names and URLs (`assets/icon-16/32/64/80/128.png`, master `assets/icon-master.svg`), so no manifest change and no tenant-admin action; Outlook may keep the old icon in its cache for a while.
