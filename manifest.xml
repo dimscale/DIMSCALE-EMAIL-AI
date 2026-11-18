@@ -4,7 +4,7 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" xsi:type="MailApp">
   <Id>05c2e1c9-3e1d-406e-9a91-e9ac64854143</Id>
-  <Version>1.0.5.0</Version>
+  <Version>1.1.0.0</Version>
   <ProviderName>DIMSCALE</ProviderName>
   <DefaultLocale>pt-PT</DefaultLocale>
   <DisplayName DefaultValue="DIMSCALE Mail"/>
@@ -29,7 +29,7 @@
       </DesktopSettings>
     </Form>
   </FormSettings>
-  <Permissions>ReadItem</Permissions>
+  <Permissions>ReadWriteItem</Permissions>
   <Rule xsi:type="RuleCollection" Mode="Or">
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
   </Rule>
@@ -66,6 +66,29 @@
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
+            <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="msgComposeGroup">
+                  <Label resid="GroupLabel" />
+                  <Control xsi:type="Button" id="msgComposeOpenPaneButton">
+                    <Label resid="IaButton.Label" />
+                    <Supertip>
+                      <Title resid="IaButton.Title" />
+                      <Description resid="IaCompose.Tooltip" />
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.Ia.16x16" />
+                      <bt:Image size="32" resid="Icon.Ia.32x32" />
+                      <bt:Image size="80" resid="Icon.Ia.80x80" />
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.Url" />
+                      <SupportsPinning>true</SupportsPinning>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
           </DesktopFormFactor>
         </Host>
       </Hosts>
@@ -85,6 +108,7 @@
         </bt:ShortStrings>
         <bt:LongStrings>
           <bt:String id="IaButton.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail: resumo, resposta, tradução e respostas automáticas."/>
+          <bt:String id="IaCompose.Tooltip" DefaultValue="Abre o painel DIMSCALE Mail: sugere uma resposta para este rascunho."/>
         </bt:LongStrings>
       </Resources>
     </VersionOverrides>

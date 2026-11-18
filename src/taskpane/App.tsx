@@ -4,6 +4,7 @@ import { ShieldCheckmarkRegular } from "@fluentui/react-icons";
 import BackendStatus from "./BackendStatus";
 import AiTools, { DEFAULT_OPTIONS, ToolOptions, ToolTab } from "./AiTools";
 import { useAutoMode } from "./autoMode";
+import ComposeReply from "./ComposeReply";
 import MessagePanel from "./MessagePanel";
 import ResponderPanel from "./ResponderPanel";
 import { strings } from "./strings";
@@ -73,40 +74,46 @@ const App: React.FC = () => {
   const { theme } = useOfficeTheme();
   const [noticeHost, setNoticeHost] = React.useState<HTMLElement | null>(null);
   const [view, setView] = React.useState<View>("summary");
+  const [compose, setCompose] = React.useState(false); // F-010: a draft is open, only the reply card is shown
+  const shown: View = compose ? "reply" : view;
   return (
     <FluentProvider theme={theme} className={s.root}>
       <h1 className={s.hidden}>{strings.appName}</h1>
       <main className={s.main}>
-        <TabList
-          size="small"
-          selectedValue={view}
-          onTabSelect={(_, d) => setView(d.value as View)}
-          aria-label={strings.tabsLabel}
-        >
-          <Tab value="summary" id="tab-summary" aria-controls="panel-tools">
-            {strings.tabSummary}
-          </Tab>
-          <Tab value="reply" id="tab-reply" aria-controls="panel-tools">
-            {strings.tabReply}
-          </Tab>
-          <Tab value="translate" id="tab-translate" aria-controls="panel-tools">
-            {strings.tabTranslate}
-          </Tab>
-          <Tab value="auto" id="tab-auto" aria-controls="panel-auto">
-            {strings.tabAuto}
-          </Tab>
-        </TabList>
+        {!compose && (
+          <TabList
+            size="small"
+            selectedValue={view}
+            onTabSelect={(_, d) => setView(d.value as View)}
+            aria-label={strings.tabsLabel}
+          >
+            <Tab value="summary" id="tab-summary" aria-controls="panel-tools">
+              {strings.tabSummary}
+            </Tab>
+            <Tab value="reply" id="tab-reply" aria-controls="panel-tools">
+              {strings.tabReply}
+            </Tab>
+            <Tab value="translate" id="tab-translate" aria-controls="panel-tools">
+              {strings.tabTranslate}
+            </Tab>
+            <Tab value="auto" id="tab-auto" aria-controls="panel-auto">
+              {strings.tabAuto}
+            </Tab>
+          </TabList>
+        )}
         <div ref={setNoticeHost} />
         {/* Message context, the three cards and the Lista panel stay mounted so state survives tab switches. */}
         <div
-          role="tabpanel"
+          role={compose ? undefined : "tabpanel"}
           id="panel-tools"
-          aria-labelledby={`tab-${view === "auto" ? "summary" : view}`}
+          aria-labelledby={compose ? undefined : `tab-${view === "auto" ? "summary" : view}`}
           className={s.panel}
-          hidden={view === "auto"}
-          style={view === "auto" ? { display: "none" } : undefined}
+          hidden={shown === "auto"}
+          style={shown === "auto" ? { display: "none" } : undefined}
         >
           <MessagePanel
+            onCompose={setCompose}
+            renderCompose={(key) => <ComposeReply key={key} />}
             renderBelow={(ctx) =>
               ctx && (
                 <AiTools
@@ -133,10 +140,10 @@ const App: React.FC = () => {
           id="panel-auto"
           aria-labelledby="tab-auto"
           className={s.panel}
-          hidden={view !== "auto"}
-          style={view !== "auto" ? { display: "none" } : undefined}
+          hidden={shown !== "auto"}
+          style={shown !== "auto" ? { display: "none" } : undefined}
         >
-          <ResponderPanel active={view === "auto"} />
+          <ResponderPanel active={shown === "auto"} />
         </div>
       </main>
       <footer className={s.footer}>

@@ -57,7 +57,7 @@ const useStyles = makeStyles({
   pre: { margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere", userSelect: "text" },
 });
 
-const errorText: Record<AnalyzeErrorCode, string> = {
+export const errorText: Record<AnalyzeErrorCode, string> = {
   unauthorized: strings.aiErrUnauthorized,
   payload: strings.aiErrPayload,
   cap: strings.aiErrCap,
@@ -80,18 +80,18 @@ const PAUSE_CODES: AnalyzeErrorCode[] = [
 type Err = { action: AnalyzeAction; text: string; code?: string; retry?: boolean };
 type CopyState = { which: AnalyzeAction; ok: boolean } | null;
 
-const MAX_INSTRUCTION = 300;
-const MAX_DRAFT = 2000;
-const MAX_HISTORY = 5;
+export const MAX_INSTRUCTION = 300;
+export const MAX_DRAFT = 2000;
+export const MAX_HISTORY = 5;
 // Blank after trim and after removing format chars (zero-width space, BOM...) counts as empty.
-const isBlank = (v: string) => v.replace(/\p{Cf}/gu, "").trim() === "";
+export const isBlank = (v: string) => v.replace(/\p{Cf}/gu, "").trim() === "";
 
-const LANGUAGES: [ReplyLanguage, string][] = [
+export const LANGUAGES: [ReplyLanguage, string][] = [
   ["match", strings.replyLanguageMatch],
   ["pt", strings.replyLanguagePt],
   ["en", strings.replyLanguageEn],
 ];
-const TONES: [ReplyTone, string][] = [
+export const TONES: [ReplyTone, string][] = [
   ["none", strings.replyToneNone],
   ["professional", strings.replyToneProfessional],
   ["concise", strings.replyToneConcise],

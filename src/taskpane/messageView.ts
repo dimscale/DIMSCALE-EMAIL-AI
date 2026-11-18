@@ -25,7 +25,7 @@ export interface MessageView {
 }
 
 // cut to n UTF-16 units without leaving a lone high surrogate (e.g. an emoji cut in half)
-const cut = (t: string, n: number) => t.slice(0, n).replace(/[\uD800-\uDBFF]$/, "");
+export const cut = (t: string, n: number) => t.slice(0, n).replace(/[\uD800-\uDBFF]$/, "");
 
 /* The part after the last "@", lower-cased; "" without "@". Never the local part. */
 export const fromDomain = (address: string | undefined) => {

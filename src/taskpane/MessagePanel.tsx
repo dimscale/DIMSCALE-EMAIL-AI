@@ -14,6 +14,7 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { MailRegular } from "@fluentui/react-icons";
+import { isCompose } from "./composeItem";
 import { toMessageView, MessageView } from "./messageView";
 import { strings } from "./strings";
 
@@ -22,6 +23,7 @@ import { strings } from "./strings";
 type State =
   | { kind: "loading" }
   | { kind: "none" }
+  | { kind: "compose"; key: number } // F-010: the item is a draft being composed
   | { kind: "error"; view: MessageView }
   | { kind: "ok"; view: MessageView; key: number }; // key: the read that produced the view
 
@@ -82,9 +84,12 @@ const sender = (v: MessageView) =>
 export type BelowCtx = { view: MessageView; itemKey: number } | null;
 
 // renderBelow: the App renders the AI section after the message; ctx is null unless the message loaded (ok state).
-const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode }> = ({
-  renderBelow,
-}) => {
+// renderCompose/onCompose: F-010, the App shows the compose view for a draft (key changes on every ItemChanged).
+const MessagePanel: React.FC<{
+  renderBelow?: (ctx: BelowCtx) => React.ReactNode;
+  renderCompose?: (key: number) => React.ReactNode;
+  onCompose?: (compose: boolean) => void;
+}> = ({ renderBelow, renderCompose, onCompose }) => {
   const s = useStyles();
   const [state, setState] = React.useState<State>({ kind: "loading" });
   const [attempt, setAttempt] = React.useState(0);
@@ -102,6 +107,10 @@ const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode 
     const item = Office.context.mailbox?.item as Office.MessageRead | undefined | null; // undefined outside Outlook, null when none selected
     if (!item) {
       setState({ kind: "none" });
+      return undefined;
+    }
+    if (isCompose(item)) {
+      setState({ kind: "compose", key: attempt });
       return undefined;
     }
     let active = true;
@@ -123,9 +132,15 @@ const MessagePanel: React.FC<{ renderBelow?: (ctx: BelowCtx) => React.ReactNode 
     };
   }, [attempt]);
 
+  const inCompose = state.kind === "compose";
+  React.useEffect(() => {
+    onCompose?.(inCompose);
+  }, [inCompose]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const below = renderBelow?.(
     state.kind === "ok" ? { view: state.view, itemKey: state.key } : null
   );
+  if (state.kind === "compose") return <>{renderCompose?.(state.key)}</>;
   if (state.kind === "loading") {
     return (
       <>

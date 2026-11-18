@@ -439,27 +439,49 @@ describe("manifest ribbon entry (F-012/AC-32, AC-34, AC-26)", () => {
     );
     return hit?.getAttribute("DefaultValue") ?? null;
   };
-  it("one TabDefault OfficeTab, one Group, one Button (DIMSCALE Mail), no CustomTab (AC-32, AC-48)", () => {
-    expect(all("OfficeTab")).toHaveLength(1);
-    expect(all("OfficeTab")[0].getAttribute("id")).toBe("TabDefault");
-    expect(all("Group")).toHaveLength(1);
-    expect(all("Control").filter((c) => c.getAttribute("xsi:type") === "Button")).toHaveLength(1);
+  it("per surface (read, compose): one TabDefault OfficeTab, one Group, one Button, no CustomTab (AC-32, AC-48, F-010/AC-2)", () => {
+    const surfaces = all("ExtensionPoint");
+    expect(surfaces.map((e) => e.getAttribute("xsi:type"))).toEqual([
+      "MessageReadCommandSurface",
+      "MessageComposeCommandSurface",
+    ]);
+    for (const e of surfaces) {
+      const tabs = Array.from(e.getElementsByTagName("OfficeTab"));
+      expect(tabs.map((t) => t.getAttribute("id"))).toEqual(["TabDefault"]);
+      expect(e.getElementsByTagName("Group")).toHaveLength(1);
+      const btns = Array.from(e.getElementsByTagName("Control"));
+      expect(btns.map((c) => c.getAttribute("xsi:type"))).toEqual(["Button"]);
+      expect(e.getElementsByTagName("ExecuteFunction")).toHaveLength(0);
+    }
+    expect(all("OfficeTab")).toHaveLength(2);
     expect(all("CustomTab")).toHaveLength(0);
+    expect(all("FunctionFile")).toHaveLength(0);
+  });
+  it("the compose button has its own tooltip and opens the same taskpane URL (F-010/AC-2)", () => {
+    const compose = all("ExtensionPoint")[1];
+    expect(compose.getElementsByTagName("Description")[0].getAttribute("resid")).toBe(
+      "IaCompose.Tooltip"
+    );
+    expect(compose.getElementsByTagName("SourceLocation")[0].getAttribute("resid")).toBe(
+      "Taskpane.Url"
+    );
   });
   it("group label resolves to 'DIMSCALE' (AC-32)", () => {
-    const groupLabel = all("Group")[0].getElementsByTagName("Label")[0].getAttribute("resid");
-    expect(resolve(groupLabel ?? "")).toBe("DIMSCALE");
+    for (const g of all("Group")) {
+      const groupLabel = g.getElementsByTagName("Label")[0].getAttribute("resid");
+      expect(resolve(groupLabel ?? "")).toBe("DIMSCALE");
+    }
   });
   it("the button label and Supertip title are 'DIMSCALE Mail' (AC-32, AC-48)", () => {
     const btns = all("Control").filter((c) => c.getAttribute("xsi:type") === "Button");
     const pick = (b: Element, tag: string) =>
       resolve(b.getElementsByTagName(tag)[0].getAttribute("resid") ?? "");
-    expect(btns.map((b) => pick(b, "Label"))).toEqual(["DIMSCALE Mail"]);
-    expect(btns.map((b) => pick(b, "Title"))).toEqual(["DIMSCALE Mail"]);
+    expect(btns.map((b) => pick(b, "Label"))).toEqual(["DIMSCALE Mail", "DIMSCALE Mail"]);
+    expect(btns.map((b) => pick(b, "Title"))).toEqual(["DIMSCALE Mail", "DIMSCALE Mail"]);
   });
   it("SupportsPinning is inside each ShowTaskpane action of the v1.1 block (AC-34, AC-48)", () => {
     const pin = all("SupportsPinning");
-    expect(pin).toHaveLength(1);
+    expect(pin).toHaveLength(2); // read and compose
     for (const p of pin) {
       expect(p.parentElement?.getAttribute("xsi:type")).toBe("ShowTaskpane");
       expect(p.closest("VersionOverrides")?.getAttribute("xsi:type")).toBe(
@@ -467,8 +489,8 @@ describe("manifest ribbon entry (F-012/AC-32, AC-34, AC-26)", () => {
       );
     }
   });
-  it("only ReadItem is requested (AC-26)", () => {
-    expect(all("Permissions").map((p) => p.textContent)).toEqual(["ReadItem"]);
+  it("only ReadWriteItem is requested (AC-26 amended by F-010/AC-1)", () => {
+    expect(all("Permissions").map((p) => p.textContent)).toEqual(["ReadWriteItem"]);
   });
 });
 

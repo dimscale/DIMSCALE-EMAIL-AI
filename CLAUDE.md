@@ -12,7 +12,7 @@ Status, backlog and blockers: [docs/status.md](docs/status.md). Read it first in
 4. **Send the AI as little as possible.** Only the fields a feature needs, as plain text, truncated to the spec's limit. See [docs/architecture/security.md](docs/architecture/security.md).
 5. **Never log email content, tokens or keys.** This covers subjects, bodies, addresses and `Authorization` headers, in the browser console, the backend logs and in reports.
 6. **Don't invent APIs.** Every Office.js method, requirement set, Graph endpoint and permission must be checked against Microsoft Learn before use, and the spec cites the page.
-7. **Least privilege.** Active-item features use Office.js with the `ReadItem` manifest permission and no Graph. Graph scopes are requested incrementally, only by the features that need them (see [overview](docs/architecture/overview.md#capability-boundaries)).
+7. **Least privilege.** Active-item features use Office.js with the `ReadItem` manifest permission and no Graph. Exception approved by the user on 2026-11-18 (F-010): compose mode uses `ReadWriteItem` only to insert a suggestion into the open draft on the user's click (never automatic, never send). Graph scopes are requested incrementally, only by the features that need them (see [overview](docs/architecture/overview.md#capability-boundaries)).
 8. **No new platform without an ADR.** A new backend, hosting provider, n8n, VPS or a heavy dependency needs an accepted ADR in `docs/decisions/` first.
 
 ## SDD lifecycle (every feature)

@@ -112,6 +112,18 @@ export const strings = {
   aiRefineSend: "Enviar alterações",
   aiRefineTooLong: "A resposta é demasiado longa para pedir alterações. Edite-a no formulário.",
   aiRefineDone: "Resposta atualizada",
+  // Compose mode (F-010)
+  composeTitle: "Sugerir resposta",
+  composePrivacyNotice:
+    "Ao usar a IA, o assunto e o texto deste rascunho (incluindo a mensagem citada e a assinatura) são enviados à OpenAI. Nada é inserido nem enviado sem o seu clique.",
+  composeEmpty: "Este rascunho não tem texto para analisar.",
+  composeReadFailed: "Não foi possível ler o rascunho.",
+  composeInsert: "Inserir no rascunho",
+  composeInserting: "A inserir…",
+  composeInserted: "Inserido no início do rascunho. Reveja antes de enviar.",
+  composeInsertFailed: "Não foi possível inserir no rascunho. Use Copiar.",
+  composeInsertHelp:
+    "Insere no início do rascunho; o texto e a assinatura existentes ficam por baixo.",
   aiErrCode: (why: string) => `(código: ${why})`,
   aiRefineInvalid:
     "A IA não conseguiu aplicar o pedido. Ligações e endereços não podem ser acrescentados pela IA: adicione-os no formulário de resposta.",
