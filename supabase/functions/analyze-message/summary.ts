@@ -1,5 +1,5 @@
 // F-003 summary action. Reuses the F-013 engine (input building, HTTP call, single-output extraction, link rule).
-import { type AiConfig, type AiFail, buildInput, type DraftInput, hasLink, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
+import { ANALYZE_BODY_LIMIT, type AiConfig, type AiFail, buildInput, type DraftInput, hasLink, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
 
 export const SUMMARY_INSTRUCTIONS = [
   "Summarise the email or email thread between the markers <<<EMAIL and EMAIL>>> for the mailbox owner, in European Portuguese (pt-PT).",
@@ -75,7 +75,7 @@ export function parseSummary(res: unknown, input: string): SummaryResult {
 }
 
 export async function generateSummary(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<SummaryResult> {
-  const text = buildInput(input);
+  const text = buildInput(input, ANALYZE_BODY_LIMIT);
   const r = await requestResponses(text, cfg, SUMMARY_INSTRUCTIONS, "email_summary", SUMMARY_SCHEMA, fetchFn);
   return r.ok ? parseSummary(r.json, text) : r;
 }

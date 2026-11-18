@@ -198,8 +198,8 @@ describe("Resumo card classification (F-007/AC-10, AC-11, AC-12, AC-16)", () => 
     expect(screen.queryByText(strings.aiClassUncertain)).toBeNull(); // only the fixed line could match exactly
     expect(screen.getByText(strings.aiClassNotice).closest("[role=alert]")).toBeNull();
   });
-  it("shows the truncation line when the body reached 4 000 characters", async () => {
-    setup("x".repeat(5000));
+  it("shows the truncation line when the body reached 12 000 characters", async () => {
+    setup("x".repeat(13000));
     ok(CLS);
     render(<App />);
     await resumir();

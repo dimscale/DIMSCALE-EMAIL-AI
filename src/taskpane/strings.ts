@@ -159,7 +159,7 @@ export const strings = {
   aiConfidence: (x: string) => `Confiança: ${x}`,
   aiClassNotice: "Classificação gerada por IA, pode estar errada. Confirme no e-mail.",
   aiClassUncertain: "A IA não tem certeza. Não confie nesta classificação.",
-  aiClassTruncated: "Só foram analisados os primeiros 4 000 caracteres.",
+  aiClassTruncated: "Só foram analisados os primeiros 12 000 caracteres.",
   aiToneLabels: {
     positive: "Tom positivo",
     neutral: "Tom neutro",

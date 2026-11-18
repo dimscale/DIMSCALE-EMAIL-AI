@@ -1,5 +1,5 @@
 // F-003 translate action. Reuses the F-013 engine; output has no link or address at all (spec "Translate").
-import { type AiConfig, type AiFail, buildInput, type DraftInput, requestResponses, singleOutputText } from "../_shared/ai.ts";
+import { ANALYZE_BODY_LIMIT, type AiConfig, type AiFail, buildInput, type DraftInput, requestResponses, singleOutputText } from "../_shared/ai.ts";
 import { hasLink } from "./summary.ts";
 
 export const TARGETS = { auto: "the target language", pt: "European Portuguese (pt-PT)", en: "English" } as const;
@@ -51,12 +51,12 @@ export function parseTranslation(res: unknown): TranslateResult {
   if (Object.keys(o).sort().join(",") !== "body,subject") return bad;
   const { subject, body } = o;
   if (typeof subject !== "string" || typeof body !== "string") return bad;
-  if (body.trim().length < 1 || body.length > 6000 || subject.trim().length > 300 || subject.length > 300) return bad;
+  if (body.trim().length < 1 || body.length > 16000 || subject.trim().length > 300 || subject.length > 300) return bad;
   if ([subject, body].some((s) => /[<>]/.test(s) || hasLink(s))) return bad;
   return { ok: true, translation: { subject, body } };
 }
 
 export async function generateTranslation(input: DraftInput, target: Target, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<TranslateResult> {
-  const r = await requestResponses(buildInput(input), cfg, TRANSLATE_INSTRUCTIONS(target), "email_translation", TRANSLATE_SCHEMA, fetchFn);
+  const r = await requestResponses(buildInput(input, ANALYZE_BODY_LIMIT), cfg, TRANSLATE_INSTRUCTIONS(target), "email_translation", TRANSLATE_SCHEMA, fetchFn);
   return r.ok ? parseTranslation(r.json) : r;
 }

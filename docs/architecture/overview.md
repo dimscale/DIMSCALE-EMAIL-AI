@@ -22,7 +22,7 @@ _Historical. For the current state see [status](../status.md)._
                                      ├─ F-002 `whoami`: validates the token itself (JWKS, issuer, audience, azp, scp, expiry)
                                      ├─ F-013 `auto-reply-settings`: same validation + oid/tid; stores the user's switch and chosen contacts
                                      └─ F-003 `analyze-message`: same validation + oid/tid; on the user's click, or (summary only today; per-tab switches for reply and translate planned 2026-11-02, not yet in code) automatically for the visible tab when the user switched it on, minimizes and delimits the
-                                        open message (subject, name, sender domain, body ≤ 4,000) ─► OpenAI (`store: false`, no tools, `gpt-6-luna`)
+                                        open message (subject, name, sender domain, body ≤ 12,000) ─► OpenAI (`store: false`, no tools, `gpt-6-luna`)
                                         ─► summary / reply text back to the pane (daily caps in Postgres, kill switch `ANALYZE_DISABLED`; no Graph)
 
  Outlook closed, server side (F-013, app-only):

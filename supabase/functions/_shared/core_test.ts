@@ -312,3 +312,11 @@ Deno.test("generateDraft: transport codes (F-003 g): http status, timeout, netwo
   assertEquals(await run(stream(new TypeError("reset"))), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
   assertEquals(await run(() => new Response("MARK not json")), { ok: false, reason: "ai_output_invalid", retryable: false, why: "badbody" });
 });
+
+Deno.test("buildInput: optional limit (analyze-message 12,000), default stays 4,000 for F-013", () => {
+  const body = "x".repeat(12001);
+  assertStringIncludes(buildInput({ ...DI, body }, 12000), `${"x".repeat(12000)} [truncated]`);
+  assertFalse(buildInput({ ...DI, body: "x".repeat(12000) }, 12000).includes("[truncated]"));
+  assertStringIncludes(buildInput({ ...DI, body }), `${"x".repeat(4000)} [truncated]`);
+  assertFalse(buildInput({ ...DI, body }).includes("x".repeat(4001)));
+});

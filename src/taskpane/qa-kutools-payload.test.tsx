@@ -125,34 +125,34 @@ describe("summarize payload (F-003/AC-18)", () => {
     expect(JSON.stringify(sent())).not.toContain("a@b");
   });
 
-  it("body: 2000 and 2500 characters are sent in full (not the 2,000 preview); 4000 exact; above 4000 cut to 4000", async () => {
-    for (const n of [2000, 2001, 2500, 4000, 4001, 9000]) {
+  it("body: 2000 and 2500 characters are sent in full (not the 2,000 preview); 12000 exact; above 12000 cut to 12000", async () => {
+    for (const n of [2000, 2001, 2500, 12000, 12001, 20000]) {
       cleanup();
       fetchMock.mockClear();
       setup(makeItem("x".repeat(n)));
       render(<App />);
       await click("Resumir");
-      expect(sent().body).toHaveLength(Math.min(n, 4000));
+      expect(sent().body).toHaveLength(Math.min(n, 12000));
     }
   });
 
-  it("a 4,000-limit cut never leaves a lone high surrogate: an emoji straddling 4000 is dropped, the JSON has no lone surrogate", async () => {
-    setup(makeItem("a".repeat(3999) + "😀" + "tail"));
+  it("a 12,000-limit cut never leaves a lone high surrogate: an emoji straddling 12000 is dropped, the JSON has no lone surrogate", async () => {
+    setup(makeItem("a".repeat(11999) + "😀" + "tail"));
     render(<App />);
     await click("Resumir");
     const body = sent().body as string;
-    expect(body).toHaveLength(3999);
+    expect(body).toHaveLength(11999);
     expect(body.endsWith("a")).toBe(true);
     expect(LONE_HIGH.test(body)).toBe(false);
     expect(LONE_LOW.test(body)).toBe(false);
     expect(LONE_HIGH.test(fetchMock.mock.calls[0][1].body)).toBe(false);
   });
 
-  it("an emoji that fits entirely inside 4000 is kept whole", async () => {
-    setup(makeItem("a".repeat(3998) + "😀"));
+  it("an emoji that fits entirely inside 12000 is kept whole", async () => {
+    setup(makeItem("a".repeat(11998) + "😀"));
     render(<App />);
     await click("Resumir");
-    expect(sent().body).toHaveLength(4000);
+    expect(sent().body).toHaveLength(12000);
     expect(sent().body.endsWith("😀")).toBe(true);
   });
 
@@ -248,15 +248,15 @@ describe("reply and translate payloads (F-003/AC-35, AC-41)", () => {
     ]);
   });
 
-  it("translate sends the 4,000 cut body with no lone surrogate and no sender data (AC-37)", async () => {
-    setup(makeItem("b".repeat(3999) + "😀"), {});
+  it("translate sends the 12,000 cut body with no lone surrogate and no sender data (AC-37)", async () => {
+    setup(makeItem("b".repeat(11999) + "😀"), {});
     fetchMock.mockResolvedValue(
       json(200, { ok: true, action: "translate", translation: { subject: "", body: "b" } })
     );
     render(<App />);
     tab("Traduzir");
     await click("Traduzir");
-    expect(sent().body).toHaveLength(3999);
+    expect(sent().body).toHaveLength(11999);
     expect(LONE_HIGH.test(sent().body)).toBe(false);
     const raw = fetchMock.mock.calls[0][1].body as string;
     expect(raw).not.toContain("Ana");

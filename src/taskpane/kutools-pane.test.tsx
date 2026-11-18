@@ -190,7 +190,7 @@ describe("Traduzir card (F-003/AC-41, F-012/AC-46)", () => {
     translation: { subject: "Pedido <b>", body: INJECT },
   };
   it("sends exactly the translate payload with no sender data", async () => {
-    setup(makeItem("x".repeat(5000)));
+    setup(makeItem("x".repeat(13000)));
     fetchMock.mockResolvedValue(json(200, TR));
     render(<App />);
     tab("Traduzir");
@@ -208,7 +208,7 @@ describe("Traduzir card (F-003/AC-41, F-012/AC-46)", () => {
       fromDomain: "",
       targetLanguage: "en",
     });
-    expect(sent().body).toHaveLength(4000);
+    expect(sent().body).toHaveLength(12000);
     expect(body).not.toContain("Ana");
     expect(body).not.toContain("exemplo");
   });

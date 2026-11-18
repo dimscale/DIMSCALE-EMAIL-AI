@@ -1,5 +1,5 @@
 // F-007: `summarize` variant with output "classified" (category, reason, confidence). The default F-003 path is untouched.
-import { type AiConfig, type AiFail, buildInput, type DraftInput, hasLink, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
+import { ANALYZE_BODY_LIMIT, type AiConfig, type AiFail, buildInput, type DraftInput, hasLink, introducesNewLinks, requestResponses, singleOutputText } from "../_shared/ai.ts";
 import { PRIORITIES, SUMMARY_INSTRUCTIONS, TONES } from "./summary.ts";
 
 export const CATEGORIES = ["action_required", "information", "meeting", "invoice_document", "marketing", "automated_notice", "other"] as const;
@@ -81,7 +81,7 @@ export function parseClassified(res: unknown, input: string): ClassifiedResult {
 }
 
 export async function generateClassified(input: DraftInput, cfg: AiConfig, fetchFn: typeof fetch = fetch): Promise<ClassifiedResult> {
-  const text = buildInput(input);
+  const text = buildInput(input, ANALYZE_BODY_LIMIT);
   const r = await requestResponses(text, cfg, CLASSIFIED_INSTRUCTIONS, "email_classification", CLASSIFIED_SCHEMA, fetchFn);
   return r.ok ? parseClassified(r.json, text) : r;
 }

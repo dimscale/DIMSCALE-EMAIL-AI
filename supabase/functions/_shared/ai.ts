@@ -41,10 +41,13 @@ export function stripMarkers(s: string): string {
 }
 const oneLine = (s: string, max: number) => stripMarkers(s).replace(/\p{Cc}+/gu, " ").trim().slice(0, max);
 
-/** Only subject (255), sender display name and domain, and the unique body (4,000 + marker). All inside the delimiters. */
-export function buildInput(i: DraftInput): string {
+/** analyze-message body limit (F-003 amendment 2026-11-18 (l)). F-013 keeps the default 4,000 (its spec forbids changing it). */
+export const ANALYZE_BODY_LIMIT = 12000;
+
+/** Only subject (255), sender display name and domain, and the body (`limit` + marker, default 4,000). All inside the delimiters. */
+export function buildInput(i: DraftInput, limit = 4000): string {
   let body = stripMarkers(i.body).trim();
-  if (body.length > 4000) body = `${body.slice(0, 4000)} [truncated]`;
+  if (body.length > limit) body = `${body.slice(0, limit)} [truncated]`;
   return [OPEN, `From name: ${oneLine(i.fromName, 100)}`, `From domain: ${oneLine(i.fromDomain, 100)}`, `Subject: ${oneLine(i.subject, 255)}`, "", body, CLOSE].join("\n");
 }
 

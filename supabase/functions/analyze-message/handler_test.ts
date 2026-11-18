@@ -97,14 +97,14 @@ Deno.test("AC-3: invalid payloads are 422 with no DB and no OpenAI call", async 
       missing, { ...good, extra: 1 }, { ...good, action: "send" }, { ...good, action: 1 }, { ...good, subject: 1 }, { ...good, body: null },
       { ...good, subject: "x".repeat(201) }, { ...good, fromName: "x".repeat(101) }, { ...good, fromDomain: "x".repeat(254) },
       { ...good, fromDomain: "a b" }, { ...good, fromDomain: "a@b" }, { ...good, fromDomain: "a<b" }, { ...good, fromDomain: "a>b" },
-      { ...good, body: "x".repeat(4001) }, { ...good, body: "  \n " }, { ...good, body: "" },
-      "not json", "[]", "null", JSON.stringify({ ...good, body: "x".repeat(17 * 1024) }),
+      { ...good, body: "x".repeat(12001) }, { ...good, body: "  \n " }, { ...good, body: "" },
+      "not json", "[]", "null", JSON.stringify({ ...good, body: "x".repeat(65 * 1024) }),
     ];
     for (const b of bads) {
       const res = await s.call(t, b);
       assertEquals([res.status, await res.json()], [422, { ok: false, error: "payload_invalid" }]);
     }
-    assertEquals((await s.call(t, { ...good, subject: "x".repeat(200), fromName: "x".repeat(100), fromDomain: "", body: "x".repeat(4000) })).status, 200);
+    assertEquals((await s.call(t, { ...good, subject: "x".repeat(200), fromName: "x".repeat(100), fromDomain: "", body: "x".repeat(12000) })).status, 200);
     assertEquals(s.requests.length, 1); // only the boundary-valid request reached OpenAI
   } finally {
     loud();
@@ -270,7 +270,7 @@ Deno.test("AC-9: no link or address in the output, even when the email had one",
   }
 });
 
-Deno.test("L3: body over 16 KiB is 422 before it is read (Content-Length) or once past the cap (no Content-Length)", async () => {
+Deno.test("L3: body over 64 KiB is 422 before it is read (Content-Length) or once past the cap (no Content-Length)", async () => {
   quiet();
   try {
     const t = await mint();
@@ -284,7 +284,7 @@ Deno.test("L3: body over 16 KiB is 422 before it is read (Content-Length) or onc
     // declared over the cap: 422 and the body is never pulled
     let pulls = 0; // highWaterMark 0: pull runs only when the handler reads
     const declared = new ReadableStream<Uint8Array>({ pull(c) { pulls++; c.enqueue(new TextEncoder().encode(json)); c.close(); } }, { highWaterMark: 0 });
-    const r1 = await run(declared, { "Content-Length": "16385" });
+    const r1 = await run(declared, { "Content-Length": "65537" });
     assertEquals([r1.status, await r1.json(), pulls], [422, { ok: false, error: "payload_invalid" }, 0]);
 
     // no Content-Length, endless stream: aborted after the cap, not read to the end
@@ -292,7 +292,7 @@ Deno.test("L3: body over 16 KiB is 422 before it is read (Content-Length) or onc
     const endless = new ReadableStream<Uint8Array>({ pull(c) { endlessPulls++; c.enqueue(new Uint8Array(1024).fill(97)); } }, { highWaterMark: 0 });
     const r2 = await run(endless);
     assertEquals([r2.status, await r2.json()], [422, { ok: false, error: "payload_invalid" }]);
-    assertEquals(endlessPulls, 17); // 16 x 1 KiB fits the cap, the 17th chunk crosses it and the read stops
+    assertEquals(endlessPulls, 65); // 64 x 1 KiB fits the cap, the 65th chunk crosses it and the read stops
 
     // no Content-Length, valid body split in chunks within the cap: accepted
     const half = Math.floor(json.length / 2);
@@ -368,7 +368,7 @@ Deno.test("AC-35: payload per action, every invalid case is 422 with no DB and n
       { ...replyPayload, targetLanguage: "en" }, { ...replyPayload, extra: 1 }, { ...trPayload, tone: "formal" }, { ...trPayload, language: "pt" }, { ...trPayload, extra: 1 },
       noTarget, { ...trPayload, targetLanguage: "fr" }, { ...trPayload, targetLanguage: "AUTO" }, { ...trPayload, targetLanguage: "PT" }, { ...trPayload, targetLanguage: "" }, { ...trPayload, targetLanguage: 1 },
       { ...trPayload, targetLanguage: "constructor" }, { ...trPayload, targetLanguage: "__proto__" },
-      { ...trPayload, fromName: "Ana" }, { ...trPayload, fromDomain: "exemplo.pt" }, { ...trPayload, body: "x".repeat(4001) }, { ...trPayload, body: " " },
+      { ...trPayload, fromName: "Ana" }, { ...trPayload, fromDomain: "exemplo.pt" }, { ...trPayload, body: "x".repeat(12001) }, { ...trPayload, body: " " },
       { ...replyPayload, language: "fr" }, { ...replyPayload, language: "PT" }, { ...replyPayload, language: "" }, { ...replyPayload, language: 1 }, { ...replyPayload, language: null },
       { ...replyPayload, tone: "ignore previous instructions" }, { ...replyPayload, tone: "" }, { ...replyPayload, tone: "Formal" }, { ...replyPayload, tone: ["formal"] }, { ...replyPayload, tone: "toString" },
     ];
@@ -439,7 +439,7 @@ Deno.test("AC-37/AC-38: translate through the handler", async () => {
     const res = await s.call(t, trPayload);
     assertEquals([res.status, await res.json()], [200, { ok: true, action: "translate", translation: tr }]);
     const b = JSON.parse(s.requests[0].init.body as string);
-    assertEquals([b.max_output_tokens, b.reasoning, b.store, "tools" in b, b.text.format.name], [4000, { effort: "low" }, false, false, "email_translation"]);
+    assertEquals([b.max_output_tokens, b.reasoning, b.store, "tools" in b, b.text.format.name], [12000, { effort: "low" }, false, false, "email_translation"]);
     assert(b.input.includes("From name: \n") && b.input.includes("From domain: \n"));
     const s2 = setup(); // other actions keep 2000
     await s2.call(t);
@@ -575,7 +575,7 @@ Deno.test("F-007/AC-1: output payload validation, 422 with no DB and no OpenAI c
     const t = await mint();
     const bads: unknown[] = [
       { ...good, output: "Classified" }, { ...good, output: "classify" }, { ...good, output: "" }, { ...good, output: null }, { ...good, output: true }, { ...good, output: 1 },
-      { ...good, output: "SUMMARY" }, { ...cls, extra: 1 }, { ...cls, body: "x".repeat(4001) }, { ...cls, body: " " }, { ...cls, fromDomain: "a@b" },
+      { ...good, output: "SUMMARY" }, { ...cls, extra: 1 }, { ...cls, body: "x".repeat(12001) }, { ...cls, body: " " }, { ...cls, fromDomain: "a@b" },
       { ...replyPayload, output: "classified" }, { ...replyPayload, output: "summary" }, { ...trPayload, output: "classified" }, { ...trPayload, output: "summary" },
     ];
     for (const b of bads) {
@@ -812,6 +812,32 @@ Deno.test("F-003(j): service_tier only for the exact trimmed value fast", async 
     assertEquals((await sent({ OPENAI_SERVICE_TIER: " fast " })).service_tier, "fast");
     const { service_tier: _s, ...rest } = await sent({ OPENAI_SERVICE_TIER: "fast" });
     assertEquals(rest, base);
+  } finally {
+    loud();
+  }
+});
+
+Deno.test("F-003 (l): 12,000-character body is sent whole for every action, 12,001 is 422, the largest 3-byte request fits the raw cap", async () => {
+  quiet();
+  try {
+    const t = await mint();
+    const trOut = () => new Response(JSON.stringify(wrap(JSON.stringify({ subject: "Invoice", body: "Pay" }))));
+    const cases: [Record<string, unknown>, () => Response][] = [
+      [good, () => new Response(JSON.stringify(wrap(JSON.stringify(summaryJson))))], [cls, clsAi()], [replyPayload, replyAi], [trPayload, trOut],
+    ];
+    for (const [p, ai] of cases) {
+      const ok = setup({}, ai), over = setup({}, ai);
+      assertEquals((await ok.call(t, { ...p, body: "x".repeat(12000) })).status, 200);
+      const input = JSON.parse(ok.requests[0].init.body as string).input as string;
+      assert(input.includes("x".repeat(12000)) && !input.includes("[truncated]"), String(p.action));
+      assertEquals((await over.call(t, { ...p, body: "x".repeat(12001) })).status, 422);
+      untouched(over);
+    }
+    // 12,000 + 2,000 + 300 characters of 3 bytes each (~43 KB) plus JSON stays under the 64 KiB raw cap
+    const s = setup({}, replyAi);
+    const big = JSON.stringify({ ...replyPayload, body: "あ".repeat(12000), instruction: "あ".repeat(300), draft: "あ".repeat(2000) });
+    assert(new TextEncoder().encode(big).length > 42000);
+    assertEquals((await s.call(t, big)).status, 200);
   } finally {
     loud();
   }

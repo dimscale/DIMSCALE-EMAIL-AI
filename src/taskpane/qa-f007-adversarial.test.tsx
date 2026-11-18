@@ -136,32 +136,32 @@ describe("F-007 pane adversarial (AC-14: old function, AC-10: labels, AC-12: ren
 });
 
 describe("F-007 pane adversarial (AC-11: truncation line, body length boundaries)", () => {
-  it("3,999 characters: not cut, no truncation line", async () => {
-    setup("x".repeat(3999));
+  it("11,999 characters: not cut, no truncation line", async () => {
+    setup("x".repeat(11999));
     ok(CLS);
     render(<App />);
     await resumir();
     expect(screen.queryByText(strings.aiClassTruncated)).toBeNull();
   });
 
-  it("4,001 characters: cut at 4,000, truncation line shown", async () => {
-    setup("x".repeat(4001));
+  it("12,001 characters: cut at 12,000, truncation line shown", async () => {
+    setup("x".repeat(12001));
     ok(CLS);
     render(<App />);
     await resumir();
     expect(screen.getByText(strings.aiClassTruncated)).toBeTruthy();
   });
 
-  it("a body cut at 4,000 units where a surrogate pair straddles the cut still shows the truncation line", async () => {
-    setup("x".repeat(3999) + "\u{1F600}" + "tail");
+  it("a body cut at 12,000 units where a surrogate pair straddles the cut still shows the truncation line", async () => {
+    setup("x".repeat(11999) + "\u{1F600}" + "tail");
     ok(CLS);
     render(<App />);
     await resumir();
     expect(screen.getByText(strings.aiClassTruncated)).toBeTruthy();
   });
 
-  it("exactly 4,000 characters are not cut, so the truncation line does not show", async () => {
-    setup("x".repeat(4000));
+  it("exactly 12,000 characters are not cut, so the truncation line does not show", async () => {
+    setup("x".repeat(12000));
     ok(CLS);
     render(<App />);
     await resumir();

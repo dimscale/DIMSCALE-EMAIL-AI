@@ -131,7 +131,7 @@ describe("AiTools layout and no auto-run (F-003/AC-16, AC-17, AC-19)", () => {
 
 describe("AiTools request (F-003/AC-17, AC-18)", () => {
   it("sends exactly one POST with the exact body and no address; double-click sends one", async () => {
-    setup(makeItem("x".repeat(5000)));
+    setup(makeItem("x".repeat(13000)));
     let release!: (v: unknown) => void;
     fetchMock.mockReturnValue(new Promise((r) => (release = r)));
     render(<App />);
@@ -166,7 +166,7 @@ describe("AiTools request (F-003/AC-17, AC-18)", () => {
       fromName: "Ana",
       fromDomain: "exemplo.pt",
     });
-    expect(sent.body).toHaveLength(4000);
+    expect(sent.body).toHaveLength(12000);
     expect(init.body).not.toContain("ana@");
     await act(async () => release(json(200, { ok: true, action: "summarize", summary: SUMMARY })));
     expect(btn("Resumir").disabled).toBe(false);

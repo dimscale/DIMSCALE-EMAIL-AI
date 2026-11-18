@@ -16,11 +16,11 @@ describe("AI payload helpers (F-003/AC-18)", () => {
     expect(fromDomain("/o=x/cn=ana")).toBe("");
     expect(fromDomain(undefined)).toBe("");
   });
-  it("cuts aiText to 4000 from the full body, trimmed, without a lone surrogate", () => {
-    const v = toMessageView(item(), "  " + "a".repeat(3999) + "😀tail");
-    expect(v.aiText).toHaveLength(3999);
+  it("cuts aiText to 12000 from the full body, trimmed, without a lone surrogate", () => {
+    const v = toMessageView(item(), "  " + "a".repeat(11999) + "😀tail");
+    expect(v.aiText).toHaveLength(11999);
     expect(v.aiText).not.toMatch(/[\uD800-\uDBFF]$/);
-    expect(toMessageView(item(), "b".repeat(9000)).aiText).toHaveLength(4000);
+    expect(toMessageView(item(), "b".repeat(20000)).aiText).toHaveLength(12000);
     expect(toMessageView(item(), "  \n ").aiText).toBe("");
   });
   it("cuts subject (200) and name (100), keeps an empty subject empty", () => {

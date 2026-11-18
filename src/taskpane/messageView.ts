@@ -4,7 +4,7 @@ import { AnalyzePayload, TargetLanguage } from "./analyzeClient";
 import { strings } from "./strings";
 
 export const BODY_LIMIT = 2000;
-export const AI_TEXT_LIMIT = 4000;
+export const AI_TEXT_LIMIT = 12000; // 2026-11-18 (l): was 4,000; the whole quoted thread is context
 export const REPLY_FORM_LIMIT = 32 * 1024;
 
 export interface MessageView {

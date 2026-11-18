@@ -1,5 +1,5 @@
 import type { JWTVerifyGetKey } from "jose";
-import { type AiConfig, type AiFail, type DraftInput } from "../_shared/ai.ts";
+import { ANALYZE_BODY_LIMIT, type AiConfig, type AiFail, type DraftInput } from "../_shared/ai.ts";
 import type { Db } from "../_shared/db.ts";
 import type { Config } from "../_shared/entra.ts";
 import { log, type LogFields } from "../_shared/log.ts";
@@ -11,10 +11,10 @@ import { generateSummary, hasLink } from "./summary.ts";
 import { generateTranslation, type Target, TARGETS } from "./translate.ts";
 
 const FN = "analyze-message";
-const MAX_RAW = 16 * 1024;
+const MAX_RAW = 64 * 1024; // 12,000 body + 2,000 draft + 300 instruction in 3-byte UTF-8 (~43 KB) plus JSON overhead
 const MAX_CAP = 1_000_000;
 // shortcut: effort and token cap are constants, not env (spec decision 9); make them env only if the user asks.
-const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000, TRANSLATE_MAX_OUTPUT_TOKENS = 4000;
+const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000, TRANSLATE_MAX_OUTPUT_TOKENS = 12000; // a 12,000-character translation needs room (reasoning included)
 
 /** Body as text, or null when over `max` bytes: Content-Length is checked first, then a byte counter stops an unlabelled stream. */
 async function readCapped(req: Request, max: number): Promise<string | null> {
@@ -48,7 +48,7 @@ export function parsePayload(raw: unknown): Payload | null {
   if (action === "translate" && !keys.includes("targetLanguage")) return null;
   if (typeof body !== "string" || typeof fromDomain !== "string" || typeof fromName !== "string" || typeof subject !== "string") return null;
   if (subject.length > 200 || fromName.length > 100 || fromDomain.length > 253 || !/^[^\s@<>]*$/.test(fromDomain)) return null;
-  if (body.length > 4000 || body.trim() === "") return null;
+  if (body.length > ANALYZE_BODY_LIMIT || body.trim() === "") return null;
   const input = { body, fromDomain, fromName, subject };
   if (action === "summarize") {
     if (!keys.includes("output")) return { action, ...input };
