@@ -11,7 +11,7 @@ import {
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
-import { analyze, RETRYABLE, ReplyLanguage, ReplyTone } from "./analyzeClient";
+import { analyze, RETRYABLE } from "./analyzeClient";
 import {
   errorText,
   isBlank,
@@ -19,6 +19,7 @@ import {
   MAX_DRAFT,
   MAX_HISTORY,
   MAX_INSTRUCTION,
+  ToolOptions,
   TONES,
 } from "./AiTools";
 import { getTokenSilent } from "./auth";
@@ -49,10 +50,13 @@ type Insert = "idle" | "busy" | "done" | "failed";
 
 /* F-010: the only tool in compose is the reply card. Every request and every write needs a click. The parent
    remounts this component (new key) on ItemChanged, so state, the snapshot and late responses never cross drafts. */
-const ComposeReply: React.FC = () => {
+const ComposeReply: React.FC<{ options: ToolOptions; onOptions: (o: ToolOptions) => void }> = ({
+  options,
+  onOptions,
+}) => {
   const s = useStyles();
-  const [language, setLanguage] = React.useState<ReplyLanguage>("match");
-  const [tone, setTone] = React.useState<ReplyTone>("none");
+  const helpId = React.useId();
+  const { language, tone } = options; // owned by the App: Idioma/Tom survive ItemChanged for the pane session
   const [pending, setPending] = React.useState(false);
   const [reply, setReply] = React.useState<string | null>(null);
   const [error, setError] = React.useState<Err | null>(null);
@@ -107,7 +111,6 @@ const ComposeReply: React.FC = () => {
           setError({ text: strings.composeEmpty });
           return;
         }
-        snapshot.current = draft;
       }
       const token = await getTokenSilent();
       if (!mounted.current) return;
@@ -128,6 +131,7 @@ const ComposeReply: React.FC = () => {
       );
       if (!mounted.current || res.kind === "aborted") return;
       if (res.kind === "reply") {
+        if (refine === undefined && draft) snapshot.current = draft; // a new chain starts only when the request succeeds
         if (refine !== undefined && reply !== null) {
           setHistory((h) => [...h, reply].slice(-MAX_HISTORY));
           setInstruction("");
@@ -214,8 +218,10 @@ const ComposeReply: React.FC = () => {
         <>
           <p className={s.note}>{strings.composePrivacyNotice}</p>
           <div className={s.row}>
-            {select(strings.replyLanguageLabel, language, LANGUAGES, setLanguage)}
-            {select(strings.replyToneLabel, tone, TONES, setTone)}
+            {select(strings.replyLanguageLabel, language, LANGUAGES, (v) =>
+              onOptions({ ...options, language: v })
+            )}
+            {select(strings.replyToneLabel, tone, TONES, (v) => onOptions({ ...options, tone: v }))}
           </div>
         </>
       }
@@ -260,27 +266,26 @@ const ComposeReply: React.FC = () => {
           <p className={s.note}>{strings.aiAdvisory}</p>
           <Button
             appearance="primary"
+            aria-describedby={helpId}
             disabled={insert === "busy" || insert === "done"}
             onClick={() => void insertReply()}
           >
             {insert === "busy" ? strings.composeInserting : strings.composeInsert}
           </Button>
-          <p className={s.note}>{strings.composeInsertHelp}</p>
-          {insert === "done" && (
-            <span className={s.note} role="status">
-              {strings.composeInserted}
-            </span>
-          )}
+          <p id={helpId} className={s.note}>
+            {strings.composeInsertHelp}
+          </p>
+          <span className={s.note} role="status">
+            {insert === "done" ? strings.composeInserted : ""}
+          </span>
           {insert === "failed" && (
             <MessageBar intent="error" role="alert">
               <MessageBarBody>{strings.composeInsertFailed}</MessageBarBody>
             </MessageBar>
           )}
-          {copy !== null && (
-            <span className={s.note} role="status">
-              {copy ? strings.aiCopied : strings.aiCopyFailed}
-            </span>
-          )}
+          <span className={s.note} role="status">
+            {copy === null ? "" : copy ? strings.aiCopied : strings.aiCopyFailed}
+          </span>
           {tooLong ? (
             <p className={s.note} role="status">
               {strings.aiRefineTooLong}

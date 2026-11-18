@@ -15,7 +15,7 @@ _Historical. For the current state see [status](../status.md)._
                               ▼
  Outlook (web / new Windows / classic Windows / Mac)
  └─ Task pane (React + TypeScript, Office.js)            ← served over HTTPS (localhost:3000 in dev)
-      ├─ Office.js: read the active item, open the reply form   (no Graph, ReadItem)
+      ├─ Office.js: read the active item, open the reply form   (no Graph, ReadWriteItem since manifest 1.1.0.0; compose only inserts on a click)
       ├─ MSAL.js NAA ─► Microsoft Graph, delegated `Mail.ReadBasic` only (F-013 candidate senders; token stays in the pane)
       └─ MSAL.js NAA ─► Entra token for api://<client-id>/access_as_user
            └─ fetch + Bearer token ─► Supabase Edge Functions (verify_jwt = false, each validates its caller)
@@ -43,9 +43,9 @@ Decisions: [ADR-0001 stack](../decisions/0001-addin-stack.md), [ADR-0002 auth](.
 
 | Tier | What | Mechanism | Permission |
 |---|---|---|---|
-| **Active item** | Read the open message (subject, sender, body) | Office.js `Office.context.mailbox.item` (`body.getAsync`, Mailbox 1.1) | Manifest `ReadItem` |
-| **Active item** | Open a prefilled reply for the user to edit and send (F-003, text from `analyze-message`, HTML-escaped) | `item.displayReplyFormAsync` (Mailbox 1.9; `displayReplyForm` 1.1 fallback), which opens a form and never sends | Manifest `ReadItem` |
-| **Active item + AI backend** | Summary, suggested reply and translation of the open message, on click or, automatically for the visible tab when the user switched it on (summary only today; per-tab switches for reply and translate planned, F-003 amendment (i) Proposed); no Graph | Office.js reads the item, pane → `analyze-message` (Entra token) → OpenAI | Manifest `ReadItem` (no change) |
+| **Active item** | Read the open message (subject, sender, body) | Office.js `Office.context.mailbox.item` (`body.getAsync`, Mailbox 1.1) | Manifest `ReadWriteItem` since 1.1.0.0 (F-010; compose only inserts on a click) |
+| **Active item** | Open a prefilled reply for the user to edit and send (F-003, text from `analyze-message`, HTML-escaped) | `item.displayReplyFormAsync` (Mailbox 1.9; `displayReplyForm` 1.1 fallback), which opens a form and never sends | Manifest `ReadWriteItem` since 1.1.0.0 (F-010; compose only inserts on a click) |
+| **Active item + AI backend** | Summary, suggested reply and translation of the open message, on click or, automatically for the visible tab when the user switched it on (summary only today; per-tab switches for reply and translate planned, F-003 amendment (i) Proposed); no Graph | Office.js reads the item, pane → `analyze-message` (Entra token) → OpenAI | Manifest `ReadWriteItem` since 1.1.0.0 (F-010; compose only inserts on a click) |
 | **Mailbox (pane)** | List recent senders for the contact picker (`from` only, no body) | Graph `GET /me/mailFolders/inbox/messages?$select=from…` | Delegated `Mail.ReadBasic` (admin consent, F-013) |
 | **Mailbox (pane)** | List and select other messages (F-015) | Graph `GET /me/messages` | Delegated, least privileged for the field set (to be decided in F-015) |
 | **Mailbox (server, app-only)** | Read new Inbox mail of allow-listed senders and create a reply draft in Drafts with Outlook closed (F-013) | Graph change notifications, `GET` message, `POST /users/{id}/messages/{id}/createReply` | Exchange RBAC for Applications `Application Mail.Read` + `Application Mail.ReadWrite`, scoped to a mail-enabled group; no Entra application consent |

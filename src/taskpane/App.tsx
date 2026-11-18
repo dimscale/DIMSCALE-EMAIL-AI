@@ -113,7 +113,7 @@ const App: React.FC = () => {
         >
           <MessagePanel
             onCompose={setCompose}
-            renderCompose={(key) => <ComposeReply key={key} />}
+            renderCompose={(key) => <ComposeReply key={key} options={options} onOptions={setOptions} />}
             renderBelow={(ctx) =>
               ctx && (
                 <AiTools

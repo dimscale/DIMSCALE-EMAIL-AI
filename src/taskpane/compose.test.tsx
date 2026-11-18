@@ -149,6 +149,19 @@ describe("mode detection and view (F-010/AC-4, AC-5)", () => {
     expect(mailbox.removeHandlerAsync).toHaveBeenCalled();
   });
 
+  it("Idioma and Tom persist for the pane session across ItemChanged", async () => {
+    setOffice(makeDraft());
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Tom"), { target: { value: "formal" } });
+    fireEvent.change(screen.getByLabelText("Idioma"), { target: { value: "en" } });
+    mailbox.item = makeDraft();
+    act(() => handler?.());
+    expect((screen.getByLabelText("Tom") as HTMLSelectElement).value).toBe("formal");
+    expect((screen.getByLabelText("Idioma") as HTMLSelectElement).value).toBe("en");
+    await click("Sugerir resposta");
+    expect(body(0)).toMatchObject({ language: "en", tone: "formal" });
+  });
+
   it("makes no request on render, ItemChanged, option changes or sign-in (AC-5)", () => {
     setOffice(makeDraft());
     render(<App />);
@@ -324,6 +337,26 @@ describe("refine, previous version, copy (F-010/AC-9, AC-10)", () => {
     expect(body(2).instruction).toBeUndefined();
   });
 
+  it("a failed new Sugerir does not replace the refine snapshot", async () => {
+    setOffice(makeDraft({ subject: "RE: A", body: "texto original" }));
+    render(<App />);
+    await click("Sugerir resposta");
+    item.body.getAsync.mockImplementation((_t: string, cb: (r: R) => void) => cb(ok("texto novo")));
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: "ai_unavailable", retryable: true }),
+    });
+    await click("Sugerir resposta");
+    expect(screen.getByRole("alert")).toBeTruthy();
+    fetchMock.mockResolvedValue(res("v1"));
+    fireEvent.change(screen.getByPlaceholderText("Ex.: mais curto, pede o prazo"), {
+      target: { value: "mais curto" },
+    });
+    await click("Enviar alterações");
+    expect(body(2)).toMatchObject({ body: "texto original", instruction: "mais curto" });
+  });
+
   it("Copiar writes the text; a missing clipboard shows the fallback", async () => {
     setOffice(makeDraft());
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -332,7 +365,7 @@ describe("refine, previous version, copy (F-010/AC-9, AC-10)", () => {
     await click("Sugerir resposta");
     await click("Copiar");
     expect(writeText).toHaveBeenCalledWith("Bom dia Ana");
-    expect(screen.getByText(strings.aiCopied)).toBeTruthy();
+    expect(screen.getByText(strings.aiCopied).getAttribute("role")).toBe("status");
     writeText.mockRejectedValue(new Error("no"));
     await click("Copiar");
     expect(screen.getByText(strings.aiCopyFailed)).toBeTruthy();
@@ -361,6 +394,24 @@ describe("insert (F-010/AC-11, AC-12)", () => {
     expect(opts).toEqual({ coercionType: "html" });
     expect(screen.getByText(strings.composeInserted)).toBeTruthy();
     expect(btn(strings.composeInsert).disabled).toBe(true); // no double insert
+  });
+
+  it("insert help is linked to the button; status regions are mounted before their text appears", async () => {
+    setOffice(makeDraft());
+    vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    render(<App />);
+    await click("Sugerir resposta");
+    const help = screen.getByText(strings.composeInsertHelp);
+    expect(btn(strings.composeInsert).getAttribute("aria-describedby")).toBe(help.id);
+    const empty = () => screen.getAllByRole("status").filter((e) => e.textContent === "" && e.tagName === "SPAN");
+    expect(empty().length).toBeGreaterThanOrEqual(3); // inserted, copied, refine regions exist with no text
+    const before = empty();
+    await click(strings.composeInsert);
+    await click("Copiar");
+    const inserted = screen.getByText(strings.composeInserted);
+    const copied = screen.getByText(strings.aiCopied);
+    expect(before).toContain(inserted); // same nodes, text changed
+    expect(before).toContain(copied);
   });
 
   it("text body: the plain text followed by a blank line", async () => {

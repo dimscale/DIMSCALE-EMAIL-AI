@@ -67,7 +67,7 @@ Pending with the tenant admin (all in the checklist above):
 | F-007 | Classification with reasons and an uncertainty notice (`summarize` variant `output: "classified"`) | Active item + AI | F-003 | **Approved 2026-11-02**; [plan](plans/F-007-classification.md) ready (function F1 to F5 and pane P1 to P5 in parallel); test emails only until D5 |
 | F-008 | ~~Graph list of messages~~ | — | — | Superseded by F-015 (list) and F-013 (sender list) |
 | F-009 | ~~Graph reply draft~~ | — | — | Superseded by F-013 / F-015 |
-| F-010 | Compose-mode support: pane in a draft, "Sugerir resposta", insert at the top with `prependAsync` (`ReadWriteItem`, manifest 1.1.0.0) | Active item + AI | F-003, F-006 | **Spec Draft + plan written 2026-11-18** ([spec](specs/F-010-compose-mode.md)); awaiting the user's approval; one MMSI upload after the sideload checks (replaces the 2026-11-02 deferral) |
+| F-010 | Compose-mode support: pane in a draft, "Sugerir resposta", insert at the top with `prependAsync` (`ReadWriteItem`, manifest 1.1.0.0) | Active item + AI | F-003, F-006 | **Built 2026-11-18** ([spec](specs/F-010-compose-mode.md), approved by the user 2026-11-18): on the test add-in, live checks pending, then the one MMSI upload of 1.1.0.0 |
 
 ## Open decisions
 | # | Decision | Owner | Blocks |
