@@ -18,6 +18,10 @@ export type ProcDeps = {
 
 export const MAX_ATTEMPTS = 5; // keep equal to the attempts cap in ad_claim (migration)
 
+/** Plain text to the HTML Graph renders in createReply's comment: escape, then line breaks to <br>. */
+export const commentHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\r\n|\r|\n/g, "<br>");
+
 export async function processClaimed(d: ProcDeps, userId?: string): Promise<number> {
   if (!autoDraftsEnabled(d.get)) return 0; // kill switch: claim nothing, read nothing
   const now = d.nowMs ?? Date.now;
@@ -109,8 +113,9 @@ async function processRow(d: ProcDeps, row: Claimed, inboxIds: Map<string, strin
   );
   if (!ai.ok) return ai.retryable ? await retryOrFail(ai.reason) : await done("failed", ai.reason);
 
-  // Exactly one draft-creating call. The reply text goes in as the comment, unmodified, after the marker line.
-  const draft = await d.graph.createReply(user.oid, row.messageId, `${MARKER_LINE}\n\n${ai.reply}`);
+  // Exactly one draft-creating call. Graph renders the comment as HTML (live check 2026-11-18: line breaks collapsed),
+  // so the plain-text reply is escaped and its line breaks become <br>.
+  const draft = await d.graph.createReply(user.oid, row.messageId, commentHtml(`${MARKER_LINE}\n\n${ai.reply}`));
   if (!draft.ok) return await graphFail(draft, row.userId);
   await d.db.setUserStatus(row.userId, "active"); // a recovered mailbox leaves the error state
   return await done("drafted", "ok");

@@ -93,10 +93,12 @@ const LANGUAGES: [ReplyLanguage, string][] = [
 ];
 const TONES: [ReplyTone, string][] = [
   ["none", strings.replyToneNone],
+  ["professional", strings.replyToneProfessional],
   ["concise", strings.replyToneConcise],
   ["detailed", strings.replyToneDetailed],
   ["formal", strings.replyToneFormal],
   ["friendly", strings.replyToneFriendly],
+  ["carnegie", strings.replyToneCarnegie],
 ];
 const TARGETS: [TargetLanguage, string][] = [
   ["auto", strings.translateAuto],

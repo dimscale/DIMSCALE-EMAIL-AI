@@ -4,7 +4,8 @@ import { ANALYZE_URL } from "./config";
 export type AnalyzeAction = "summarize" | "reply" | "translate";
 // Options are enums only. The optional instruction/draft refinement fields travel in the input, never in the function's instructions (F-003).
 export type ReplyLanguage = "match" | "pt" | "en";
-export type ReplyTone = "none" | "concise" | "detailed" | "formal" | "friendly";
+export type ReplyTone =
+  "none" | "concise" | "detailed" | "formal" | "friendly" | "professional" | "carnegie";
 // "auto": Portuguese -> English, English -> Portuguese (F-003 amendment 2026-10-29 (b)).
 export type TargetLanguage = "auto" | "pt" | "en";
 

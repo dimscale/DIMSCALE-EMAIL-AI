@@ -62,7 +62,11 @@ Deno.test("AC-36: every option adds only the fixed sentences, language before to
   assertEquals(TONE_SENTENCES.detailed, "Make the reply detailed instead of short: answer each point or question the sender raised.");
   assertEquals(TONE_SENTENCES.formal, "Use a formal, courteous register.");
   assertEquals(TONE_SENTENCES.friendly, "Use a warm, friendly register while staying professional.");
-  assert(Object.keys(TONE_SENTENCES).length === 4 && Object.keys(LANGUAGE_REMINDERS).length === 2);
+  assertEquals(TONE_SENTENCES.professional, "Use a clear, professional business register: polite, direct and well structured, with neutral wording, no slang and no emojis.");
+  // F-003 (k): Dale Carnegie persuasion principles, with an honesty guard only
+  assert(/Dale Carnegie/.test(TONE_SENTENCES.carnegie) && /interests/.test(TONE_SENTENCES.carnegie) && /instead of giving orders/.test(TONE_SENTENCES.carnegie));
+  assert(/Do not invent facts, promises or urgency\.$/.test(TONE_SENTENCES.carnegie) && !/[<>]/.test(TONE_SENTENCES.carnegie));
+  assert(Object.keys(TONE_SENTENCES).length === 6 && Object.keys(LANGUAGE_REMINDERS).length === 2);
 });
 
 Deno.test("realistic MyEdenred notification reply passes parseOutput and hasLink", async () => {

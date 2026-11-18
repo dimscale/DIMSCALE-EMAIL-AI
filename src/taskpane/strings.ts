@@ -43,6 +43,8 @@ export const strings = {
   replyToneDetailed: "Detalhado",
   replyToneFormal: "Formal",
   replyToneFriendly: "Amigável",
+  replyToneProfessional: "Profissional",
+  replyToneCarnegie: "Dale Carnegie (persuasivo)",
   autoSwitchLabel: "Automático",
   // Accessible names tell the three switches apart (and from the Traduzir option "Automático (PT ↔ EN)").
   autoSummaryAria: "Resumo automático",

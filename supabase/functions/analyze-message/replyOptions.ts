@@ -2,7 +2,7 @@
 import { type AiConfig, type AiResult, buildInput, type DraftInput, INSTRUCTIONS, parseOutput, requestResponses, SCHEMA, stripMarkers } from "../_shared/ai.ts";
 
 export const LANGUAGES = ["match", "pt", "en"] as const;
-export const TONE_OPTIONS = ["none", "concise", "detailed", "formal", "friendly"] as const;
+export const TONE_OPTIONS = ["none", "concise", "detailed", "formal", "friendly", "professional", "carnegie"] as const;
 export type ReplyOpts = { language: (typeof LANGUAGES)[number]; tone: (typeof TONE_OPTIONS)[number] };
 
 // F-003 amendment (h): an appended "replaces the language rule above" sentence lost to the base rule (live bug), so the base rule itself is rewritten.
@@ -19,6 +19,10 @@ export const TONE_SENTENCES: Record<Exclude<ReplyOpts["tone"], "none">, string> 
   detailed: "Make the reply detailed instead of short: answer each point or question the sender raised.",
   formal: "Use a formal, courteous register.",
   friendly: "Use a warm, friendly register while staying professional.",
+  professional: "Use a clear, professional business register: polite, direct and well structured, with neutral wording, no slang and no emojis.",
+  // F-003 amendment (k), user 2026-11-18: Dale Carnegie persuasion principles; honesty guard only (no invented facts, promises or urgency).
+  carnegie:
+    "Write persuasively in Dale Carnegie's style: greet the sender by name when known and begin in a friendly way; show sincere appreciation for something the email actually says; frame the answer or request in terms of the sender's own interests and benefits; ask questions instead of giving orders; let the sender feel the idea is partly theirs; if you disagree, be tactful, never say they are wrong, and make any fix seem easy. Do not invent facts, promises or urgency.",
 };
 
 // Manual replies must contain no link, domain or address at all (the handler rejects them), so the model is told not to name domains even when the email does.

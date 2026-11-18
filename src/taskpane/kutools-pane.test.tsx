@@ -138,10 +138,12 @@ describe("Resposta options (F-003/AC-40)", () => {
     ]);
     expect(Array.from(tone.options).map((o) => o.text)).toEqual([
       "Nenhum",
+      "Profissional",
       "Conciso",
       "Detalhado",
       "Formal",
       "Amigável",
+      "Dale Carnegie (persuasivo)",
     ]);
     fireEvent.change(lang, { target: { value: "en" } });
     fireEvent.change(tone, { target: { value: "formal" } });
@@ -177,7 +179,7 @@ describe("Resposta options (F-003/AC-40)", () => {
         expect(sent(n)).toMatchObject({ language: l, tone: t });
         n++;
       }
-    expect(n).toBe(15);
+    expect(n).toBe(21); // 3 languages x 7 tones (Profissional and Dale Carnegie added 2026-11-18)
   });
 });
 

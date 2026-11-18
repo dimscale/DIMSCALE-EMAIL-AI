@@ -2,7 +2,7 @@ import { assert, assertEquals, assertFalse } from "@std/assert";
 import { type AiResult, generateDraft } from "./ai.ts";
 import { readSettings } from "./config.ts";
 import type { Graph, GResult, Msg } from "./graph.ts";
-import { processClaimed, type ProcDeps } from "./processor.ts";
+import { commentHtml, processClaimed, type ProcDeps } from "./processor.ts";
 import { sha256Hex } from "./safe.ts";
 import { catchUp, handleLifecycle, syncSubscriptions } from "./subscriptions.ts";
 import { fakeDb } from "./testing.ts";
@@ -58,7 +58,7 @@ Deno.test("happy path: reads from, then the message, one AI call, one createRepl
   assertEquals(s.calls[0], "readFrom:m1");
   assertEquals(s.calls[1], "readMessage:m1");
   assertEquals(s.calls.length, 4);
-  assertEquals(s.calls[3], "createReply:m1:[DIMSCALE AI draft - review and edit before sending]\n\nThanks, will send the quote.");
+  assertEquals(s.calls[3], "createReply:m1:[DIMSCALE AI draft - review and edit before sending]<br><br>Thanks, will send the quote.");
   assertEquals([row(s).status, row(s).reason], ["drafted", "ok"]);
   assertEquals(s.aiCalls.length, 1);
   const a = s.aiCalls[0] as { i: Record<string, string>; c: Record<string, unknown> };
@@ -510,4 +510,8 @@ Deno.test("L-2: a disabled user is never set active; an enabled user is", async 
   s.user.enabled = true;
   await s.f.db.setUserStatus(s.user.id, "active");
   assertEquals(s.user.status, "active");
+});
+
+Deno.test("F-013 (2026-11-18): commentHtml escapes and keeps line breaks as <br>", () => {
+  assertEquals(commentHtml("Ola Carla,\n\nA & B \"x\" <i>\r\nfim"), "Ola Carla,<br><br>A &amp; B &quot;x&quot; &lt;i&gt;<br>fim");
 });
