@@ -11,7 +11,7 @@ import { generateSummary, hasLink } from "./summary.ts";
 import { generateTranslation, type Target, TARGETS } from "./translate.ts";
 
 const FN = "analyze-message";
-const MAX_RAW = 64 * 1024; // 12,000 body + 2,000 draft + 300 instruction in 3-byte UTF-8 (~43 KB) plus JSON overhead
+const MAX_RAW = 64 * 1024; // 12,000 body + 2,000 draft + 2,000 instruction in 3-byte UTF-8 (~48 KB) plus JSON overhead
 const MAX_CAP = 1_000_000;
 // shortcut: effort and token cap are constants, not env (spec decision 9); make them env only if the user asks.
 const EFFORT = "low", MAX_OUTPUT_TOKENS = 2000, TRANSLATE_MAX_OUTPUT_TOKENS = 12000; // a 12,000-character translation needs room (reasoning included)
@@ -65,8 +65,9 @@ export function parsePayload(raw: unknown): Payload | null {
     if (typeof instruction !== "string" || typeof draft !== "string") return null;
     const ins = instruction.trim();
     const blank = (x: string) => x.replace(/\p{Cf}/gu, "").trim() === ""; // zero-width chars alone are blank
-    if (ins.length > 300 || draft.length > 2000 || blank(ins) || blank(draft)) return null;
-    return { action, ...input, opts, revise: { instruction: ins.replace(/\p{Cc}+/gu, " "), draft } };
+    if (ins.length > 2000 || draft.length > 2000 || blank(ins) || blank(draft)) return null;
+    // Newlines are kept (multi-line box); CRLF is normalised, every other control character becomes a space.
+    return { action, ...input, opts, revise: { instruction: ins.replace(/\r\n?/g, "\n").replace(/[^\P{Cc}\n]+/gu, " "), draft } };
   }
   if (action === "translate") {
     if (typeof targetLanguage !== "string" || !Object.hasOwn(TARGETS, targetLanguage) || fromName !== "" || fromDomain !== "") return null;

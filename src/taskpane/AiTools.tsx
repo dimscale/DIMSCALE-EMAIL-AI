@@ -3,12 +3,12 @@ import {
   Badge,
   Button,
   Field,
-  Input,
   MessageBar,
   MessageBarActions,
   MessageBarBody,
   Select,
   Spinner,
+  Textarea,
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
@@ -80,7 +80,7 @@ const PAUSE_CODES: AnalyzeErrorCode[] = [
 type Err = { action: AnalyzeAction; text: string; code?: string; retry?: boolean };
 type CopyState = { which: AnalyzeAction; ok: boolean } | null;
 
-export const MAX_INSTRUCTION = 300;
+export const MAX_INSTRUCTION = 2000; // F-003 (m): multi-line refine box; matches the function (2,000)
 export const MAX_DRAFT = 2000;
 export const MAX_HISTORY = 5;
 // Blank after trim and after removing format chars (zero-width space, BOM...) counts as empty.
@@ -141,7 +141,7 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
   const [instruction, setInstruction] = React.useState("");
   const [history, setHistory] = React.useState<string[]>([]); // previous suggestions, memory only
   const [revised, setRevised] = React.useState(false); // announces a successful revision
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const busy = React.useRef(false);
   const mounted = React.useRef(true);
   const runCtl = React.useRef<AbortController | null>(null); // any run (manual or auto)
@@ -490,11 +490,13 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
                   {strings.aiRefineTooLong}
                 </p>
               ) : (
-                <Field label={strings.aiRefineLabel}>
+                <Field label={strings.aiRefineLabel} hint={strings.aiRefineHint}>
                   <div className={s.refine}>
-                    <Input
+                    <Textarea
                       ref={inputRef}
-                      style={{ flex: "1 1 120px", minWidth: "120px" }}
+                      style={{ flex: "1 1 100%", minWidth: 0 }}
+                      rows={5}
+                      resize="vertical"
                       value={instruction}
                       maxLength={MAX_INSTRUCTION}
                       placeholder={strings.aiRefinePlaceholder}
@@ -502,7 +504,8 @@ const AiTools: React.FC<Props> = ({ view, itemKey, tab, options, onOptions, auto
                       aria-disabled={pending !== null}
                       onChange={(_, d) => setInstruction(d.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        // Enter inserts a newline; Ctrl+Enter (Cmd+Enter on Mac) sends.
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           sendRefine();
                         }

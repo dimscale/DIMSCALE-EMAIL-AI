@@ -108,7 +108,9 @@ export const strings = {
   aiCopyFailed: "Não foi possível copiar. Selecione o texto e use Ctrl+C.",
   aiOpenReply: "Abrir resposta para revisão",
   aiRefineLabel: "Pedir alterações",
-  aiRefinePlaceholder: "Ex.: mais curto, pede o prazo",
+  aiRefinePlaceholder:
+    "Ex.: mais curto; ou cole aqui contexto ou outro e-mail e peça a resposta com base nisso",
+  aiRefineHint: "Enter muda de linha. Ctrl+Enter envia.",
   aiRefineSend: "Enviar alterações",
   aiRefineTooLong: "A resposta é demasiado longa para pedir alterações. Edite-a no formulário.",
   aiRefineDone: "Resposta atualizada",

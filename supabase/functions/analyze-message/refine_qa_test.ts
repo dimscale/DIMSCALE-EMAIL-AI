@@ -51,12 +51,12 @@ function captureLogs(): string[] {
 }
 
 // AC-53 (QA): the limits are UTF-16 units, so an emoji counts as two.
-Deno.test("AC-53 (QA): instruction limit is 300 UTF-16 units (emoji = 2 units, not 1 code point)", () => {
-  assertEquals(revOf(parsePayload(rv({ instruction: E(150) })))?.instruction.length, 300); // 300 units: accepted
-  assertEquals(parsePayload(rv({ instruction: E(151) })), null); // 302 units, 151 code points: rejected
-  assertEquals(parsePayload(rv({ instruction: E(200) })), null); // 400 units, 200 code points: rejected
-  assert(parsePayload(rv({ instruction: "a".repeat(298) + E(1) })) !== null); // 300 units: accepted
-  assertEquals(parsePayload(rv({ instruction: "a".repeat(299) + E(1) })), null); // 301 units: rejected
+Deno.test("AC-53 (QA): instruction limit is 2000 UTF-16 units (emoji = 2 units, not 1 code point)", () => {
+  assertEquals(revOf(parsePayload(rv({ instruction: E(1000) })))?.instruction.length, 2000); // 2000 units: accepted
+  assertEquals(parsePayload(rv({ instruction: E(1001) })), null); // 2002 units, 1001 code points: rejected
+  assertEquals(parsePayload(rv({ instruction: E(1200) })), null); // 2400 units, 1200 code points: rejected
+  assert(parsePayload(rv({ instruction: "a".repeat(1998) + E(1) })) !== null); // 2000 units: accepted
+  assertEquals(parsePayload(rv({ instruction: "a".repeat(1999) + E(1) })), null); // 2001 units: rejected
 });
 
 Deno.test("AC-53 (QA): draft limit is 2,000 UTF-16 units (emoji = 2 units)", () => {
@@ -68,8 +68,8 @@ Deno.test("AC-53 (QA): draft limit is 2,000 UTF-16 units (emoji = 2 units)", () 
 
 // AC-53 (QA): the instruction is trimmed before the length check; blank means 422 for both fields.
 Deno.test("AC-53 (QA): instruction trimmed before the limit; blank instruction and draft are 422", () => {
-  assertEquals(revOf(parsePayload(rv({ instruction: " " + E(150) + "\t" })))?.instruction, E(150)); // 302 raw, 300 trimmed
-  assertEquals(revOf(parsePayload(rv({ instruction: " ".repeat(300) + "a" })))?.instruction, "a"); // 301 raw, 1 trimmed
+  assertEquals(revOf(parsePayload(rv({ instruction: " " + E(1000) + "\t" })))?.instruction, E(1000)); // 2002 raw, 2000 trimmed
+  assertEquals(revOf(parsePayload(rv({ instruction: " ".repeat(2000) + "a" })))?.instruction, "a"); // 2001 raw, 1 trimmed
   assertEquals(revOf(parsePayload(rv({ instruction: "  a  " })))?.instruction, "a");
   for (const ins of ["", " ", "\t\n", " ", " ", "﻿"]) assertEquals(parsePayload(rv({ instruction: ins })), null, JSON.stringify(ins));
   for (const d of ["", " ", "\n\t", " "]) assertEquals(parsePayload(rv({ draft: d })), null, JSON.stringify(d));
@@ -104,7 +104,7 @@ Deno.test("AC-53 (QA): over-limit (UTF-16) revision through the handler is 422 w
   try {
     const t = await mint();
     const s = setup();
-    for (const b of [rv({ instruction: E(151) }), rv({ draft: E(1001) }), rv({ instruction: "a".repeat(299) + E(1) }), rv({ instruction: " " })]) {
+    for (const b of [rv({ instruction: E(1001) }), rv({ draft: E(1001) }), rv({ instruction: "a".repeat(1999) + E(1) }), rv({ instruction: " " })]) {
       assertEquals((await s.call(t, b)).status, 422, JSON.stringify(b).slice(0, 60));
     }
     assertEquals([s.f.calls, s.requests.length], [[], 0]);
@@ -118,7 +118,7 @@ Deno.test("AC-53 (QA): emoji at the limits reach the prompt unchanged, trimmed i
   captureLogs();
   try {
     const t = await mint();
-    const ins = E(150), dr = E(1000);
+    const ins = E(1000), dr = E(1000);
     const s = setup();
     assertEquals((await s.call(t, rv({ instruction: " " + ins + " ", draft: dr }))).status, 200);
     const body = JSON.parse(s.requests[0].body as string);
@@ -226,10 +226,11 @@ Deno.test("AC-53/55 (review): fake header and markers inside the draft or instru
   }
 });
 
-Deno.test("AC-53 (review): zero-width-only instruction or draft is 422; control chars in instruction collapse", () => {
+Deno.test("AC-53 (review): zero-width-only instruction or draft is 422; control chars other than newline collapse; newlines are kept", () => {
   for (const z of ["\u200b", " \u200b\u2060\ufeff ", "\u200d"]) {
     assertEquals(parsePayload(rv({ instruction: z })), null, JSON.stringify(z));
     assertEquals(parsePayload(rv({ draft: z })), null, JSON.stringify(z));
   }
-  assertEquals(revOf(parsePayload(rv({ instruction: "a\nb\u0000\tc" })))?.instruction, "a b c");
+  assertEquals(revOf(parsePayload(rv({ instruction: "a\nb\u0000\tc" })))?.instruction, "a\nb c"); // F-003 (m): \n kept, other control characters become one space
+  assertEquals(revOf(parsePayload(rv({ instruction: "a\r\nb\t\nc\n\nd" })))?.instruction, "a\nb \nc\n\nd"); // CRLF normalised; a tab next to a newline does not eat the newline
 });

@@ -2,12 +2,12 @@ import * as React from "react";
 import {
   Button,
   Field,
-  Input,
   MessageBar,
   MessageBarActions,
   MessageBarBody,
   Select,
   Spinner,
+  Textarea,
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
@@ -65,7 +65,7 @@ const ComposeReply: React.FC<{ options: ToolOptions; onOptions: (o: ToolOptions)
   const [instruction, setInstruction] = React.useState("");
   const [history, setHistory] = React.useState<string[]>([]);
   const [revised, setRevised] = React.useState(false);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const busy = React.useRef(false);
   const inserting = React.useRef(false);
   const mounted = React.useRef(true);
@@ -291,11 +291,13 @@ const ComposeReply: React.FC<{ options: ToolOptions; onOptions: (o: ToolOptions)
               {strings.aiRefineTooLong}
             </p>
           ) : (
-            <Field label={strings.aiRefineLabel}>
+            <Field label={strings.aiRefineLabel} hint={strings.aiRefineHint}>
               <div className={s.refine}>
-                <Input
+                <Textarea
                   ref={inputRef}
-                  style={{ flex: "1 1 120px", minWidth: "120px" }}
+                  style={{ flex: "1 1 100%", minWidth: 0 }}
+                  rows={5}
+                  resize="vertical"
                   value={instruction}
                   maxLength={MAX_INSTRUCTION}
                   placeholder={strings.aiRefinePlaceholder}
@@ -303,7 +305,8 @@ const ComposeReply: React.FC<{ options: ToolOptions; onOptions: (o: ToolOptions)
                   aria-disabled={pending}
                   onChange={(_, d) => setInstruction(d.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    // Enter inserts a newline; Ctrl+Enter (Cmd+Enter on Mac) sends.
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       sendRefine();
                     }

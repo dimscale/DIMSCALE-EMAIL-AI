@@ -6,6 +6,8 @@ vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div>
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
 import App from "./App";
 import { getTokenSilent } from "./auth";
+import { MAX_INSTRUCTION } from "./AiTools";
+import { strings } from "./strings";
 
 type Cb = (r: { status: string; value?: string }) => void;
 let handler: (() => void) | undefined;
@@ -47,7 +49,7 @@ const click = async (name: string) => {
     fireEvent.click(btn(name));
   });
 };
-const box = () => screen.getByPlaceholderText("Ex.: mais curto, pede o prazo") as HTMLInputElement;
+const box = () => screen.getByPlaceholderText(strings.aiRefinePlaceholder) as HTMLTextAreaElement;
 const type = (v: string) => fireEvent.change(box(), { target: { value: v } });
 const bodyOf = (i: number) => JSON.parse(fetchMock.mock.calls[i][1].body);
 
@@ -74,7 +76,29 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
     type("mais curto");
     expect(btn("Enviar alterações").disabled).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(box().maxLength).toBe(300);
+    expect(box().maxLength).toBe(2000);
+    expect(MAX_INSTRUCTION).toBe(2000);
+  });
+
+  it("F-003 (m): Enter alone does not send (it is a newline); a multi-line instruction is sent whole with Ctrl+Enter", async () => {
+    expect(box().tagName).toBe("TEXTAREA");
+    type("linha 1\n\nlinha 3");
+    const enterKey = fireEvent.keyDown(box(), { key: "Enter" }); // not cancelled: the browser inserts the newline
+    expect(enterKey).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fetchMock.mockResolvedValue(res("v1"));
+    await act(async () => {
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(bodyOf(1).instruction).toBe("linha 1\n\nlinha 3");
+  });
+
+  it("an instruction of exactly 2,000 characters is sent", async () => {
+    fetchMock.mockResolvedValue(res("v1"));
+    type("a".repeat(2000));
+    await click("Enviar alterações");
+    expect(bodyOf(1).instruction.length).toBe(2000);
   });
 
   it("one click = one request with instruction + draft; replaces text and clears the box", async () => {
@@ -95,13 +119,13 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
     expect(box().value).toBe("");
   });
 
-  it("Enter sends exactly one request; disabled while pending", async () => {
+  it("Ctrl+Enter sends exactly one request; disabled while pending", async () => {
     let resolve!: (v: unknown) => void;
     fetchMock.mockReturnValue(new Promise((r) => (resolve = r)));
     type("tira o agradecimento");
     await act(async () => {
-      fireEvent.keyDown(box(), { key: "Enter" });
-      fireEvent.keyDown(box(), { key: "Enter" });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(btn("Enviar alterações").disabled).toBe(true);
@@ -165,7 +189,7 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
     type("mais curto");
     box().focus();
     await act(async () => {
-      fireEvent.keyDown(box(), { key: "Enter" });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
     });
     expect(document.activeElement).toBe(box());
     expect(screen.getByText("Resposta atualizada").getAttribute("role")).toBe("status");
@@ -185,21 +209,21 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
   it("Enter during IME composition sends nothing", async () => {
     type("mais curto");
     await act(async () => {
-      fireEvent.keyDown(box(), { key: "Enter", isComposing: true });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true, isComposing: true });
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("zero-width-only and over-300 instructions cannot be sent", async () => {
+  it("zero-width-only and over-2000 instructions cannot be sent", async () => {
     type("​ ​");
     expect(btn("Enviar alterações").disabled).toBe(true);
     await act(async () => {
-      fireEvent.keyDown(box(), { key: "Enter" });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
     });
-    type("a".repeat(301)); // IME can exceed maxLength
+    type("a".repeat(2001)); // IME can exceed maxLength
     expect(btn("Enviar alterações").disabled).toBe(true);
     await act(async () => {
-      fireEvent.keyDown(box(), { key: "Enter" });
+      fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -239,7 +263,7 @@ describe("reply refinement (F-003 amendment (d), AC-54, AC-56)", () => {
   it("a suggestion over 2000 chars disables the box instead of truncating", async () => {
     fetchMock.mockResolvedValue(res("x".repeat(2001)));
     await click("Sugerir resposta");
-    expect(screen.queryByPlaceholderText("Ex.: mais curto, pede o prazo")).toBeNull();
+    expect(screen.queryByPlaceholderText(strings.aiRefinePlaceholder)).toBeNull();
     expect(screen.getByText(/demasiado longa/)).toBeTruthy();
   });
 });

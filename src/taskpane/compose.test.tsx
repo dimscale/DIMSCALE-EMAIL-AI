@@ -312,7 +312,7 @@ describe("refine, previous version, copy (F-010/AC-9, AC-10)", () => {
     );
     item.subject.getAsync.mockImplementation((cb: (r: R) => void) => cb(ok("RE: B")));
     fetchMock.mockResolvedValue(res("v1"));
-    fireEvent.change(screen.getByPlaceholderText("Ex.: mais curto, pede o prazo"), {
+    fireEvent.change(screen.getByPlaceholderText(strings.aiRefinePlaceholder), {
       target: { value: "  mais curto " },
     });
     await click("Enviar alterações");
@@ -350,7 +350,7 @@ describe("refine, previous version, copy (F-010/AC-9, AC-10)", () => {
     await click("Sugerir resposta");
     expect(screen.getByRole("alert")).toBeTruthy();
     fetchMock.mockResolvedValue(res("v1"));
-    fireEvent.change(screen.getByPlaceholderText("Ex.: mais curto, pede o prazo"), {
+    fireEvent.change(screen.getByPlaceholderText(strings.aiRefinePlaceholder), {
       target: { value: "mais curto" },
     });
     await click("Enviar alterações");

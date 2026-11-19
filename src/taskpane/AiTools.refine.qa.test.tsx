@@ -12,6 +12,8 @@ vi.mock("./BackendStatus", () => ({ default: () => <div role="status">stub</div>
 vi.mock("./auth", () => ({ getTokenSilent: vi.fn(), isNaaSupported: () => true, signIn: vi.fn() }));
 import App from "./App";
 import { getTokenSilent } from "./auth";
+import { MAX_INSTRUCTION } from "./AiTools";
+import { strings } from "./strings";
 
 type Cb = (r: { status: string; value?: string }) => void;
 let handler: (() => void) | undefined;
@@ -53,11 +55,11 @@ const click = async (name: string) => {
     fireEvent.click(btn(name));
   });
 };
-const box = () => screen.getByPlaceholderText("Ex.: mais curto, pede o prazo") as HTMLInputElement;
+const box = () => screen.getByPlaceholderText(strings.aiRefinePlaceholder) as HTMLTextAreaElement;
 const type = (v: string) => fireEvent.change(box(), { target: { value: v } });
 const enter = async () => {
   await act(async () => {
-    fireEvent.keyDown(box(), { key: "Enter" });
+    fireEvent.keyDown(box(), { key: "Enter", ctrlKey: true });
   });
 };
 const bodyOf = (i: number) => JSON.parse(fetchMock.mock.calls[i][1].body);
@@ -104,22 +106,22 @@ describe("whitespace-only instruction (AC-54 QA)", () => {
 });
 
 describe("Unicode at the limits, UTF-16 units (AC-53 QA, pane)", () => {
-  it("a 2,000-unit draft (1,000 emoji) is shown and sent whole; a 300-unit instruction (150 emoji) is sent", async () => {
+  it("a 2,000-unit draft (1,000 emoji) is shown and sent whole; a 2,000-unit instruction (1,000 emoji) is sent", async () => {
     fetchMock.mockResolvedValue(res(E(1000)));
     await click("Sugerir resposta");
     expect(box()).toBeTruthy(); // 2,000 units is allowed
     fetchMock.mockResolvedValue(res("ok"));
-    type(E(150));
+    type(E(1000));
     await click("Enviar alterações");
     expect(bodyOf(2).draft.length).toBe(2000);
     expect(bodyOf(2).draft).toBe(E(1000));
-    expect(bodyOf(2).instruction.length).toBe(300);
+    expect(bodyOf(2).instruction.length).toBe(MAX_INSTRUCTION);
   });
 
   it("a 1,001-emoji suggestion (2,002 units, only 1,001 code points) disables the box", async () => {
     fetchMock.mockResolvedValue(res(E(1001)));
     await click("Sugerir resposta");
-    expect(screen.queryByPlaceholderText("Ex.: mais curto, pede o prazo")).toBeNull();
+    expect(screen.queryByPlaceholderText(strings.aiRefinePlaceholder)).toBeNull();
     expect(screen.getByText(/demasiado longa/)).toBeTruthy();
   });
 });
@@ -134,7 +136,7 @@ describe("history and the reply form (AC-56 QA)", () => {
     act(() => handler?.());
     await waitFor(() => expect(screen.queryByText("v1")).toBeNull());
     expect(screen.queryByRole("button", { name: "Versão anterior" })).toBeNull();
-    expect(screen.queryByPlaceholderText("Ex.: mais curto, pede o prazo")).toBeNull(); // no suggestion, no refine box
+    expect(screen.queryByPlaceholderText(strings.aiRefinePlaceholder)).toBeNull(); // no suggestion, no refine box
     fetchMock.mockResolvedValue(res("novo"));
     await click("Sugerir resposta");
     expect(screen.getByText("novo")).toBeTruthy();

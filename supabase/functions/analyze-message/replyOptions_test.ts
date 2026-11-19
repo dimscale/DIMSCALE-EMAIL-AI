@@ -24,7 +24,7 @@ Deno.test("AC-36: match + none differs from generateDraft (F-013) only by the ma
 
 Deno.test("F-003 (g): no sign-off and one-idea-per-paragraph sentences are in every manual reply variant, never in generateDraft", async () => {
   assertEquals(NO_SIGNOFF_SENTENCE, "Do not add a closing line, sign-off or signature and never write the sender's or the user's name at the end; the user's email client adds the signature. Start with a short greeting.");
-  assertEquals(PARAGRAPH_SENTENCE, "Put each idea or request in its own short paragraph, separated by a blank line.");
+  assertEquals(PARAGRAPH_SENTENCE, "Use short paragraphs separated by a blank line.");
   const UNLESS = "unless the user's instruction explicitly asks for a closing";
   assertEquals(REFINE_NO_SIGNOFF_SENTENCE.startsWith("Do not add a closing line, sign-off or signature " + UNLESS + ", and never write the sender's or the user's name at the end;"), true);
   assert(REFINE_NO_SIGNOFF_SENTENCE.endsWith("the user's email client adds the signature. Start with a short greeting."));
